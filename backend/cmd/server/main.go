@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/opsst/PromptLearn/backend/internal/assignmentreview"
 	"github.com/opsst/PromptLearn/backend/internal/course"
 	"github.com/opsst/PromptLearn/backend/internal/httpapi"
 	"github.com/opsst/PromptLearn/backend/internal/openai"
@@ -30,6 +31,11 @@ func main() {
 	var planner syllabus.Planner = syllabus.CurriculumPlanner{}
 	mode := strings.TrimSpace(os.Getenv("SYLLABUS_PLANNER"))
 	key := strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))
+	model := strings.TrimSpace(os.Getenv("OPENAI_MODEL"))
+	if model == "" {
+		model = "gpt-4.1-mini"
+	}
+	client := openai.NewClient(key, model, &http.Client{Timeout: modelTimeout})
 	switch mode {
 	case "", "auto", "mock", "openai":
 	default:
@@ -39,25 +45,62 @@ func main() {
 		log.Fatal("OPENAI_API_KEY is required when SYLLABUS_PLANNER=openai")
 	}
 	if mode != "mock" && key != "" {
-		model := strings.TrimSpace(os.Getenv("OPENAI_MODEL"))
-		if model == "" {
-			model = "gpt-4.1-mini"
-		}
-		client := openai.NewClient(key, model, &http.Client{Timeout: modelTimeout})
 		planner = syllabus.OpenAIPlanner{Client: client}
 	}
-
+	var reviewer assignmentreview.Reviewer = assignmentreview.DemoReviewer{}
+	reviewMode := strings.TrimSpace(os.Getenv("ASSIGNMENT_REVIEW_MODE"))
+	switch reviewMode {
+	case "":
+		reviewMode = "mock"
+	case "mock":
+	case "openai":
+		if key == "" {
+			log.Fatal("OPENAI_API_KEY is required when ASSIGNMENT_REVIEW_MODE=openai")
+		}
+		reviewer = assignmentreview.OpenAIReviewer{Client: client}
+	default:
+		log.Fatal("ASSIGNMENT_REVIEW_MODE must be mock or openai")
+	}
 	dataDir := os.Getenv("PROMPTLEARN_DATA_DIR")
 	if dataDir == "" {
 		dataDir = ".promptlearn-data"
 	}
+	reviewDatabaseURL := os.Getenv("ASSIGNMENT_REVIEW_DATABASE_URL")
+	localReview := reviewMode == "openai" || reviewDatabaseURL != ""
+	if localReview {
+		host, _, err := net.SplitHostPort(addr)
+		if err != nil || !httpapi.IsLoopbackHost(host) {
+			log.Fatal("live or PostgreSQL assignment review requires a loopback HTTP_ADDR")
+		}
+	}
+	var reviewRepo assignmentreview.Repository
+	reviewHistoryDir := filepath.Join(dataDir, "assignment-reviews")
+	if reviewDatabaseURL != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		repo, err := assignmentreview.OpenPostgresDemo(ctx, reviewDatabaseURL, reviewMode)
+		cancel()
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer repo.Close()
+		reviewRepo = repo
+	} else {
+		repo, err := assignmentreview.OpenDemoRepository(reviewHistoryDir, reviewMode)
+		if err != nil {
+			log.Fatal(err)
+		}
+		reviewRepo = repo
+	}
+	reviews := assignmentreview.NewService(reviewRepo, reviewer)
+	reviewRoute := httpapi.WithAssignmentReview(reviews)
+
 	store, err := course.OpenStore(dataDir)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	syllabi := syllabus.NewService(planner)
-	handler := httpapi.NewHandler(syllabi, store)
+	handler := httpapi.NewHandler(syllabi, store, reviewRoute)
 	readTimeout := 10 * time.Second
 	if databaseURL := os.Getenv("REPLAY_DEMO_DATABASE_URL"); databaseURL != "" {
 		host, _, err := net.SplitHostPort(addr)
@@ -76,8 +119,13 @@ func main() {
 			if _, err := os.Stat(filepath.Join(webDir, "index.html")); err != nil {
 				log.Fatal("REPLAY_DEMO_WEB_DIR must point to a built Flutter web app")
 			}
-			if err := checkReplayDirectories(mediaDir, webDir); err != nil {
+			if err := checkPrivateWebDirectories(mediaDir, webDir); err != nil {
 				log.Fatal(err)
+			}
+			if _, err := os.Stat(reviewHistoryDir); !errors.Is(err, os.ErrNotExist) {
+				if err := checkPrivateWebDirectories(reviewHistoryDir, webDir); err != nil {
+					log.Fatal(err)
+				}
 			}
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -87,7 +135,7 @@ func main() {
 			log.Fatalf("open replay database: %v", err)
 		}
 		defer replays.Close()
-		handler = httpapi.NewDemoHandler(syllabi, store, replays, mediaDir, webDir)
+		handler = httpapi.NewDemoHandler(syllabi, store, replays, mediaDir, webDir, reviewRoute)
 		readTimeout = 90 * time.Second
 	}
 
@@ -104,9 +152,9 @@ func main() {
 	log.Fatal(server.ListenAndServe())
 }
 
-func checkReplayDirectories(mediaDir, webDir string) error {
+func checkPrivateWebDirectories(privateDir, webDir string) error {
 	var paths []string
-	for _, directory := range []string{mediaDir, webDir} {
+	for _, directory := range []string{privateDir, webDir} {
 		resolved, err := filepath.EvalSymlinks(directory)
 		if err != nil {
 			return err
@@ -117,8 +165,11 @@ func checkReplayDirectories(mediaDir, webDir string) error {
 		}
 		paths = append(paths, absolute)
 	}
-	if paths[0] == paths[1] || strings.HasPrefix(paths[0], paths[1]+string(os.PathSeparator)) || paths[1] == string(os.PathSeparator) {
-		return errors.New("replay files must be stored outside the Flutter web directory")
+	separator := string(os.PathSeparator)
+	privatePath, webPath := paths[0], paths[1]
+	if privatePath == webPath || privatePath == separator || webPath == separator ||
+		strings.HasPrefix(privatePath, webPath+separator) || strings.HasPrefix(webPath, privatePath+separator) {
+		return errors.New("private backend data and the Flutter web directory must not overlap")
 	}
 	return nil
 }

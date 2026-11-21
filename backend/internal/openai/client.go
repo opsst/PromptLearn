@@ -27,6 +27,7 @@ func NewClient(key, model string, client *http.Client) *Client {
 
 type JSONRequest struct {
 	Input        string
+	ImageDataURL string
 	Instructions string
 	SchemaName   string
 	Schema       json.RawMessage
@@ -41,12 +42,23 @@ type responseFormat struct {
 
 type responseRequest struct {
 	Model        string `json:"model"`
-	Input        string `json:"input"`
+	Input        any    `json:"input"`
 	Instructions string `json:"instructions"`
 	Store        bool   `json:"store"`
 	Text         struct {
 		Format responseFormat `json:"format"`
 	} `json:"text"`
+}
+
+type inputMessage struct {
+	Role    string      `json:"role"`
+	Content []inputPart `json:"content"`
+}
+
+type inputPart struct {
+	Type     string `json:"type"`
+	Text     string `json:"text,omitempty"`
+	ImageURL string `json:"image_url,omitempty"`
 }
 
 type response struct {
@@ -62,6 +74,12 @@ type response struct {
 
 func (c *Client) GenerateJSON(ctx context.Context, input JSONRequest) (json.RawMessage, error) {
 	payload := responseRequest{Model: c.model, Input: input.Input, Instructions: input.Instructions}
+	if input.ImageDataURL != "" {
+		payload.Input = []inputMessage{{Role: "user", Content: []inputPart{
+			{Type: "input_text", Text: input.Input},
+			{Type: "input_image", ImageURL: input.ImageDataURL},
+		}}}
+	}
 	payload.Text.Format = responseFormat{Type: "json_schema", Name: input.SchemaName, Strict: true, Schema: input.Schema}
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -109,7 +127,7 @@ func (r response) structuredOutput() (json.RawMessage, error) {
 		for _, content := range item.Content {
 			switch content.Type {
 			case "refusal":
-				return nil, errors.New("OpenAI refused to generate a syllabus")
+				return nil, errors.New("OpenAI refused to generate a response")
 			case "output_text":
 				output.WriteString(content.Text)
 			}

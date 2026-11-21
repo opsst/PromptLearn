@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: PromptLearn Course Syllabus API
+  title: PromptLearn Backend API
   version: 1.0.0
   description: |
     Local demo API for building, scheduling, and publishing one English mathematics syllabus per semester.
@@ -8,6 +8,7 @@ info:
     generate a draft, then preview or save the teacher's edited plan. The published endpoint returns the latest
     published snapshot. This demo is designed for a trusted local environment. Response examples abbreviate
     document_html for readability.
+    Assignment review accepts OCR evidence for one assignment item and returns guided questions with the original OCR bounds.
 servers:
   - url: http://127.0.0.1:8080
     description: Local Go service
@@ -17,6 +18,7 @@ tags:
   - name: Syllabus
   - name: Timetable
   - name: Student View
+  - name: Assignment Review
 paths:
   /healthz:
     get:
@@ -350,6 +352,114 @@ paths:
         '500':
           $ref: '#/components/responses/CourseFailed'
 
+  /v1/assignments/{assignment_id}/items/{item_id}/reviews:
+    post:
+      tags: [Assignment Review]
+      operationId: reviewAssignmentWork
+      summary: Check the student's reasoning on one assignment item
+      description: |
+        Local scaffold using a seeded assignment item. The backend loads the private question and rubric.
+        Submit OCR blocks in reading order and the same photo used to derive their normalized boxes.
+        The request body limit is 5 MiB. Each completed review is saved as feedback on the in-progress attempt.
+      parameters:
+        - name: assignment_id
+          in: path
+          required: true
+          schema: {type: string}
+          example: hw-3-2
+        - name: item_id
+          in: path
+          required: true
+          schema: {type: string}
+          example: q4
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignmentReviewInput'
+            examples:
+              paperWork:
+                $ref: '#/components/examples/AssignmentReviewInput'
+      responses:
+        '200':
+          description: Saved review result with its review ID and optional OCR highlights
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignmentReview'
+              examples:
+                needsRevision:
+                  $ref: '#/components/examples/AssignmentReviewNeedsRevision'
+                correct:
+                  $ref: '#/components/examples/AssignmentReviewCorrect'
+                unreadable:
+                  $ref: '#/components/examples/AssignmentReviewUnreadable'
+        '400':
+          description: Invalid JSON, OCR coordinates, language, focus, or image
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+              example:
+                code: invalid_input
+                message: 'invalid work submission: focused_block_id must match a submitted OCR block'
+        '403':
+          description: Review demo received a non-loopback peer or host
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+              example: {code: forbidden, message: the review demo is available on this machine only}
+        '404':
+          description: The assignment and item could not be resolved together
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+              example: {code: item_not_found, message: assignment item not found}
+        '413':
+          $ref: '#/components/responses/RequestTooLarge'
+        '409':
+          description: The student's demo attempt was already submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+              example: {code: attempt_closed, message: this assignment attempt has already been submitted}
+        '415':
+          description: Request Content-Type is not application/json
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+              example: {code: unsupported_media_type, message: send application/json}
+        '502':
+          description: The reviewer failed or could not anchor its findings to submitted blocks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+              examples:
+                invalidReview:
+                  value: {code: invalid_review, message: review could not be matched to the submitted work}
+                reviewerFailure:
+                  value: {code: review_failed, message: assignment review failed}
+        '503':
+          description: Feedback storage failed and the review was not saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+              example: {code: feedback_unavailable, message: review feedback could not be saved}
+        '504':
+          description: The reviewer request timed out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+              example: {code: review_timeout, message: assignment review timed out}
+
 components:
   parameters:
     SyllabusId:
@@ -429,7 +539,7 @@ components:
       properties:
         code:
           type: string
-          enum: [invalid_json, invalid_input, request_too_large, syllabus_unavailable, model_timeout, invalid_plan, generation_failed, not_found, not_ready, course_failed]
+          enum: [invalid_json, invalid_input, request_too_large, syllabus_unavailable, model_timeout, invalid_plan, generation_failed, not_found, not_ready, course_failed, forbidden, item_not_found, attempt_closed, unsupported_media_type, invalid_review, review_failed, feedback_unavailable, review_timeout]
         message:
           type: string
     CurriculumSource:
@@ -773,6 +883,85 @@ components:
         schedule:
           $ref: '#/components/schemas/TeachingSchedule'
 
+    OCRBox:
+      type: object
+      additionalProperties: false
+      required: [x, y, width, height]
+      description: Normalized coordinates on the submitted image, with the origin at the top left. The entire rectangle fits within the image.
+      properties:
+        x: {type: number, minimum: 0, maximum: 1}
+        y: {type: number, minimum: 0, maximum: 1}
+        width: {type: number, minimum: 0, exclusiveMinimum: true, maximum: 1}
+        height: {type: number, minimum: 0, exclusiveMinimum: true, maximum: 1}
+    OCRBlock:
+      type: object
+      additionalProperties: false
+      required: [id, text, box]
+      properties:
+        id: {type: string, minLength: 1, maxLength: 128, description: ID unique within the request.}
+        text: {type: string, minLength: 1, description: 'OCR text for this line, up to 2048 UTF-8 bytes.'}
+        box:
+          $ref: '#/components/schemas/OCRBox'
+    AssignmentReviewInput:
+      type: object
+      additionalProperties: false
+      description: Submit OCR text, positioned OCR blocks or a photo. Provide blocks to enable highlights.
+      anyOf:
+        - required: [text]
+          properties:
+            text: {minLength: 1}
+        - required: [blocks]
+          properties:
+            blocks: {minItems: 1}
+        - required: [image_data_url]
+      properties:
+        text: {type: string, description: 'OCR transcript or typed work, up to 32768 UTF-8 bytes.'}
+        blocks:
+          type: array
+          maxItems: 100
+          description: OCR blocks in reading order.
+          items:
+            $ref: '#/components/schemas/OCRBlock'
+        image_data_url:
+          type: string
+          description: Optional data URL for a Base64 JPEG or PNG. Maximum decoded size 3 MiB and maximum dimensions 4096 × 4096.
+          pattern: '^data:image/(jpeg|png);base64,'
+        focused_block_id:
+          type: string
+          description: ID of an OCR block the student circled or selected.
+        language:
+          type: string
+          enum: [en, th]
+          default: en
+    AssignmentReviewIssue:
+      type: object
+      required: [block_id, box, kind, observation, hint]
+      properties:
+        block_id: {type: string, description: Original submitted OCR block ID.}
+        box:
+          $ref: '#/components/schemas/OCRBox'
+        kind:
+          type: string
+          enum: [same_base_powers, sign, distribution, arithmetic, equivalence, missing_step, units, incomplete]
+        observation: {type: string, description: The part of the work to reconsider.}
+        hint: {type: string, description: A guiding question that leaves the next calculation to the learner.}
+    AssignmentReview:
+      type: object
+      required: [review_id, assignment_id, item_id, status, message, issues]
+      properties:
+        review_id: {type: string, description: Opaque ID of the saved review.}
+        assignment_id: {type: string}
+        item_id: {type: string}
+        status:
+          type: string
+          enum: [correct, needs_revision, unreadable]
+        message: {type: string, description: Student-facing summary in the requested language.}
+        issues:
+          type: array
+          maxItems: 3
+          description: Highlights in reading order. Empty for correct and unreadable work.
+          items:
+            $ref: '#/components/schemas/AssignmentReviewIssue'
   examples:
     Health:
       summary: Service is reachable
@@ -1101,3 +1290,68 @@ components:
         syllabus: *example_edited_syllabus
         timetable: *example_timetable
         schedule: *example_schedule
+    AssignmentReviewInput:
+      summary: Handwritten exponent work with the middle line selected
+      value:
+        text: '(x^2)(x^5)
+
+          =x^(2*5)
+
+          =x^10'
+        blocks:
+          - id: line-1
+            text: (x^2)(x^5)
+            box:
+              x: 0.075
+              y: 0.096552
+              width: 0.35
+              height: 0.165517
+          - id: line-2
+            text: =x^(2*5)
+            box: &id001
+              x: 0.075
+              y: 0.393103
+              width: 0.296875
+              height: 0.165517
+          - id: line-3
+            text: =x^10
+            box:
+              x: 0.075
+              y: 0.689655
+              width: 0.209375
+              height: 0.131034
+        image_data_url: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAACRAQAAAACa/lw5AAACY0lEQVR42u2VPW/TUBSGn3yUOsgSphJShn64E6vHDEi1qIT6M/IPYEaIOBQx9x+UsQMLWybkgaFbPIJYXHWIBxS5JIMTbB8Gu1WRmnvvD/BZzvLc89577rn3bQlm0aYBG/ABsIBo5foFRDeWrwYnWTosYAJDBbgGFpN0DXSyVL1H7/euD3hLVNJdeIdTpY3RBdKLAd6yn14MgL5KerD9qk6Fq+yjG1GnPFWBSR7A0k7ygNnEVlV09k9JwNk/tdTSW8cdQtg67ni2EuwCZ1XaHCIyzUXKo8U0F5HFQh6ONkAeUPqQB7oxW4UUAaxCIjX4J2ZdpWy5CewEQHvXm9tzu73rdePHtqJinPKzC3FK70QpfTmgTpanak/VkWmdVO0xfVwlAGGdFKAFgFMnxR5zERE5qtOGPbYaV2jABrwP+usbP7p6EuhAiddpDK1QL72cvX67ncZaMOTHYJKglS5Ti8NP2sOI7xIPATwlOO7Fe33gy8pXmyaMfgF8zGK19CibQ0RyMn3T11T0nwOR53hqQxK5EjmXA5HZTET54zqAuNq7HlttoPQNhmKOxuBuT30N/IXP2oqXASwhTXTgDngJ+GGiAYMQvlo8PdMNxWF1d85Q13ARqVp9rmm4SdyuuBYRkQN9xcraXP3jelSN+kawsbgGbMD/La7gg8lzLQ9yQVRxJ53Li8BEOsx4abLHMo1MDiO+S7cch9rPvhfv9fuaincW5xpIj7K5vuH3LM4EfGZTGF2hY3bXlcUZVZyb/uHfRfLy/Ug/FJeBofQOwDcD6f0jMZrHyuLGyoKNKzRgAzagPv4B9/4EQrZS8DsAAAAASUVORK5CYII=
+        focused_block_id: line-2
+        language: en
+    AssignmentReviewNeedsRevision:
+      summary: Highlight the first step that combined the powers incorrectly
+      value:
+        review_id: '00000000-0000-4000-8000-000000000001'
+        assignment_id: hw-3-2
+        item_id: q4
+        status: needs_revision
+        message: Take another look at the highlighted step.
+        issues:
+          - block_id: line-2
+            box: *id001
+            kind: same_base_powers
+            observation: Look at how you combined powers with the same base.
+            hint: If you write each power out as repeated multiplication, how many copies of the base are there altogether?
+    AssignmentReviewCorrect:
+      summary: The student showed valid reasoning and got the correct answer
+      value:
+        review_id: '00000000-0000-4000-8000-000000000002'
+        assignment_id: hw-3-2
+        item_id: q4
+        status: correct
+        message: Your work is correct.
+        issues: []
+    AssignmentReviewUnreadable:
+      summary: The submitted work could not be checked confidently
+      value:
+        review_id: '00000000-0000-4000-8000-000000000003'
+        assignment_id: hw-3-2
+        item_id: q4
+        status: unreadable
+        message: I couldn't check the steps with confidence. Try a clearer photo or rewrite the steps.
+        issues: []

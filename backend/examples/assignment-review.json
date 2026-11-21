@@ -1,0 +1,38 @@
+{
+  "text": "(x^2)(x^5)\n=x^(2*5)\n=x^10",
+  "blocks": [
+    {
+      "id": "line-1",
+      "text": "(x^2)(x^5)",
+      "box": {
+        "x": 0.075,
+        "y": 0.096552,
+        "width": 0.35,
+        "height": 0.165517
+      }
+    },
+    {
+      "id": "line-2",
+      "text": "=x^(2*5)",
+      "box": {
+        "x": 0.075,
+        "y": 0.393103,
+        "width": 0.296875,
+        "height": 0.165517
+      }
+    },
+    {
+      "id": "line-3",
+      "text": "=x^10",
+      "box": {
+        "x": 0.075,
+        "y": 0.689655,
+        "width": 0.209375,
+        "height": 0.131034
+      }
+    }
+  ],
+  "image_data_url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAACRAQAAAACa/lw5AAACY0lEQVR42u2VPW/TUBSGn3yUOsgSphJShn64E6vHDEi1qIT6M/IPYEaIOBQx9x+UsQMLWybkgaFbPIJYXHWIBxS5JIMTbB8Gu1WRmnvvD/BZzvLc89577rn3bQlm0aYBG/ABsIBo5foFRDeWrwYnWTosYAJDBbgGFpN0DXSyVL1H7/euD3hLVNJdeIdTpY3RBdKLAd6yn14MgL5KerD9qk6Fq+yjG1GnPFWBSR7A0k7ygNnEVlV09k9JwNk/tdTSW8cdQtg67ni2EuwCZ1XaHCIyzUXKo8U0F5HFQh6ONkAeUPqQB7oxW4UUAaxCIjX4J2ZdpWy5CewEQHvXm9tzu73rdePHtqJinPKzC3FK70QpfTmgTpanak/VkWmdVO0xfVwlAGGdFKAFgFMnxR5zERE5qtOGPbYaV2jABrwP+usbP7p6EuhAiddpDK1QL72cvX67ncZaMOTHYJKglS5Ti8NP2sOI7xIPATwlOO7Fe33gy8pXmyaMfgF8zGK19CibQ0RyMn3T11T0nwOR53hqQxK5EjmXA5HZTET54zqAuNq7HlttoPQNhmKOxuBuT30N/IXP2oqXASwhTXTgDngJ+GGiAYMQvlo8PdMNxWF1d85Q13ARqVp9rmm4SdyuuBYRkQN9xcraXP3jelSN+kawsbgGbMD/La7gg8lzLQ9yQVRxJ53Li8BEOsx4abLHMo1MDiO+S7cch9rPvhfv9fuaincW5xpIj7K5vuH3LM4EfGZTGF2hY3bXlcUZVZyb/uHfRfLy/Ug/FJeBofQOwDcD6f0jMZrHyuLGyoKNKzRgAzagPv4B9/4EQrZS8DsAAAAASUVORK5CYII=",
+  "focused_block_id": "line-2",
+  "language": "en"
+}

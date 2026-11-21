@@ -1,0 +1,23 @@
+{
+  "type": "object",
+  "properties": {
+    "status": {"type": "string", "enum": ["correct", "needs_revision", "unreadable"]},
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "block_id": {"type": "string"},
+          "kind": {
+            "type": "string",
+            "enum": ["same_base_powers", "sign", "distribution", "arithmetic", "equivalence", "missing_step", "units", "incomplete"]
+          }
+        },
+        "required": ["block_id", "kind"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["status", "findings"],
+  "additionalProperties": false
+}

@@ -7,12 +7,14 @@ import (
 	"github.com/opsst/PromptLearn/backend/internal/syllabus"
 )
 
+type RouterOption func(*http.ServeMux)
+
 // NewHandler registers the backend's HTTP routes.
-func NewHandler(syllabi *syllabus.Service, store *course.Store) http.Handler {
-	return newRouter(syllabi, store)
+func NewHandler(syllabi *syllabus.Service, store *course.Store, options ...RouterOption) http.Handler {
+	return newRouter(syllabi, store, options...)
 }
 
-func newRouter(syllabi *syllabus.Service, store *course.Store) *http.ServeMux {
+func newRouter(syllabi *syllabus.Service, store *course.Store, options ...RouterOption) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthCheck)
 	mux.HandleFunc("GET /v1/curriculum/math", mathCurriculum)
@@ -21,6 +23,9 @@ func newRouter(syllabi *syllabus.Service, store *course.Store) *http.ServeMux {
 	mux.HandleFunc("POST /v1/syllabi/preview", coursePreview)
 	if store != nil {
 		registerCourseStoreRoutes(mux, store)
+	}
+	for _, register := range options {
+		register(mux)
 	}
 	return mux
 }

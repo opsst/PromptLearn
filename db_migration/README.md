@@ -9,9 +9,28 @@
 ```sh
 createdb promptlearn_dev
 psql -X -v ON_ERROR_STOP=1 -d promptlearn_dev -f db_migration/schema.sql
+psql -X -v ON_ERROR_STOP=1 -d promptlearn_dev -f db_migration/assignment_review.sql
 ```
 
 Migration ทำงานใน transaction เดียว ตัวอย่าง query ใช้ชื่อแบบ `promptlearn.course_offerings` ตั้งค่าการเชื่อมต่อของ backend ให้เข้าถึง schema นี้ตามสิทธิ์ของบริการ
+
+## ประวัติจาก Check my work
+
+[Assignment Review migration](assignment_review.sql) เพิ่ม `assignment_work_reviews` เพื่อเก็บหนึ่งผลตรวจต่อหนึ่ง revision รวมสถานะ `correct`, `needs_revision` และ `unreadable` ใช้ไฟล์นี้เพิ่มกับฐานที่รัน initial schema แล้วได้
+
+- นักเรียนและงานต้นทางอ้างผ่าน `assignment_work_reviews → response_revisions → item_responses → submissions`
+- แต่ละขั้นที่ให้แก้มี `response_annotations` เก็บบล็อกและพิกัด OCR และ `learning_feedback` เก็บคำถามชี้แนะพร้อมรหัส `misconceptions` เมื่อระบุจุดที่เข้าใจคลาดเคลื่อนได้ ถ้างานถูกหรืออ่านไม่ชัด จะมี feedback สรุปพร้อมสถานะของรอบนั้น
+- ข้อที่ผูกกับผลการเรียนรู้เพียงข้อเดียวจะได้ `learning_feedback.outcome_id` สำหรับสรุปรายหัวข้อ ถ้ามีหลายข้อ ยังใช้ความสัมพันธ์ใน `assessment_item_outcomes` เพื่อตรวจบริบทได้
+- ใช้ `submissions.student_id` และ `misconceptions.code` สรุปตามคน และนำ `learning_feedback.id` ไปอ้างใน `practice_set_sources` เมื่อสร้างงานฝึกเฉพาะบุคคล ใช้ `assignment_work_reviews.engine` แยกข้อมูลจาก mock ขณะวิเคราะห์
+
+สำหรับเดโม PostgreSQL ให้เติมข้อมูลตัวอย่างหลังรัน migration ทั้งสองไฟล์
+
+```sh
+psql -X -v ON_ERROR_STOP=1 -d promptlearn_dev -f db_migration/demo_seed.sql
+psql -X -v ON_ERROR_STOP=1 -d promptlearn_dev -f db_migration/assignment_review_demo_seed.sql
+```
+
+ตั้ง `ASSIGNMENT_REVIEW_DATABASE_URL` ให้ backend ชี้ฐานเดโม จากนั้นเรียก `hw-3-2/q4` ระบบใช้บัญชีนักเรียนตัวอย่างที่กำหนดฝั่ง server การตรวจแต่ละครั้งเขียน revision, ผลตรวจ และ feedback ใน transaction เดียว คะแนนทางการยังอยู่ใน flow เผยแพร่คะแนน
 
 ## การตัดสินใจตาม frontend flow
 

@@ -327,7 +327,7 @@ addEventListener("DOMContentLoaded", () => {{
 <main>
 <div class="intro" id="overview">
   <h1>{title}</h1>
-  <p>Build an English mathematics syllabus for one semester, place periods on the timetable, and publish a student view.</p>
+  <p>Build a mathematics syllabus, publish the teaching schedule, or review a student's work with guided questions.</p>
   <p>Local base URL <code>{base_url}</code></p>
   <a class="spec-link" href="openapi.yaml" download>Download OpenAPI {specification}</a>
 </div>
@@ -340,6 +340,11 @@ addEventListener("DOMContentLoaded", () => {{
     <li><a href="#createSyllabus">Save the draft</a>, then <a href="#publishSyllabus">publish it</a>. Students read the latest <a href="#getPublishedSyllabus">published view</a>.</li>
   </ol>
   <p class="description">In an edited plan, assessment period numbers start at 1 within each unit. Responses number periods across the entire semester. HTML strings in examples are shortened.</p>
+</section>
+<section class="quickstart" aria-labelledby="assignment-workflow">
+  <h2 id="assignment-workflow">Check assignment work</h2>
+  <p>Send the assignment and item IDs, OCR blocks, and paper photo to <a href="#reviewAssignmentWork">assignment review</a>.
+     Draw each returned highlight from its original OCR box. Clear highlights for correct or unreadable work.</p>
 </section>
 {endpoints}
 <section class="models" id="models"><h2>Data models</h2>{models}</section>

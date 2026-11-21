@@ -19,6 +19,7 @@ backend/
 ├── cmd/server/
 │   └── main.go          # ตั้งค่าและประกอบ dependency ก่อนเปิด HTTP server
 ├── internal/
+│   ├── assignmentreview/ # ตรวจวิธีทำทีละข้อและส่งคำถามชี้แนะแบบ Guided Inquiry
 │   ├── httpapi/         # routes, JSON requests/responses และ HTTP status
 │   ├── course/          # ประกอบร่างพร้อมตาราง บันทึก และเผยแพร่ฉบับสำหรับผู้เรียน
 │   ├── replay/          # ตรวจไฟล์และเก็บคลิปย้อนหลังกับ transcript ในเดโม
@@ -181,6 +182,34 @@ Preview, Create และ Update รับ JSON รูปแบบเดีย�
 ข้อมูลเดโมเก็บใน `PROMPTLEARN_DATA_DIR` ค่าเริ่มต้นคือ `.promptlearn-data/` การเผยแพร่ต้องมีตารางครบและคะแนนรวม 100 คะแนน ผู้เรียนเห็นฉบับที่เผยแพร่ล่าสุดและฉบับร่างถัดไปเก็บแยกในไฟล์เดิม API ชุดนี้ใช้สำหรับเดโมในเครื่องและยังไม่มีบัญชีผู้ใช้หรือสิทธิ์รายห้อง
 
 ตัวอย่างเดโม [Matthayom 1 · Semester 1](examples/m1-semester-1.json) มี 54 คาบต่อห้องสำหรับสามห้อง วันหยุดและกิจกรรมโรงเรียนในตัวอย่างเป็นข้อมูลเดโม เรียก `POST /v1/syllabi/preview` ด้วย JSON นี้เพื่อดูผลพร้อมตารางโดยไม่เรียก OpenAI
+
+## Assignment Review
+
+`POST /v1/assignments/{assignment_id}/items/{item_id}/reviews` ใช้กับปุ่ม **Check my work** ผู้เรียนส่งหลักฐานการทำโจทย์หนึ่งข้อ ส่วน service ดึงโจทย์ เกณฑ์ตรวจและคำตอบอ้างอิงจาก repository โดยใช้สองรหัสใน URL
+
+```sh
+ASSIGNMENT_REVIEW_MODE=mock go run ./cmd/server
+```
+
+```sh
+curl -sS http://127.0.0.1:8080/v1/assignments/hw-3-2/items/q4/reviews \
+  -H 'Content-Type: application/json' \
+  --data-binary @examples/assignment-review.json
+```
+
+[ตัวอย่าง Request และ Response ใน API Reference](api-spec/index.html#reviewAssignmentWork) ใช้รูปสังเคราะห์ใน [ไฟล์ JSON สำหรับเดโม](examples/assignment-review.json)
+
+- ส่ง `text` จาก OCR พร้อม `blocks` ที่เรียงตามวิธีทำ แต่ละบล็อกมี `id`, `text` และ `box` ตามพิกัดสัมพัทธ์ 0–1 จากมุมซ้ายบนของรูป หากผู้เรียนวงบรรทัดใดให้ส่ง `focused_block_id` ของบล็อกนั้นได้
+- ส่งรูปกระดาษใน `image_data_url` เป็น Base64 data URL ของ JPEG หรือ PNG ขนาดรูปหลังถอดรหัสสูงสุด 3 MiB ใช้รูปที่จัดแนวเดียวกับรูปอ้างอิงของ OCR เพื่อให้ตำแหน่งไฮไลต์ตรงกัน กรณีเขียนในแอปสามารถส่งข้อความกับบล็อกได้
+- `correct` และ `unreadable` คืน `issues: []` ส่วน `needs_revision` คืน `block_id` และ `box` เดิม พร้อมคำอธิบายจุดที่ควรทบทวนและคำถามชี้แนะ Flutter ใช้กล่องเดิมแสดงผลได้ทันที ทุกผลตรวจที่ตอบสำเร็จมี `review_id` สำหรับอ้างอิงประวัติที่บันทึกแล้ว
+
+แนว **Guided Inquiry** ให้เริ่มจากขั้นแรกที่มีปัญหาและชวนผู้เรียนลองวิธีตรวจด้วยตัวเอง ตัวอย่างโจทย์เลขยกกำลังจะชวนเขียนเป็นการคูณซ้ำแล้วนับตัวฐาน ระบบใช้คำถามที่เตรียมไว้ตามประเภทข้อผิดพลาด และเก็บเฉลยไว้สำหรับการตรวจภายใน [Pedaste et al.](https://ris.utwente.nl/ws/files/7001676/1-s2.0-S1747938X15000068-main.pdf) [Lazonder and Harmsen](https://journals.sagepub.com/doi/10.3102/0034654315627366)
+
+ค่าเริ่มต้นใช้ `mock` กับโจทย์เดโม `hw-3-2/q4` และเก็บผลใต้ `PROMPTLEARN_DATA_DIR/assignment-reviews/` ตั้ง `ASSIGNMENT_REVIEW_MODE=openai` พร้อมคีย์และ loopback `HTTP_ADDR` เพื่อทดสอบโจทย์เดียวกันกับโมเดลจริง
+
+สำหรับการเก็บใน PostgreSQL ให้รัน [migration และ seed ของเดโม](../db_migration/README.md#ประวัติจาก-check-my-work) แล้วตั้ง `ASSIGNMENT_REVIEW_DATABASE_URL` กับ loopback `HTTP_ADDR` ระบบจะใช้โจทย์ เกณฑ์ตรวจ และนักเรียนเดโมจากฐานข้อมูล ทุกผลตรวจที่สำเร็จบันทึกพร้อม revision, feedback และพิกัด OCR ที่เกี่ยวข้องก่อนตอบ `200` หากเขียน feedback ไม่สำเร็จ API ตอบ `503` และยกเลิก transaction รูป Base64 ใช้ตอนตรวจ ส่วนประวัติเก็บข้อความ OCR พิกัด และข้อมูลว่ามีการแนบรูป
+
+โหมดเดโมเรียกได้จากเครื่องเดียวกับ server และใช้เฉพาะนักเรียนตัวอย่างที่ backend กำหนดไว้ การใช้งานกับ assignment จริงต้องผูกตัวตนจาก session ที่ยืนยันแล้ว
 
 ## การไหลของคำขอ
 
