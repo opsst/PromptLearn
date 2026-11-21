@@ -7,8 +7,17 @@ import (
 	"github.com/opsst/PromptLearn/backend/internal/syllabus"
 )
 
+// CourseStore persists draft and published syllabus views.
+type CourseStore interface {
+	Create(course.Preview) (course.Saved, error)
+	Get(string) (course.Saved, error)
+	Update(string, course.Preview) (course.Saved, error)
+	Publish(string) (course.Saved, error)
+	StudentView(string) (course.StudentView, error)
+}
+
 // NewHandler registers the backend's HTTP routes.
-func NewHandler(syllabi *syllabus.Service, store *course.Store) http.Handler {
+func NewHandler(syllabi *syllabus.Service, store CourseStore) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthCheck)
 	mux.HandleFunc("GET /v1/curriculum/math", mathCurriculum)
