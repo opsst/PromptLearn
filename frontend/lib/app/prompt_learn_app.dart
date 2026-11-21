@@ -2,21 +2,31 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../data/repositories/mock_homework_checker.dart';
 import '../domain/models/user_role.dart';
-import 'http_inspector.dart';
+import '../domain/repositories/homework_checker.dart';
 import '../domain/repositories/role_repository.dart';
 import '../ui/core/layout/app_navigation.dart';
+import '../ui/core/layout/app_page_layout.dart';
 import '../ui/core/theme/app_theme.dart';
+import '../ui/features/assessment/views/student_homework_view.dart';
+import '../ui/features/assessment/widgets/homework_notebook.dart';
 import '../ui/features/auth/views/role_selection_view.dart';
 import '../ui/features/home/views/student_home_view.dart';
 import '../ui/features/home/views/teacher_home_view.dart';
 import '../ui/features/replay/replay_view_stub.dart'
     if (dart.library.js_interop) '../ui/features/replay/replay_view_web.dart';
+import 'http_inspector.dart';
 
 class PromptLearnApp extends StatelessWidget {
-  const PromptLearnApp({super.key, required this.roleRepository});
+  const PromptLearnApp({
+    super.key,
+    required this.roleRepository,
+    this.homeworkChecker = const MockHomeworkChecker(),
+  });
 
   final RoleRepository roleRepository;
+  final HomeworkChecker homeworkChecker;
 
   @override
   Widget build(BuildContext context) {
@@ -29,16 +39,20 @@ class PromptLearnApp extends StatelessWidget {
       localizationsDelegates: HttpInspector.localizationsDelegates,
       home: AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.light,
-        child: _RoleGate(repository: roleRepository),
+        child: _RoleGate(
+          repository: roleRepository,
+          homeworkChecker: homeworkChecker,
+        ),
       ),
     );
   }
 }
 
 class _RoleGate extends StatefulWidget {
-  const _RoleGate({required this.repository});
+  const _RoleGate({required this.repository, required this.homeworkChecker});
 
   final RoleRepository repository;
+  final HomeworkChecker homeworkChecker;
 
   @override
   State<_RoleGate> createState() => _RoleGateState();
@@ -104,14 +118,23 @@ class _RoleGateState extends State<_RoleGate> {
       return RoleSelectionView(onSelect: _changeRole, isSaving: _saving);
     }
 
-    return _PromptLearnShell(role: role, onSwitchRole: () => _changeRole(null));
+    return _PromptLearnShell(
+      role: role,
+      homeworkChecker: widget.homeworkChecker,
+      onSwitchRole: () => _changeRole(null),
+    );
   }
 }
 
 class _PromptLearnShell extends StatefulWidget {
-  const _PromptLearnShell({required this.role, required this.onSwitchRole});
+  const _PromptLearnShell({
+    required this.role,
+    required this.homeworkChecker,
+    required this.onSwitchRole,
+  });
 
   final UserRole role;
+  final HomeworkChecker homeworkChecker;
   final VoidCallback onSwitchRole;
 
   @override
@@ -120,6 +143,15 @@ class _PromptLearnShell extends StatefulWidget {
 
 class _PromptLearnShellState extends State<_PromptLearnShell> {
   var _destination = AppDestination.home;
+  bool _homeworkOpen = false;
+  late final _homeworkNotebook = HomeworkNotebook();
+
+  void _selectDestination(AppDestination destination) {
+    setState(() {
+      _destination = destination;
+      _homeworkOpen = false;
+    });
+  }
 
   Widget _buildHome() {
     const displayName = 'Alexander P.';
@@ -127,10 +159,56 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
 
     return switch (widget.role) {
       UserRole.teacher => TeacherHomeView(displayName: displayName, now: now),
-      UserRole.student => SingleChildScrollView(
-        child: StudentHomeView(displayName: displayName, now: now),
+      UserRole.student => StudentHomeView(
+        displayName: displayName,
+        now: now,
+        onOpenHomework: () => setState(() => _homeworkOpen = true),
       ),
     };
+  }
+
+  Widget _buildPage(BuildContext context, {required bool wide}) {
+    if (_destination == AppDestination.home) {
+      final home = _buildHome();
+      if (widget.role == UserRole.teacher) return home;
+
+      return PopScope(
+        canPop: !_homeworkOpen,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && _homeworkOpen) _selectDestination(AppDestination.home);
+        },
+        child: IndexedStack(
+          index: _homeworkOpen ? 1 : 0,
+          sizing: StackFit.expand,
+          children: [
+            ExcludeFocus(excluding: _homeworkOpen, child: home),
+            if (_homeworkOpen)
+              StudentHomeworkView(
+                notebook: _homeworkNotebook,
+                checker: widget.homeworkChecker,
+                onBack: () => _selectDestination(AppDestination.home),
+              ),
+          ],
+        ),
+      );
+    }
+
+    if (kIsWeb && _destination == AppDestination.courses) {
+      return SingleChildScrollView(child: ReplayView(role: widget.role));
+    }
+
+    return AppPageLayout(
+      header: ColoredBox(
+        color: AppColors.header,
+        child: Padding(
+          padding: EdgeInsets.all(wide ? 42 : 20),
+          child: Text(
+            _destination.label,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -147,9 +225,7 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
               destination: _destination,
               vertical: useSidebar,
               onSwitchRole: widget.onSwitchRole,
-              onSelected: (destination) {
-                setState(() => _destination = destination);
-              },
+              onSelected: _selectDestination,
             );
             final double inset = wide ? 25 : 12;
             final corners = BorderRadius.circular(wide ? 40 : 24);
@@ -177,26 +253,7 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
                   child: ColoredBox(
                     color: AppColors.canvas,
                     child: SizedBox.expand(
-                      child: _destination == AppDestination.home
-                          ? _buildHome()
-                          : SingleChildScrollView(
-                              child:
-                                  kIsWeb &&
-                                      _destination == AppDestination.courses
-                                  ? ReplayView(role: widget.role)
-                                  : ColoredBox(
-                                      color: AppColors.header,
-                                      child: Padding(
-                                        padding: EdgeInsets.all(wide ? 42 : 20),
-                                        child: Text(
-                                          _destination.label,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .titleLarge,
-                                        ),
-                                      ),
-                                    ),
-                            ),
+                      child: _buildPage(context, wide: wide),
                     ),
                   ),
                 ),

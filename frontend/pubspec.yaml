@@ -27,6 +27,8 @@ flutter:
   assets:
     - assets/navigation/
     - assets/home/
+    - assets/student_home/
+    - assets/assessment/
   fonts:
     - family: Inter
       fonts:

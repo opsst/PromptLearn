@@ -211,6 +211,49 @@ void main() {
     });
   }
 
+  testWidgets('Math homework on Student Home opens the worksheet', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1366, 1024));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _openApp(tester, _MemoryRoleRepository(UserRole.student));
+
+    final assignment = find.text('HW 3.1 · Exponent practice');
+    await tester.ensureVisible(assignment);
+    await tester.pumpAndSettle();
+    await tester.tap(assignment);
+    await tester.pumpAndSettle();
+
+    final title = find.text('HW 3.1 · Mathematics');
+    expect(title, findsOneWidget);
+    expect(find.text('Question 1'), findsOneWidget);
+    await tester.tap(find.byTooltip('Next question'));
+    await tester.pumpAndSettle();
+
+    await tester.binding.setSurfaceSize(const Size(800, 480));
+    await tester.pumpAndSettle();
+    final headerOffset = tester.getTopLeft(title);
+    final question = find.text('Question 2');
+    final questionOffset = tester.getTopLeft(question);
+    await tester.drag(question, const Offset(0, -120));
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(question).dy, lessThan(questionOffset.dy));
+    expect(tester.getTopLeft(title), headerOffset);
+
+    await tester.binding.setSurfaceSize(const Size(1366, 1024));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Back to Home'));
+    await tester.pumpAndSettle();
+    expect(assignment.hitTestable(), findsOneWidget);
+    await tester.tap(assignment);
+    await tester.pumpAndSettle();
+    expect(find.text('Question 2'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(assignment.hitTestable(), findsOneWidget);
+  });
+
   testWidgets('Remembers the login role until the logo is tapped', (
     tester,
   ) async {
