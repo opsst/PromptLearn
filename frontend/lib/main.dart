@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,8 +14,12 @@ import 'data/repositories/api_homework_checker.dart';
 import 'data/repositories/local_role_repository.dart';
 import 'data/services/api_http_client.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    await Firebase.initializeApp();
+  }
+
   final roleRepository = LocalRoleRepository(SharedPreferencesAsync());
   const apiBase = String.fromEnvironment('PROMPTLEARN_API_BASE_URL');
   if (apiBase.isEmpty) {
