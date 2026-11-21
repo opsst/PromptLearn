@@ -84,6 +84,8 @@ Teacher Home จัดคาบถัดไป แผนย่อ และต�
 
 ปุ่ม **Lesson Plan** บน Teacher Home เปิด `TeacherAssessmentBuilderView` ใน `ui/features/assessment/views/` ครูเลือก Quiz หรือ Homework แล้วเพิ่มคำถามแบบ Short answer, Show work, Multiple choice หรือ True or false ได้ ข้อมูลร่างเก็บชนิดโจทย์ ข้อความ คะแนน และตัวเลือก ผู้สอนตรวจหน้าตัวอย่างนักเรียนได้ก่อนเพิ่มเฉลยในขั้นถัดไป
 
+หน้า Create Assessment ใช้ `AppPageLayout` ตรึง Header และเลื่อนเฉพาะเนื้อหา บนแท็บเล็ตวาง Settings กับ Questions ข้างกันและจัดปุ่ม Header ในแถวเดียว หน้าต่างแคบเรียง Questions ก่อน Settings เพื่อให้เข้าถึงปุ่มเขียนโจทย์ได้ทันที
+
 `AssessmentDraftController` จัดลำดับการบันทึกร่างผ่าน `AssessmentDraftRepository` โดยใช้ SharedPreferences สำหรับร่างของ Unit 3 ในเครื่อง การนำเข้าโจทย์จากภาพ สร้างโจทย์ด้วย AI และหน้ากำหนดเฉลยกับ rubric รอต่อในขั้นถัดไป
 
 ### หน้าตั้งค่าก่อนสอนของครู

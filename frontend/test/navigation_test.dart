@@ -140,6 +140,52 @@ void main() {
     });
   }
 
+  testWidgets('Assessment fits the tablet header and Settings at 1164 dp', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1164, 777));
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(top: 32, bottom: 16);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPadding);
+    final repository = _MemoryAssessmentDraftRepository()
+      ..stored = const AssessmentDraft(
+        questions: [
+          AssessmentQuestion(
+            kind: AssessmentQuestionKind.shortAnswer,
+            prompt: 'Simplify the expression.',
+            points: 1,
+          ),
+          AssessmentQuestion(
+            kind: AssessmentQuestionKind.showWork,
+            prompt: 'Explain each step.',
+            points: 1,
+          ),
+        ],
+      );
+
+    await _openApp(
+      tester,
+      _MemoryRoleRepository(UserRole.teacher),
+      assessment: repository,
+    );
+    await tester.tap(find.text('Lesson Plan'));
+    await tester.pumpAndSettle();
+
+    final preview = tester.getCenter(find.text('Preview as student'));
+    final rubric = tester.getCenter(find.text('Next: Scoring rubric'));
+    expect(preview.dy, closeTo(rubric.dy, 1));
+    expect(preview.dx, lessThan(rubric.dx));
+    expect(find.text('Shuffle question order').hitTestable(), findsOneWidget);
+
+    final header = tester.getTopLeft(find.text('Create Assessment'));
+    await tester.drag(find.text('Questions'), const Offset(0, -250));
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(find.text('Create Assessment')), header);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Teacher saves and previews all four assessment question types', (
     tester,
   ) async {

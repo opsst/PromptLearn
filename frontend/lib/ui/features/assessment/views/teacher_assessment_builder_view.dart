@@ -11,7 +11,10 @@ import '../widgets/assessment_student_preview.dart';
 const _ink = Color(0xFF202438);
 const _green = Color(0xFF1E6C50);
 const _tint = Color(0xFFE3F1E9);
-const _line = Color(0xFFE2E9E5);
+const _line = Color(0xFFE6ECE8);
+const _panelGap = 22.0;
+const _settingsFlex = 31;
+const _questionsFlex = 69;
 
 enum _QuestionAction { edit, duplicate, moveUp, moveDown, remove }
 
@@ -86,9 +89,17 @@ class _TeacherAssessmentBuilderViewState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final text = theme.textTheme;
+    final assessmentText = text.copyWith(
+      titleMedium: text.titleMedium?.copyWith(fontSize: 14, height: 20 / 14),
+      bodyMedium: text.bodyMedium?.copyWith(height: 23 / 15),
+      bodySmall: text.bodySmall?.copyWith(fontSize: 12, height: 1.5),
+      labelLarge: text.labelLarge?.copyWith(fontSize: 14, height: 20 / 14),
+      labelSmall: text.labelSmall?.copyWith(fontSize: 12, height: 17 / 12),
+    );
     return Theme(
       data: theme.copyWith(
-        textTheme: theme.textTheme.apply(
+        textTheme: assessmentText.apply(
           bodyColor: _ink,
           displayColor: _ink,
           letterSpacingFactor: 0,
@@ -98,22 +109,52 @@ class _TeacherAssessmentBuilderViewState
         listenable: widget.controller,
         builder: (context, _) => LayoutBuilder(
           builder: (context, constraints) {
-            final inset = constraints.maxWidth >= 900 ? 42.0 : 16.0;
+            final inset = switch (constraints.maxWidth) {
+              >= 1130 => 48.0,
+              >= 900 => 42.0,
+              _ => 16.0,
+            };
             final width = constraints.maxWidth - 2 * inset;
             final wide = width >= 830;
+            final fullSize = width >= 1080 && constraints.maxHeight >= 840;
+            final headerHeight = fullSize ? 142.0 : 100.0;
+            final headerInline =
+                wide && MediaQuery.textScalerOf(context).scale(15) <= 18;
+            final top = fullSize ? 32.0 : 24.0;
+            final bottom = fullSize ? 36.0 : 24.0;
             return AppPageLayout(
-              header: _header(context, inset: inset, wide: wide),
+              header: _header(
+                context,
+                inset: inset,
+                inline: headerInline,
+                minHeight: headerHeight,
+                fullSize: fullSize,
+              ),
               body: DecoratedBox(
                 decoration: const BoxDecoration(
                   gradient: RadialGradient(
-                    center: Alignment(-0.8, -0.65),
-                    radius: 0.54,
-                    colors: [Color(0xFFCCEFDA), AppColors.canvas],
+                    center: Alignment(-0.79, -0.5),
+                    radius: 0.49,
+                    colors: [
+                      Color(0xFFD0F0DC),
+                      Color(0xFFEAF7EE),
+                      AppColors.canvas,
+                    ],
+                    stops: [0, 0.58, 1],
                   ),
                 ),
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(inset, 24, inset, 32),
-                  child: _body(context, wide: wide),
+                  padding: EdgeInsets.fromLTRB(inset, top, inset, bottom),
+                  child: _body(
+                    context,
+                    width: width,
+                    wide: wide,
+                    minHeight: headerInline
+                        ? (constraints.maxHeight - headerHeight - top - bottom)
+                              .clamp(0.0, double.infinity)
+                        : 0,
+                    panelPadding: fullSize ? 22 : 18,
+                  ),
                 ),
               ),
             );
@@ -126,7 +167,9 @@ class _TeacherAssessmentBuilderViewState
   Widget _header(
     BuildContext context, {
     required double inset,
-    required bool wide,
+    required bool inline,
+    required double minHeight,
+    required bool fullSize,
   }) {
     final typography = Theme.of(context).textTheme;
     final kind = _draft.kind == AssessmentKind.quiz ? 'Quiz U3' : 'Homework';
@@ -157,16 +200,30 @@ class _TeacherAssessmentBuilderViewState
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Create Assessment', style: typography.titleLarge),
+                  Text(
+                    'Create Assessment',
+                    style: typography.titleLarge?.copyWith(
+                      fontSize: fullSize ? 30 : 26,
+                      height: 1.2,
+                    ),
+                  ),
                   Text(
                     '$kind · Exponents',
                     style: typography.titleMedium?.copyWith(
                       color: AppColors.mutedText,
+                      fontSize: fullSize ? 17 : 15,
                     ),
                   ),
                 ],
               ),
-              _Label(saveStatus),
+              _Label(
+                saveStatus,
+                fontSize: 13,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+              ),
               if (state == DraftSaveState.saveFailed)
                 TextButton(
                   onPressed: () => widget.controller.update(_draft),
@@ -177,8 +234,14 @@ class _TeacherAssessmentBuilderViewState
         ),
       ],
     );
+    final controlShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    );
+    final buttonText = typography.labelLarge?.copyWith(
+      fontSize: fullSize ? 15 : 14,
+    );
     final actions = Wrap(
-      spacing: 10,
+      spacing: fullSize ? 14 : 10,
       runSpacing: 4,
       alignment: WrapAlignment.end,
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -190,7 +253,10 @@ class _TeacherAssessmentBuilderViewState
           style: OutlinedButton.styleFrom(
             foregroundColor: _ink,
             side: const BorderSide(color: _line),
-            minimumSize: const Size(0, 44),
+            minimumSize: Size(fullSize ? 196 : 0, 48),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            shape: controlShape,
+            textStyle: buttonText,
           ),
           icon: const Icon(Icons.visibility_outlined, size: 19),
           label: const Text('Preview as student'),
@@ -200,9 +266,12 @@ class _TeacherAssessmentBuilderViewState
           child: FilledButton.icon(
             onPressed: null,
             style: FilledButton.styleFrom(
-              disabledBackgroundColor: const Color(0xFF273430),
-              disabledForegroundColor: Colors.white70,
-              minimumSize: const Size(0, 44),
+              disabledBackgroundColor: const Color(0xFF0B0F0C),
+              disabledForegroundColor: const Color(0xFFD7DED9),
+              minimumSize: Size(fullSize ? 215 : 0, 48),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              shape: controlShape,
+              textStyle: buttonText,
             ),
             iconAlignment: IconAlignment.end,
             icon: const Icon(Icons.chevron_right, size: 18),
@@ -214,15 +283,15 @@ class _TeacherAssessmentBuilderViewState
     return ColoredBox(
       color: Colors.white,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 100),
+        constraints: BoxConstraints(minHeight: minHeight),
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: inset, vertical: 8),
-          child: wide
+          child: inline
               ? Row(
                   spacing: 12,
                   children: [
-                    Expanded(flex: 56, child: title),
-                    Flexible(flex: 44, child: actions),
+                    Expanded(child: title),
+                    actions,
                   ],
                 )
               : Column(
@@ -235,7 +304,13 @@ class _TeacherAssessmentBuilderViewState
     );
   }
 
-  Widget _body(BuildContext context, {required bool wide}) {
+  Widget _body(
+    BuildContext context, {
+    required double width,
+    required bool wide,
+    required double minHeight,
+    required double panelPadding,
+  }) {
     final state = widget.controller.state;
     if (state == DraftSaveState.loading) {
       return const Center(child: CircularProgressIndicator());
@@ -260,21 +335,39 @@ class _TeacherAssessmentBuilderViewState
     final totals =
         '$count ${count == 1 ? 'question' : 'questions'} · $points ${points == 1 ? 'pt' : 'pts'}';
     final settings = _AssessmentCard(
+      padding: panelPadding,
       child: AssessmentSettingsPanel(
         draft: _draft,
         totals: totals,
         onChanged: widget.controller.update,
       ),
     );
-    final questions = _AssessmentCard(child: _questions(context, totals));
+    final questionWidth = wide
+        ? (width - _panelGap) *
+              _questionsFlex /
+              (_settingsFlex + _questionsFlex)
+        : width;
+    final questions = _AssessmentCard(
+      padding: panelPadding,
+      child: _questions(
+        context,
+        totals,
+        horizontal: questionWidth - 2 * panelPadding >= 510,
+      ),
+    );
     return wide
-        ? Row(
-            spacing: 22,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(flex: 31, child: settings),
-              Expanded(flex: 69, child: questions),
-            ],
+        ? ConstrainedBox(
+            constraints: BoxConstraints(minHeight: minHeight),
+            child: IntrinsicHeight(
+              child: Row(
+                spacing: _panelGap,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(flex: _settingsFlex, child: settings),
+                  Expanded(flex: _questionsFlex, child: questions),
+                ],
+              ),
+            ),
           )
         : Column(
             spacing: 16,
@@ -283,62 +376,75 @@ class _TeacherAssessmentBuilderViewState
           );
   }
 
-  Widget _questions(BuildContext context, String totals) {
+  Widget _questions(
+    BuildContext context,
+    String totals, {
+    required bool horizontal,
+  }) {
     final typography = Theme.of(context).textTheme;
+    final actions = [
+      _QuestionSource(
+        title: 'Write in app',
+        description: 'Short answer, choice, show work',
+        icon: Icons.edit_outlined,
+        onTap: _editQuestion,
+      ),
+      const _QuestionSource(
+        title: 'Snap a photo',
+        description: 'Photo import coming soon',
+        icon: Icons.camera_alt_outlined,
+      ),
+      const _QuestionSource(
+        title: 'Generate with AI',
+        description: 'AI generation coming soon',
+        icon: Icons.auto_awesome_outlined,
+        highlighted: true,
+      ),
+    ];
     return Column(
       spacing: 14,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Wrap(
-          spacing: 10,
+          spacing: 12,
           runSpacing: 6,
+          alignment: WrapAlignment.spaceBetween,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Text(
-              'Questions',
-              style: typography.titleLarge?.copyWith(fontSize: 20),
+            Wrap(
+              spacing: 10,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  'Questions',
+                  style: typography.titleMedium?.copyWith(
+                    fontSize: 20,
+                    height: 1.3,
+                  ),
+                ),
+                _Label(totals, background: _tint, foreground: _green),
+              ],
             ),
-            _Label(totals, background: _tint, foreground: _green),
+            Text(
+              'Unit 3 · 3.1–3.2',
+              style: typography.bodySmall?.copyWith(color: AppColors.mutedText),
+            ),
           ],
         ),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final actions = [
-              _QuestionSource(
-                title: 'Write in app',
-                description: 'Short answer, show work, choice, true or false',
-                icon: Icons.edit_outlined,
-                onTap: _editQuestion,
-              ),
-              const _QuestionSource(
-                title: 'Snap a photo',
-                description: 'Photo import coming soon',
-                icon: Icons.camera_alt_outlined,
-              ),
-              const _QuestionSource(
-                title: 'Generate with AI',
-                description: 'AI generation coming soon',
-                icon: Icons.auto_awesome_outlined,
-                highlighted: true,
-              ),
-            ];
-            return constraints.maxWidth >= 525
-                ? IntrinsicHeight(
-                    child: Row(
-                      spacing: 10,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (final action in actions) Expanded(child: action),
-                      ],
-                    ),
-                  )
-                : Column(
-                    spacing: 10,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: actions,
-                  );
-          },
-        ),
+        if (horizontal)
+          IntrinsicHeight(
+            child: Row(
+              spacing: 10,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [for (final action in actions) Expanded(child: action)],
+            ),
+          )
+        else
+          Column(
+            spacing: 10,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: actions,
+          ),
         if (_draft.questions.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 18),
@@ -354,6 +460,7 @@ class _TeacherAssessmentBuilderViewState
             question: _draft.questions[index],
             index: index,
             isLast: index == _draft.questions.length - 1,
+            horizontalOptions: horizontal,
             onAction: (action) => _questionAction(index, action),
           ),
       ],
@@ -379,45 +486,58 @@ class _QuestionSource extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final typography = Theme.of(context).textTheme;
-    return Material(
-      color: highlighted ? const Color(0xFFF2F9ED) : Colors.white,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: highlighted ? AppColors.mint : _line),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            spacing: 10,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                radius: 17,
-                backgroundColor: highlighted
-                    ? AppColors.lime
-                    : AppColors.canvas,
-                child: Icon(icon, size: 18, color: highlighted ? _green : _ink),
-              ),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  spacing: 4,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: typography.titleMedium),
-                    Text(
-                      description,
-                      style: typography.bodySmall?.copyWith(
-                        color: AppColors.mutedText,
-                      ),
+    return CustomPaint(
+      foregroundPainter: highlighted ? null : const _SourceOutline(),
+      child: Material(
+        color: highlighted ? const Color(0xFFF4FBEF) : Colors.white,
+        shape: RoundedRectangleBorder(
+          side: highlighted
+              ? const BorderSide(color: AppColors.mint)
+              : BorderSide.none,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 76),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                spacing: 10,
+                children: [
+                  CircleAvatar(
+                    radius: 17,
+                    backgroundColor: highlighted
+                        ? AppColors.lime
+                        : AppColors.canvas,
+                    child: Icon(
+                      icon,
+                      size: 17,
+                      color: highlighted ? _green : _ink,
                     ),
-                  ],
-                ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      spacing: 2,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: typography.titleMedium),
+                        Text(
+                          description,
+                          style: typography.bodySmall?.copyWith(
+                            fontSize: 11,
+                            height: 15 / 11,
+                            color: AppColors.mutedText,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -425,17 +545,43 @@ class _QuestionSource extends StatelessWidget {
   }
 }
 
+class _SourceOutline extends CustomPainter {
+  const _SourceOutline();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final border = RRect.fromRectAndRadius(
+      (Offset.zero & size).deflate(0.5),
+      const Radius.circular(14),
+    );
+    final outline = (Path()..addRRect(border)).computeMetrics().single;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..strokeCap = StrokeCap.round
+      ..color = _line;
+    for (var offset = 0.0; offset < outline.length; offset += 10) {
+      canvas.drawPath(outline.extractPath(offset, offset + 4), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SourceOutline oldDelegate) => false;
+}
+
 class _QuestionCard extends StatelessWidget {
   const _QuestionCard({
     required this.question,
     required this.index,
     required this.isLast,
+    required this.horizontalOptions,
     required this.onAction,
   });
 
   final AssessmentQuestion question;
   final int index;
   final bool isLast;
+  final bool horizontalOptions;
   final ValueChanged<_QuestionAction> onAction;
 
   @override
@@ -447,7 +593,7 @@ class _QuestionCard extends StatelessWidget {
         border: Border.all(color: _line),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 10, 14),
+        padding: const EdgeInsets.fromLTRB(16, 8, 12, 14),
         child: Column(
           spacing: 8,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -470,51 +616,51 @@ class _QuestionCard extends StatelessWidget {
                   ),
                 ),
                 Text('${question.points} pt', style: typography.labelSmall),
-                PopupMenuButton<_QuestionAction>(
-                  tooltip: 'Question ${index + 1} actions',
-                  icon: const Icon(
-                    Icons.more_horiz,
-                    color: AppColors.mutedText,
+                SizedBox(
+                  width: 40,
+                  height: 32,
+                  child: PopupMenuButton<_QuestionAction>(
+                    padding: EdgeInsets.zero,
+                    iconSize: 19,
+                    tooltip: 'Question ${index + 1} actions',
+                    icon: const Icon(
+                      Icons.more_horiz,
+                      color: AppColors.mutedText,
+                    ),
+                    onSelected: onAction,
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: _QuestionAction.edit,
+                        child: Text('Edit'),
+                      ),
+                      const PopupMenuItem(
+                        value: _QuestionAction.duplicate,
+                        child: Text('Duplicate'),
+                      ),
+                      PopupMenuItem(
+                        value: _QuestionAction.moveUp,
+                        enabled: index > 0,
+                        child: const Text('Move up'),
+                      ),
+                      PopupMenuItem(
+                        value: _QuestionAction.moveDown,
+                        enabled: !isLast,
+                        child: const Text('Move down'),
+                      ),
+                      const PopupMenuItem(
+                        value: _QuestionAction.remove,
+                        child: Text('Delete'),
+                      ),
+                    ],
                   ),
-                  onSelected: onAction,
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: _QuestionAction.edit,
-                      child: Text('Edit'),
-                    ),
-                    const PopupMenuItem(
-                      value: _QuestionAction.duplicate,
-                      child: Text('Duplicate'),
-                    ),
-                    PopupMenuItem(
-                      value: _QuestionAction.moveUp,
-                      enabled: index > 0,
-                      child: const Text('Move up'),
-                    ),
-                    PopupMenuItem(
-                      value: _QuestionAction.moveDown,
-                      enabled: !isLast,
-                      child: const Text('Move down'),
-                    ),
-                    const PopupMenuItem(
-                      value: _QuestionAction.remove,
-                      child: Text('Delete'),
-                    ),
-                  ],
                 ),
               ],
             ),
             Text(question.prompt, style: typography.bodyMedium),
             if (question.options.isNotEmpty)
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  for (var index = 0; index < question.options.length; index++)
-                    _Label(
-                      '${String.fromCharCode(65 + index)}  ${question.options[index]}',
-                    ),
-                ],
+              _ChoiceOptions(
+                options: question.options,
+                horizontal: horizontalOptions,
               ),
           ],
         ),
@@ -523,16 +669,70 @@ class _QuestionCard extends StatelessWidget {
   }
 }
 
+class _ChoiceOptions extends StatelessWidget {
+  const _ChoiceOptions({required this.options, required this.horizontal});
+
+  final List<String> options;
+  final bool horizontal;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final tiles = [
+      for (var index = 0; index < options.length; index++)
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.canvas,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: 8,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    String.fromCharCode(65 + index),
+                    style: text.labelSmall?.copyWith(
+                      color: AppColors.mutedText,
+                    ),
+                  ),
+                ),
+                Flexible(child: Text(options[index], style: text.bodyMedium)),
+              ],
+            ),
+          ),
+        ),
+    ];
+    return horizontal
+        ? IntrinsicHeight(
+            child: Row(
+              spacing: 8,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [for (final tile in tiles) Expanded(child: tile)],
+            ),
+          )
+        : Wrap(spacing: 8, runSpacing: 6, children: tiles);
+  }
+}
+
 class _Label extends StatelessWidget {
   const _Label(
     this.text, {
     this.background = AppColors.canvas,
     this.foreground = AppColors.mutedText,
+    this.fontSize,
+    this.padding = const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
   });
 
   final String text;
   final Color background;
   final Color foreground;
+  final double? fontSize;
+  final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
@@ -541,25 +741,26 @@ class _Label extends StatelessWidget {
       shape: const StadiumBorder(),
     ),
     child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      padding: padding,
       child: Text(
         text,
         style: Theme.of(context).textTheme.labelSmall
-            ?.copyWith(color: foreground),
+            ?.copyWith(color: foreground, fontSize: fontSize),
       ),
     ),
   );
 }
 
 class _AssessmentCard extends StatelessWidget {
-  const _AssessmentCard({required this.child});
+  const _AssessmentCard({required this.child, this.padding = 20});
 
   final Widget child;
+  final double padding;
 
   @override
   Widget build(BuildContext context) => Material(
     color: Colors.white,
     borderRadius: BorderRadius.circular(16),
-    child: Padding(padding: const EdgeInsets.all(20), child: child),
+    child: Padding(padding: EdgeInsets.all(padding), child: child),
   );
 }
