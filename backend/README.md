@@ -1,6 +1,6 @@
 # PromptLearn Backend
 
-Go HTTP service สำหรับใช้งานจาก Flutter ใช้ Go 1.24 ขึ้นไปและ standard library
+Go HTTP service สำหรับใช้งานจาก Flutter ใช้ Go 1.24 ขึ้นไป เดโมคลิปย้อนหลังใช้ PostgreSQL ผ่าน pgx
 
 ## โครงสร้างโปรเจกต์
 
@@ -11,6 +11,7 @@ backend/
 ├── internal/
 │   ├── httpapi/         # routes, JSON requests/responses และ HTTP status
 │   ├── course/          # ประกอบร่างพร้อมตาราง บันทึก และเผยแพร่ฉบับสำหรับผู้เรียน
+│   ├── replay/          # ตรวจไฟล์และเก็บคลิปย้อนหลังกับ transcript ในเดโม
 │   ├── curriculum/      # ข้อมูลคณิตศาสตร์จาก PDF ของ สพฐ. และคำแปลอังกฤษ
 │   ├── syllabus/        # ร่างแผนรายเทอม ตรวจเงื่อนไข จัดหน่วยและคาบ และ render HTML
 │   ├── teaching/        # คำนวณคาบ ตรวจวันหยุดและคาบซ้อน และลงคาบให้แต่ละห้อง
@@ -45,6 +46,34 @@ curl -i http://127.0.0.1:8080/healthz
 `GET /healthz` ตอบ HTTP 200 พร้อม JSON `{"status":"ok"}` เมื่อ HTTP service รับคำขอได้
 
 ค่าเริ่มต้นฟังที่ `127.0.0.1:8080` กำหนด `HTTP_ADDR=0.0.0.0:8080` ได้เมื่อต้องทดสอบจากอุปกรณ์ในเครือข่ายเดียวกัน
+
+## รันเดโมคลิปย้อนหลัง
+
+ต้องมี PostgreSQL 14 ขึ้นไป, `ffprobe` จาก FFmpeg และ Flutter จาก root ของ repo ให้สร้างฐานข้อมูลเดโมใหม่ด้วยการตั้งค่าการเชื่อมต่อ PostgreSQL ในเครื่อง
+
+```sh
+createdb promptlearn_replay
+psql -X -v ON_ERROR_STOP=1 -d promptlearn_replay -f db_migration/schema.sql
+psql -X -v ON_ERROR_STOP=1 -d promptlearn_replay -f db_migration/demo_seed.sql
+```
+
+Build Flutter Web แล้วเปิด Go ให้บริการหน้าเว็บและ API จาก origin เดียวกัน
+
+```sh
+(cd frontend && flutter build web --no-web-resources-cdn)
+cd backend
+REPLAY_DEMO_DATABASE_URL='postgresql:///promptlearn_replay' \
+REPLAY_DEMO_WEB_DIR='../frontend/build/web' \
+SYLLABUS_PLANNER=mock go run ./cmd/server
+```
+
+1. เปิด `http://127.0.0.1:8080` ใน Chrome เลือก **Login as Teacher** แล้วเปิด **Courses**
+2. เลือก [คลิปตัวอย่างภาษาไทย](examples/thai-lesson.mp4) และ [transcript ที่เตรียมไว้](examples/thai-lesson.transcript.json) กด **อัปโหลด** แล้วกด **เผยแพร่**
+3. กดโลโก้เพื่อสลับเป็น **Login as Student** เปิด **Courses** แล้วกดเวลาใน transcript เพื่อกระโดดไปยังช่วงนั้นของคลิป
+
+เดโมเปิด route เมื่อกำหนด `REPLAY_DEMO_DATABASE_URL` และรับเฉพาะการเชื่อมต่อ loopback บทบาทที่เลือกใน UI ใช้เพื่อสาธิตในเครื่อง ไฟล์อยู่ใต้ `PROMPTLEARN_DATA_DIR/replay` โดยค่าเริ่มต้นเป็น `.promptlearn-data/replay` ส่วนสถานะเผยแพร่และ transcript อยู่ใน PostgreSQL
+
+ทดสอบการเผยแพร่ การซ่อนฉบับร่าง และ HTTP Range ด้วย `REPLAY_TEST_DATABASE_URL=… go test ./internal/httpapi -run TestReplayPublication -count=1` จาก `backend/` โดยใช้ฐานทดสอบใหม่ที่ลง schema และ seed แล้ว
 
 ## ข้อมูลอ้างอิงสำหรับ Course Syllabus
 

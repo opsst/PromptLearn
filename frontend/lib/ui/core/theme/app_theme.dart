@@ -60,6 +60,7 @@ abstract final class AppTheme {
       onTertiaryContainer: AppColors.ink,
     ),
     fontFamily: 'Inter',
+    fontFamilyFallback: const ['Noto Sans Thai'],
     textTheme: const TextTheme(
       displayLarge: _large,
       displayMedium: _large,
