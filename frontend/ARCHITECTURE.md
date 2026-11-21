@@ -80,6 +80,12 @@ frontend/
 
 Teacher Home จัดคาบถัดไป แผนย่อ และตาราง Today ตามความกว้างที่เหลือหลังหัก Navbar และระยะขอบ หากพื้นที่แคบ การ์ดจะเรียงลงด้านล่าง ส่วนหน้าต่างแนวนอนที่เตี้ยใช้ความสูงของเนื้อหาจริงสำหรับแผนย่อเพื่อลดระยะเลื่อน
 
+### หน้าสร้างข้อสอบของครู
+
+ปุ่ม **Lesson Plan** บน Teacher Home เปิด `TeacherAssessmentBuilderView` ใน `ui/features/assessment/views/` ครูเลือก Quiz หรือ Homework แล้วเพิ่มคำถามแบบ Short answer, Show work, Multiple choice หรือ True or false ได้ ข้อมูลร่างเก็บชนิดโจทย์ ข้อความ คะแนน และตัวเลือก ผู้สอนตรวจหน้าตัวอย่างนักเรียนได้ก่อนเพิ่มเฉลยในขั้นถัดไป
+
+`AssessmentDraftController` จัดลำดับการบันทึกร่างผ่าน `AssessmentDraftRepository` โดยใช้ SharedPreferences สำหรับร่างของ Unit 3 ในเครื่อง การนำเข้าโจทย์จากภาพ สร้างโจทย์ด้วย AI และหน้ากำหนดเฉลยกับ rubric รอต่อในขั้นถัดไป
+
 ### หน้าตั้งค่าก่อนสอนของครู
 
 ปุ่ม **Start Class** จาก Teacher Home เปิด `TeacherClassSetupView` ใน `lib/ui/features/classroom/views/` ภายใน shell เดิม คงตำแหน่งการเลื่อนของ Home ไว้เมื่อกดย้อนกลับ Header ตรึงด้านบนด้วย `AppPageLayout` ส่วนข้อมูลคาบและแผนตัวอย่างใน `classroom/models/` ใช้ร่วมกับแผนแบบย่อบน Teacher Home

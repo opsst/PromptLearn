@@ -4,7 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptlearn/app/prompt_learn_app.dart';
+import 'package:promptlearn/domain/models/assessment_draft.dart';
 import 'package:promptlearn/domain/models/user_role.dart';
+import 'package:promptlearn/domain/repositories/assessment_draft_repository.dart';
 import 'package:promptlearn/domain/repositories/role_repository.dart';
 import 'package:promptlearn/domain/services/class_recording_service.dart';
 import 'package:promptlearn/ui/features/home/views/student_home_view.dart';
@@ -81,7 +83,7 @@ void main() {
     const Size(800, 1200),
     const Size(360, 640),
   ]) {
-    testWidgets('Teacher dashboard and lesson plan work at $size', (
+    testWidgets('Teacher dashboard and assessment builder work at $size', (
       tester,
     ) async {
       await tester.binding.setSurfaceSize(size);
@@ -129,16 +131,127 @@ void main() {
       await tester.ensureVisible(lessonPlan);
       await tester.tap(lessonPlan);
       await tester.pumpAndSettle();
-      expect(
-        find.descendant(
-          of: find.byType(AlertDialog),
-          matching: find.text('Warm-up'),
-        ),
-        findsOneWidget,
-      );
+      expect(find.text('Create Assessment'), findsOneWidget);
+      expect(find.text('Write in app').hitTestable(), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(lessonPlan.hitTestable(), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('Teacher saves and previews all four assessment question types', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1366, 1024));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final role = _MemoryRoleRepository(UserRole.teacher);
+    final draftRepository = _MemoryAssessmentDraftRepository();
+    await _openApp(tester, role, assessment: draftRepository);
+
+    Future<void> tap(Finder finder) async {
+      await tester.ensureVisible(finder);
+      await tester.tap(finder);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> type(String label, String value) async {
+      final field = find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField && widget.decoration?.labelText == label,
+      );
+      await tester.ensureVisible(field);
+      await tester.enterText(field, value);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> addQuestion(
+      String kind,
+      String prompt, {
+      int points = 1,
+      List<String> options = const [],
+      bool checkValidation = false,
+    }) async {
+      await tap(find.text('Write in app'));
+      await tap(
+        find.descendant(
+          of: find.byType(SimpleDialog),
+          matching: find.text(kind),
+        ),
+      );
+      final save = find.text('Save question');
+      if (checkValidation) {
+        await tap(save);
+        expect(find.text('Enter a question.'), findsOneWidget);
+      }
+      await type(kind == 'True or false' ? 'Statement' : 'Question', prompt);
+      await type('Points', points.toString());
+      for (var index = 0; index < options.length; index++) {
+        await type('Option ${String.fromCharCode(65 + index)}', options[index]);
+      }
+      await tap(save);
+      expect(find.text(prompt), findsOneWidget);
+    }
+
+    await tap(find.text('Lesson Plan'));
+    expect(find.text('0 questions · 0 pts'), findsNWidgets(2));
+    await tap(find.text('Homework'));
+    expect(find.text('Homework · Exponents'), findsOneWidget);
+    await addQuestion(
+      'Short answer',
+      'Write the result as a single power.',
+      checkValidation: true,
+    );
+    await addQuestion(
+      'Show work',
+      'Expand each factor and show your steps.',
+      points: 3,
+    );
+    await addQuestion(
+      'Multiple choice',
+      'Which is equal to 3⁴ × 3²?',
+      points: 2,
+      options: ['3⁸', '3⁶'],
+    );
+    await addQuestion(
+      'True or false',
+      'Powers with the same base have the same value.',
+    );
+    expect(find.text('4 questions · 7 pts'), findsNWidgets(2));
+    expect(find.text('Draft · auto-saved'), findsOneWidget);
+    expect(
+      draftRepository.stored?.questions.map((question) => question.kind),
+      AssessmentQuestionKind.values,
+    );
+
+    await tap(find.byTooltip('Question 2 actions'));
+    await tap(find.text('Move up'));
+    expect(
+      draftRepository.stored?.questions.first.kind,
+      AssessmentQuestionKind.showWork,
+    );
+
+    await tap(find.text('Preview as student'));
+    final preview = find.byType(AlertDialog);
+    expect(
+      find.descendant(of: preview, matching: find.text('True')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: preview, matching: find.text('3⁶')),
+      findsOneWidget,
+    );
+    expect(find.byType(ChoiceChip), findsNWidgets(4));
+    await tap(find.text('Close preview'));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await _openApp(tester, role, assessment: draftRepository);
+    await tap(find.text('Lesson Plan'));
+    expect(find.text('Homework · Exponents'), findsOneWidget);
+    expect(find.text('4 questions · 7 pts'), findsNWidgets(2));
+    expect(find.text('Which is equal to 3⁴ × 3²?'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   for (final size in [const Size(1366, 1024), const Size(360, 640)]) {
     testWidgets('Teacher can configure and teach without recording at $size', (
@@ -535,11 +648,20 @@ Future<void> _openApp(
   WidgetTester tester,
   RoleRepository repository, {
   ClassRecordingService? recording,
+  AssessmentDraftRepository? assessment,
 }) async {
+  final drafts = assessment ?? _MemoryAssessmentDraftRepository();
   await tester.pumpWidget(
     recording == null
-        ? PromptLearnApp(roleRepository: repository)
-        : PromptLearnApp(roleRepository: repository, classRecording: recording),
+        ? PromptLearnApp(
+            roleRepository: repository,
+            assessmentDraftRepository: drafts,
+          )
+        : PromptLearnApp(
+            roleRepository: repository,
+            classRecording: recording,
+            assessmentDraftRepository: drafts,
+          ),
   );
   await tester.pumpAndSettle();
 }
@@ -670,4 +792,16 @@ class _FakeVideoPlayerPlatform extends VideoPlayerPlatform {
 
   @override
   Future<void> setPlaybackSpeed(int playerId, double speed) async {}
+}
+
+class _MemoryAssessmentDraftRepository implements AssessmentDraftRepository {
+  AssessmentDraft? stored;
+
+  @override
+  Future<AssessmentDraft?> load() async => stored;
+
+  @override
+  Future<void> save(AssessmentDraft draft) async {
+    stored = draft;
+  }
 }
