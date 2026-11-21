@@ -30,6 +30,10 @@ def schema_type(schema):
     name = model_name(schema)
     if name:
         return f'<a href="#schema-{escape(name)}">{escape(name)}</a>'
+    if "oneOf" in schema:
+        return " or ".join(schema_type(option) for option in schema["oneOf"])
+    if schema.get("format") == "binary":
+        return "binary file"
     kind = schema.get("type", "object")
     if kind == "array":
         return "array of " + schema_type(schema["items"])
@@ -148,7 +152,7 @@ def response_view(operation):
             header_text = escape(definition.get("description", ""))
             example = escape(str(definition.get("example", "")))
             body += f'<p class="description">Header <code>{escape(header)}</code> · {header_text} <code>{example}</code></p>'
-        for content_type, media in response["content"].items():
+        for content_type, media in response.get("content", {}).items():
             body += f'<p class="example-label">{escape(content_type)}</p>{schema_link(media)}{media_example(media, content_type)}'
         opened = " open" if success else ""
         color = "success" if success else "error"
@@ -327,7 +331,7 @@ addEventListener("DOMContentLoaded", () => {{
 <main>
 <div class="intro" id="overview">
   <h1>{title}</h1>
-  <p>Build an English mathematics syllabus for one semester, place periods on the timetable, and publish a student view.</p>
+  <p>Build and publish a syllabus, or upload a lesson recording and publish it for replay.</p>
   <p>Local base URL <code>{base_url}</code></p>
   <a class="spec-link" href="openapi.yaml" download>Download OpenAPI {specification}</a>
 </div>
@@ -340,6 +344,7 @@ addEventListener("DOMContentLoaded", () => {{
     <li><a href="#createSyllabus">Save the draft</a>, then <a href="#publishSyllabus">publish it</a>. Students read the latest <a href="#getPublishedSyllabus">published view</a>.</li>
   </ol>
   <p class="description">In an edited plan, assessment period numbers start at 1 within each unit. Responses number periods across the entire semester. HTML strings in examples are shortened.</p>
+  <p class="description">For video replay, <a href="#uploadReplayRecording">upload a clip and transcript</a>, <a href="#publishReplayRecording">publish the clip</a>, then <a href="#getPublishedReplay">read the current replay</a>. <a href="video-replay-curl.md">Try the flow with curl</a>.</p>
 </section>
 {endpoints}
 <section class="models" id="models"><h2>Data models</h2>{models}</section>

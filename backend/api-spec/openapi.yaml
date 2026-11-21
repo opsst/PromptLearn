@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: PromptLearn Course Syllabus API
+  title: PromptLearn Backend API
   version: 1.0.0
   description: |
     Local demo API for building, scheduling, and publishing one English mathematics syllabus per semester.
@@ -8,6 +8,8 @@ info:
     generate a draft, then preview or save the teacher's edited plan. The published endpoint returns the latest
     published snapshot. This demo is designed for a trusted local environment. Response examples abbreviate
     document_html for readability.
+    Video Replay provides a separate local demo for uploading a recording with a prepared transcript,
+    publishing it, and playing the published MP4 through the Go backend.
 servers:
   - url: http://127.0.0.1:8080
     description: Local Go service
@@ -17,6 +19,7 @@ tags:
   - name: Syllabus
   - name: Timetable
   - name: Student View
+  - name: Video Replay
 paths:
   /healthz:
     get:
@@ -350,6 +353,212 @@ paths:
         '500':
           $ref: '#/components/responses/CourseFailed'
 
+  /api/demo/recordings:
+    post:
+      tags: [Video Replay]
+      operationId: uploadReplayRecording
+      summary: Upload a draft recording and its prepared transcript
+      description: |
+        Available on loopback when REPLAY_DEMO_DATABASE_URL is configured. Uploading a draft leaves the
+        current publication visible. The video must be an MP4 with H.264 video and AAC audio if present.
+        The transcript is a UTF-8 JSON array of ReplaySegment objects, ordered by strictly increasing
+        startMs. Each cue must end within the clip duration.
+      parameters:
+        - $ref: '#/components/parameters/ReplayTeacherRole'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReplayUpload'
+            encoding:
+              video:
+                contentType: video/mp4
+              transcript:
+                contentType: application/json
+      responses:
+        '201':
+          description: Draft created. Use recordingId to publish the clip.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplayRecordingRef'
+              example:
+                recordingId: '8f368301-2f08-4a28-a652-97e07eef40d0'
+        '400':
+          $ref: '#/components/responses/ReplayInvalidMedia'
+        '403':
+          $ref: '#/components/responses/ReplayForbidden'
+        '413':
+          $ref: '#/components/responses/RequestTooLarge'
+        '500':
+          $ref: '#/components/responses/ReplayFailed'
+
+  /api/demo/publication:
+    put:
+      tags: [Video Replay]
+      operationId: publishReplayRecording
+      summary: Publish a recording to the demo lesson
+      description: |
+        Publishes the recording together with its transcript. Repeating the request for the current
+        recording keeps the same publication. Selecting a different recording replaces the previous
+        publication. Maximum JSON request body size is 1 KiB.
+      parameters:
+        - $ref: '#/components/parameters/ReplayTeacherRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplayRecordingRef'
+            example:
+              recordingId: '8f368301-2f08-4a28-a652-97e07eef40d0'
+      responses:
+        '200':
+          description: The selected recording is published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplayRecordingRef'
+              example:
+                recordingId: '8f368301-2f08-4a28-a652-97e07eef40d0'
+        '400':
+          description: Malformed JSON, an unknown request field, or missing recordingId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplayError'
+              examples:
+                invalidJson:
+                  value: {code: invalid_json, message: expected one JSON object with known fields}
+                missingRecording:
+                  value: {code: invalid_media, message: เลือกคลิปที่จะเผยแพร่}
+        '403':
+          $ref: '#/components/responses/ReplayForbidden'
+        '404':
+          $ref: '#/components/responses/ReplayRecordingNotFound'
+        '413':
+          $ref: '#/components/responses/RequestTooLarge'
+        '500':
+          $ref: '#/components/responses/ReplayFailed'
+
+  /api/demo/replay:
+    get:
+      tags: [Video Replay]
+      operationId: getPublishedReplay
+      summary: Read the current published recording and transcript
+      description: |
+        Returns published false when no recording has been published. When published is true, use
+        videoUrl to load the MP4 and startMs to seek to each transcript cue.
+      responses:
+        '200':
+          description: Publication state for the demo lesson
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ReplayUnpublished'
+                  - $ref: '#/components/schemas/ReplayPublished'
+              examples:
+                published:
+                  value:
+                    published: true
+                    videoUrl: /api/demo/recordings/8f368301-2f08-4a28-a652-97e07eef40d0/video
+                    recordingId: '8f368301-2f08-4a28-a652-97e07eef40d0'
+                    durationMs: 69022
+                    transcript:
+                      - startMs: 0
+                        endMs: 17476
+                        text: วันนี้เราจะเรียนเรื่องการคูณเลขยกกำลังที่มีฐานเดียวกัน
+                unpublished:
+                  value:
+                    published: false
+        '403':
+          $ref: '#/components/responses/ReplayForbidden'
+        '500':
+          $ref: '#/components/responses/ReplayFailed'
+
+  /api/demo/recordings/{id}/video:
+    parameters:
+      - $ref: '#/components/parameters/ReplayRecordingId'
+      - name: Range
+        in: header
+        description: Optional HTTP byte range for seeking or resuming playback.
+        schema:
+          type: string
+        example: bytes=0-1023
+    get:
+      tags: [Video Replay]
+      operationId: getPublishedReplayVideo
+      summary: Download or seek within the published MP4
+      description: The URL is available while its recording is the current publication for the demo lesson.
+      responses:
+        '200':
+          description: Complete MP4
+          headers:
+            Accept-Ranges:
+              description: Supported range unit
+              schema: {type: string, enum: [bytes]}
+          content:
+            video/mp4:
+              schema: {type: string, format: binary}
+        '206':
+          description: Requested byte range or ranges
+          headers:
+            Content-Range:
+              description: Byte range and total file size for a single range
+              schema: {type: string}
+              example: bytes 0-1023/794872
+          content:
+            video/mp4:
+              schema: {type: string, format: binary}
+            multipart/byteranges:
+              schema: {type: string, format: binary}
+        '304':
+          description: The file has not been modified since the requested validator
+        '403':
+          $ref: '#/components/responses/ReplayForbidden'
+        '404':
+          $ref: '#/components/responses/ReplayRecordingNotFound'
+        '416':
+          description: Invalid or unsatisfiable byte range
+          content:
+            text/plain:
+              schema: {type: string}
+        '500':
+          $ref: '#/components/responses/ReplayFailed'
+    head:
+      tags: [Video Replay]
+      operationId: headPublishedReplayVideo
+      summary: Read published MP4 headers
+      description: Returns the corresponding GET status and headers with an empty response body.
+      responses:
+        '200':
+          description: Headers for the complete MP4
+          headers:
+            Content-Length:
+              description: File size in bytes
+              schema: {type: integer, format: int64}
+            Accept-Ranges:
+              description: Supported range unit
+              schema: {type: string, enum: [bytes]}
+        '206':
+          description: Headers for the requested byte range or ranges
+          headers:
+            Content-Range:
+              description: Byte range and total file size for a single range
+              schema: {type: string}
+        '304':
+          description: The file has not been modified since the requested validator
+        '403':
+          description: The replay service accepts only loopback hosts
+        '404':
+          description: Recording is not the current publication or its video file is missing
+        '416':
+          description: Invalid or unsatisfiable byte range
+        '500':
+          description: The service could not read the video
+
 components:
   parameters:
     SyllabusId:
@@ -360,6 +569,25 @@ components:
       schema:
         $ref: '#/components/schemas/SyllabusId'
       example: '11112222333344445555666677778888'
+
+    ReplayTeacherRole:
+      name: X-Demo-Role
+      in: header
+      required: true
+      description: Selects the teacher role for local demo writes.
+      schema:
+        type: string
+        enum: [teacher]
+      example: teacher
+    ReplayRecordingId:
+      name: id
+      in: path
+      required: true
+      description: ID of the currently published recording.
+      schema:
+        type: string
+        format: uuid
+      example: '8f368301-2f08-4a28-a652-97e07eef40d0'
 
   requestBodies:
     SyllabusEdit:
@@ -409,7 +637,110 @@ components:
             $ref: '#/components/schemas/APIError'
           example: {code: course_failed, message: course operation failed}
 
+    ReplayInvalidMedia:
+      description: Missing file part, invalid MP4, or invalid transcript
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ReplayError'
+          example: {code: invalid_media, message: เลือกไฟล์ MP4 และ transcript JSON}
+    ReplayForbidden:
+      description: Teacher role required for writes, or the request host is outside loopback
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ReplayError'
+          example: {code: forbidden, message: เปิดมุมมองครูเพื่อจัดการคลิป}
+    ReplayRecordingNotFound:
+      description: Recording unavailable for the requested operation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ReplayError'
+          example: {code: recording_not_found, message: ไม่พบคลิป}
+    ReplayFailed:
+      description: The service could not complete the replay operation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ReplayError'
+          example: {code: replay_error, message: จัดการคลิปไม่สำเร็จ ลองใหม่อีกครั้ง}
+
   schemas:
+    ReplayError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [invalid_json, invalid_media, forbidden, recording_not_found, replay_error]
+        message:
+          type: string
+    ReplayUpload:
+      type: object
+      required: [video, transcript]
+      properties:
+        video:
+          type: string
+          format: binary
+          description: MP4 file part with a .mp4 filename. Maximum 50,000,000 bytes.
+        transcript:
+          type: string
+          format: binary
+          description: JSON file part containing a nonempty array of ReplaySegment objects. Maximum 256 KiB.
+    ReplayRecordingRef:
+      type: object
+      additionalProperties: false
+      required: [recordingId]
+      properties:
+        recordingId:
+          type: string
+          format: uuid
+    ReplaySegment:
+      type: object
+      additionalProperties: false
+      required: [startMs, endMs, text]
+      properties:
+        startMs:
+          type: integer
+          minimum: 0
+          description: Start offset in milliseconds. Each start is later than the previous cue's start.
+        endMs:
+          type: integer
+          minimum: 1
+          description: End offset in milliseconds. It must be later than startMs and within the recording.
+        text:
+          type: string
+          minLength: 1
+          description: Cue text. Whitespace-only text is invalid.
+    ReplayUnpublished:
+      type: object
+      required: [published]
+      properties:
+        published:
+          type: boolean
+          enum: [false]
+    ReplayPublished:
+      type: object
+      required: [published, videoUrl, recordingId, durationMs, transcript]
+      properties:
+        published:
+          type: boolean
+          enum: [true]
+        videoUrl:
+          type: string
+          description: Origin-relative URL of the current MP4.
+        recordingId:
+          type: string
+          format: uuid
+        durationMs:
+          type: integer
+          minimum: 1
+        transcript:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ReplaySegment'
     Grade:
       type: integer
       minimum: 1
