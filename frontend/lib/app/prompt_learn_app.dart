@@ -286,7 +286,7 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
         now: now,
         onStartClass: () => _openHomeDetail(_HomeDetail.classSetup),
         onOpenAssessment: () => _openHomeDetail(_HomeDetail.assessment),
-        reviewNavigation: AppNavigation(
+        courseDetailNavigation: AppNavigation(
           destination: AppDestination.courses,
           vertical: true,
           reviewStyle: true,

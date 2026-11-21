@@ -31,14 +31,14 @@ class TeacherHomeView extends StatelessWidget {
     required this.now,
     required this.onStartClass,
     required this.onOpenAssessment,
-    this.reviewNavigation,
+    this.courseDetailNavigation,
   });
 
   final String displayName;
   final DateTime now;
   final VoidCallback onStartClass;
   final VoidCallback onOpenAssessment;
-  final Widget? reviewNavigation;
+  final Widget? courseDetailNavigation;
 
   @override
   Widget build(BuildContext context) {
@@ -121,7 +121,8 @@ class TeacherHomeView extends StatelessWidget {
                                         const _Attention(),
                                         const _ClassPulse(),
                                         _Syllabi(
-                                          reviewNavigation: reviewNavigation,
+                                          courseDetailNavigation:
+                                              courseDetailNavigation,
                                         ),
                                       ],
                                     ),
@@ -861,9 +862,9 @@ class _TileIcon extends StatelessWidget {
 }
 
 class _Syllabi extends StatefulWidget {
-  const _Syllabi({this.reviewNavigation});
+  const _Syllabi({this.courseDetailNavigation});
 
-  final Widget? reviewNavigation;
+  final Widget? courseDetailNavigation;
 
   @override
   State<_Syllabi> createState() => _SyllabiState();
@@ -881,10 +882,7 @@ class _SyllabiState extends State<_Syllabi> {
   void _showCreateSyllabus(BuildContext context) {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (context) => SyllabusEditorView(
-          draft: _draft,
-          reviewNavigation: widget.reviewNavigation,
-        ),
+        builder: (context) => SyllabusEditorView(draft: _draft),
       ),
     );
   }
@@ -894,7 +892,7 @@ class _SyllabiState extends State<_Syllabi> {
       MaterialPageRoute<void>(
         builder: (context) => TeacherCourseDetailView(
           course: course,
-          navigation: widget.reviewNavigation,
+          navigation: widget.courseDetailNavigation,
         ),
       ),
     );

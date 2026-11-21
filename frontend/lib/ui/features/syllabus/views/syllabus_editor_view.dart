@@ -1,6 +1,7 @@
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/layout/app_page_layout.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/syllabus_sources.dart';
 import '../view_models/syllabus_editor_view_model.dart';
@@ -22,14 +23,9 @@ const _border = OutlineInputBorder(
 );
 
 class SyllabusEditorView extends StatefulWidget {
-  const SyllabusEditorView({
-    super.key,
-    required this.draft,
-    this.reviewNavigation,
-  });
+  const SyllabusEditorView({super.key, required this.draft});
 
   final SyllabusEditorViewModel draft;
-  final Widget? reviewNavigation;
 
   @override
   State<SyllabusEditorView> createState() => _SyllabusEditorViewState();
@@ -143,20 +139,8 @@ class _SyllabusEditorViewState extends State<SyllabusEditorView> {
               final wide =
                   constraints.maxWidth >= 1000 && constraints.maxHeight >= 560;
               final inset = wide ? 48.0 : 16.0;
-              final navigation = wide && _step == 5
-                  ? widget.reviewNavigation
-                  : null;
-              final panel = Padding(
-                padding: EdgeInsetsDirectional.fromSTEB(
-                  navigation != null
-                      ? 0
-                      : wide
-                      ? 22
-                      : 8,
-                  wide ? 22 : 8,
-                  wide ? 22 : 8,
-                  wide ? 22 : 8,
-                ),
+              return Padding(
+                padding: EdgeInsets.all(wide ? 22 : 8),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(wide ? 44 : 22),
                   child: ColoredBox(
@@ -242,7 +226,6 @@ class _SyllabusEditorViewState extends State<SyllabusEditorView> {
                         ),
                         if (_step == 5)
                           _ReviewFooter(
-                            draft: widget.draft,
                             inset: inset,
                             onBack: _back,
                             onSave: _saveDraft,
@@ -260,13 +243,6 @@ class _SyllabusEditorViewState extends State<SyllabusEditorView> {
                     ),
                   ),
                 ),
-              );
-              if (navigation == null) return panel;
-              return Row(
-                children: [
-                  SizedBox(width: 112, child: navigation),
-                  Expanded(child: panel),
-                ],
               );
             },
           ),
@@ -290,9 +266,12 @@ class _EditorHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: _white,
-      constraints: BoxConstraints(minHeight: wide ? 142 : 78),
-      padding: EdgeInsets.symmetric(horizontal: wide ? inset : 8, vertical: 10),
+      key: const ValueKey('syllabus-editor-header'),
+      color: AppColors.header,
+      constraints: const BoxConstraints(
+        minHeight: AppPageLayout.headerMinHeight,
+      ),
+      padding: EdgeInsets.symmetric(horizontal: wide ? inset : 8, vertical: 12),
       child: Row(
         spacing: 12,
         children: [
@@ -311,7 +290,8 @@ class _EditorHeader extends StatelessWidget {
                   'Create Syllabus',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: _heading(context, wide ? 32 : 23),
+                  style: Theme.of(context).textTheme.titleLarge
+                      ?.copyWith(color: _ink),
                 ),
                 DecoratedBox(
                   decoration: const BoxDecoration(
@@ -633,14 +613,12 @@ class _ReviewSection extends StatelessWidget {
 
 class _ReviewFooter extends StatelessWidget {
   const _ReviewFooter({
-    required this.draft,
     required this.inset,
     required this.onBack,
     required this.onSave,
     required this.onPublish,
   });
 
-  final SyllabusEditorViewModel draft;
   final double inset;
   final VoidCallback onBack;
   final VoidCallback onSave;
@@ -648,12 +626,6 @@ class _ReviewFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final classes = draft.classes;
-    final recipients = classes.length == 1
-        ? classes.first.name
-        : classes.length <= 3
-        ? '${classes.first.name}–${classes.last.name}'
-        : '${classes.length} classes';
     return Container(
       decoration: const BoxDecoration(
         color: _white,
@@ -704,7 +676,7 @@ class _ReviewFooter extends StatelessWidget {
                 ),
                 onPressed: onPublish,
                 icon: const Icon(Icons.check, size: 18),
-                label: Text('Publish to $recipients'),
+                label: const Text('Publish'),
               ),
             ],
           ),

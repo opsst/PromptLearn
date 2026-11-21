@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/layout/app_page_layout.dart';
 import '../../../core/theme/app_theme.dart';
 
 class HomeHeader extends StatelessWidget {
@@ -29,7 +30,9 @@ class HomeHeader extends StatelessWidget {
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 760;
           return ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 100),
+            constraints: const BoxConstraints(
+              minHeight: AppPageLayout.headerMinHeight,
+            ),
             child: Padding(
               padding: EdgeInsets.symmetric(
                 horizontal: wide ? 42 : 16,
