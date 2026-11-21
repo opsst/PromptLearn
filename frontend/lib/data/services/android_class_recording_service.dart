@@ -53,7 +53,11 @@ class AndroidClassRecordingService implements ClassRecordingService {
 
   static RecordingClip _clip(Object? value) {
     final map = value as Map<Object?, Object?>;
+    final savedAt = map['savedAtMs'] as int?;
     return RecordingClip(
+      savedAt: savedAt == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(savedAt),
       path: map['path'] as String,
       name: map['name'] as String,
       sizeBytes: map['sizeBytes'] as int,

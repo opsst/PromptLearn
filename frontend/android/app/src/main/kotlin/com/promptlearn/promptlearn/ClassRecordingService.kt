@@ -319,7 +319,10 @@ class ClassRecordingService : Service() {
                 .map(::clipDetails)
 
         private fun clipDetails(file: File): Map<String, Any> = mapOf(
-            "path" to file.absolutePath, "name" to file.name, "sizeBytes" to file.length(),
+            "path" to file.absolutePath,
+            "name" to file.name,
+            "sizeBytes" to file.length(),
+            "savedAtMs" to file.lastModified(),
         )
     }
 }

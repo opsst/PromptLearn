@@ -88,7 +88,9 @@ Teacher Home จัดคาบถัดไป แผนย่อ และต�
 
 `AndroidClassRecordingService` ใน `lib/data/services/` เชื่อม Flutter กับ `ClassRecordingService.kt` ผ่าน MethodChannel และ EventChannel ตัว foreground service ถือ MediaProjection และ MediaRecorder จึงทำงานต่อได้ระหว่างสลับแอป ปุ่ม **Stop & end class** ปิด session และปิดไฟล์ `.partial` เป็น MP4 แบบ H.264/AAC เมื่ออ่านพบทั้งแทร็กภาพและเสียง คลิปอยู่ในพื้นที่ส่วนตัว `noBackupFilesDir/class-recordings/` และ `ClassRecordingService.savedClips()` ส่งคืนพาธ ชื่อ และขนาดไฟล์สำหรับงานอัปโหลด
 
-สไลด์ 14 หน้า โน้ตประจำสไลด์ เช็กชื่อ และคำถามนักเรียนใช้ข้อมูลตัวอย่าง การไลฟ์ อัปโหลด และถอดเสียงพร้อม timestamp รอเชื่อมบริการจริง
+เมื่อบันทึก MP4 สำเร็จ แอปเปิด `TeacherClassEndedView` ภายใน shell เดิมและส่งพาธจาก `RecordingClip` ให้ `LocalClassClipPlayer` เล่นไฟล์โดยตรง เวลาใน Header และแถบเลื่อนอ่านจากไฟล์ หน้าตั้งค่าก่อนสอนมีปุ่ม **Last recording** เมื่อพบไฟล์ที่บันทึกไว้ [Flutter video_player](https://pub.dev/packages/video_player)
+
+สไลด์ 14 หน้า โน้ตประจำสไลด์ เช็กชื่อ และคำถามนักเรียนใช้ข้อมูลตัวอย่าง หน้าจบคาบแสดงสถานะรออัปโหลด ถอดเสียง และสร้าง timestamp ปุ่มเผยแพร่รอเชื่อม backend
 
 ## Header และการเลื่อนหน้าจอ
 

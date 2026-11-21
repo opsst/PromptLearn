@@ -11,6 +11,7 @@ import 'package:promptlearn/ui/features/home/views/student_home_view.dart';
 import 'package:promptlearn/ui/features/home/views/teacher_home_view.dart';
 import 'package:promptlearn/ui/features/home/widgets/home_header.dart';
 import 'package:promptlearn/ui/features/syllabus/views/teacher_syllabus_dialog.dart';
+import 'package:video_player_platform_interface/video_player_platform_interface.dart';
 
 void main() {
   setUpAll(() async {
@@ -220,12 +221,16 @@ void main() {
   }
 
   testWidgets(
-    'Recording consent, active state and local clip follow Android state',
+    'Ending a recording opens the saved file and supports playback and seeking',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(1366, 1024));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       final recording = _FakeClassRecordingService();
       addTearDown(recording.dispose);
+      final originalPlayer = VideoPlayerPlatform.instance;
+      final video = _FakeVideoPlayerPlatform();
+      VideoPlayerPlatform.instance = video;
+      addTearDown(() => VideoPlayerPlatform.instance = originalPlayer);
       await _openApp(
         tester,
         _MemoryRoleRepository(UserRole.teacher),
@@ -279,10 +284,50 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Class recording saved'), findsOneWidget);
-      expect(find.textContaining('class.mp4'), findsOneWidget);
-      await tap(find.text('Done'));
+      expect(find.text('Class ended · M.1/1'), findsOneWidget);
+      expect(find.text('Recorded 00:46'), findsOneWidget);
+      expect(video.source?.sourceType, DataSourceType.file);
+      expect(
+        Uri.parse(video.source!.uri!).toFilePath(),
+        '/recordings/class.mp4',
+      );
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.ancestor(
+                of: find.text('Publish Lesson & Assignment'),
+                matching: find.byWidgetPredicate(
+                  (widget) => widget is FilledButton,
+                ),
+              ),
+            )
+            .onPressed,
+        isNull,
+      );
+
+      await tap(find.byTooltip('Play clip'));
+      expect(video.playCount, 1);
+      final slider = tester.widget<Slider>(find.byType(Slider));
+      slider.onChanged!(15000);
+      slider.onChangeEnd!(15000);
+      await tester.pumpAndSettle();
+      expect(video.position, const Duration(seconds: 15));
+
+      await tester.binding.setSurfaceSize(const Size(360, 640));
+      await tester.pumpAndSettle();
+      expect(video.createCount, 1);
+      expect(find.text('00:15 / 00:46'), findsOneWidget);
+
+      await tap(find.byTooltip('Pause clip'));
+      await tap(find.byTooltip('Back to Teacher Home'));
+      expect(find.text('Class ended · M.1/1'), findsNothing);
       expect(find.text('Start Class').hitTestable(), findsOneWidget);
+      await tap(find.text('Start Class'));
+      await tap(find.text('Last recording'));
+      expect(find.text('Class ended · M.1/1'), findsOneWidget);
+      expect(video.createCount, 2);
+      await tap(find.byTooltip('Back to Teacher Home'));
+      expect(find.text('Class ended · M.1/1'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
@@ -559,7 +604,70 @@ class _FakeClassRecordingService implements ClassRecordingService {
   }
 
   @override
-  Future<List<RecordingClip>> savedClips() async => [];
+  Future<List<RecordingClip>> savedClips() async => [?_status.clip];
 
   Future<void> dispose() => _updates.close();
+}
+
+class _FakeVideoPlayerPlatform extends VideoPlayerPlatform {
+  final _streams = <int, StreamController<VideoEvent>>{};
+  DataSource? source;
+  int playCount = 0;
+  int createCount = 0;
+  Duration position = Duration.zero;
+
+  @override
+  Future<void> init() async {}
+
+  @override
+  Future<int?> createWithOptions(VideoCreationOptions options) async {
+    source = options.dataSource;
+    position = Duration.zero;
+    return ++createCount;
+  }
+
+  @override
+  Stream<VideoEvent> videoEventsFor(int playerId) {
+    final stream = StreamController<VideoEvent>();
+    _streams[playerId] = stream;
+    stream.add(
+      VideoEvent(
+        eventType: VideoEventType.initialized,
+        duration: const Duration(seconds: 46),
+        size: const Size(1600, 1000),
+      ),
+    );
+    return stream.stream;
+  }
+
+  @override
+  Widget buildViewWithOptions(VideoViewOptions options) =>
+      const SizedBox.expand();
+
+  @override
+  Future<void> dispose(int playerId) async {
+    await _streams.remove(playerId)?.close();
+  }
+
+  @override
+  Future<void> play(int playerId) async => playCount++;
+
+  @override
+  Future<void> pause(int playerId) async {}
+
+  @override
+  Future<Duration> getPosition(int playerId) async => position;
+
+  @override
+  Future<void> seekTo(int playerId, Duration position) async =>
+      this.position = position;
+
+  @override
+  Future<void> setLooping(int playerId, bool looping) async {}
+
+  @override
+  Future<void> setVolume(int playerId, double volume) async {}
+
+  @override
+  Future<void> setPlaybackSpeed(int playerId, double speed) async {}
 }

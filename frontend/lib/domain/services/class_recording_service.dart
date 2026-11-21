@@ -7,11 +7,13 @@ class RecordingClip {
     required this.path,
     required this.name,
     required this.sizeBytes,
+    this.savedAt,
   });
 
   final String path;
   final String name;
   final int sizeBytes;
+  final DateTime? savedAt;
 }
 
 class RecordingStatus {

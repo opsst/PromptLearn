@@ -159,6 +159,7 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
   var _destination = AppDestination.home;
   bool _homeDetailOpen = false;
   bool _classLocked = false;
+  final _pageKey = GlobalKey();
   late final _homeworkNotebook = HomeworkNotebook();
 
   @override
@@ -320,6 +321,7 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
                   child: ColoredBox(
                     color: AppColors.canvas,
                     child: SizedBox.expand(
+                      key: _pageKey,
                       child: _buildPage(context, wide: wide),
                     ),
                   ),

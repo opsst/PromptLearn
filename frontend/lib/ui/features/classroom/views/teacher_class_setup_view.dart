@@ -8,6 +8,7 @@ import '../../../../domain/services/class_recording_service.dart';
 import '../../../core/layout/app_page_layout.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/teacher_class_preview.dart';
+import 'teacher_class_ended_view.dart';
 import 'teacher_teaching_view.dart';
 
 const _text = Color(0xFF202438);
@@ -92,6 +93,9 @@ class _TeacherClassSetupViewState extends State<TeacherClassSetupView> {
   };
   StreamSubscription<RecordingStatus>? _recordingSubscription;
   RecordingStatus _recording = const RecordingStatus();
+  RecordingClip? _lastClip;
+  RecordingClip? _reviewClip;
+  String? _reviewNotice;
   bool _teaching = false;
   bool _starting = false;
   bool _ending = false;
@@ -108,6 +112,19 @@ class _TeacherClassSetupViewState extends State<TeacherClassSetupView> {
         }
       },
     );
+    if (widget.recordingService.isSupported) unawaited(_loadLastClip());
+  }
+
+  Future<void> _loadLastClip() async {
+    try {
+      final clips = await widget.recordingService.savedClips();
+      if (!mounted || clips.isEmpty || _lastClip != null) return;
+      setState(() => _lastClip = clips.first);
+    } on PlatformException {
+      // A failed lookup does not block teaching or reviewing a new recording.
+    } on MissingPluginException {
+      // No local clips are available without the native recorder.
+    }
   }
 
   @override
@@ -160,40 +177,28 @@ class _TeacherClassSetupViewState extends State<TeacherClassSetupView> {
     if (!_starting && !_recording.inProgress) return;
 
     if (status.clip case final clip?) {
-      setState(() {
-        _recording = status;
-        _ending = true;
-      });
-      unawaited(_showSavedRecording(clip, status));
+      final notice =
+          status.message ??
+          (status.interrupted
+              ? 'Android stopped screen sharing. The clip so far was kept.'
+              : null);
+      _openReview(clip, notice: notice);
     } else if (status.phase == RecordingPhase.failed) {
       _finishWithError(status.message ?? 'No recording was saved.');
     }
   }
 
-  Future<void> _showSavedRecording(
-    RecordingClip clip,
-    RecordingStatus status,
-  ) async {
-    final size = (clip.sizeBytes / (1024 * 1024)).toStringAsFixed(1);
-    final message =
-        status.message ??
-        (status.interrupted
-            ? 'Android stopped screen sharing. The clip so far was kept.'
-            : 'The MP4 is saved on this device.');
-    await showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Class recording saved'),
-        content: Text('$message\n\n${clip.name} · $size MB'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Done'),
-          ),
-        ],
-      ),
-    );
-    if (mounted) _leaveClass();
+  void _openReview(RecordingClip clip, {String? notice}) {
+    widget.onNavigationLockChanged(false);
+    setState(() {
+      _recording = const RecordingStatus();
+      _starting = false;
+      _teaching = false;
+      _ending = false;
+      _lastClip = clip;
+      _reviewClip = clip;
+      _reviewNotice = notice;
+    });
   }
 
   Future<void> _endClass() async {
@@ -242,7 +247,7 @@ class _TeacherClassSetupViewState extends State<TeacherClassSetupView> {
       ),
     );
     _confirmingEnd = false;
-    if (mounted && end == true) await _endClass();
+    if (mounted && end == true && _reviewClip == null) await _endClass();
   }
 
   void _leaveClass() {
@@ -313,6 +318,15 @@ class _TeacherClassSetupViewState extends State<TeacherClassSetupView> {
 
   @override
   Widget build(BuildContext context) {
+    if (_reviewClip case final clip?) {
+      return TeacherClassEndedView(
+        key: ValueKey(clip.path),
+        clip: clip,
+        notice: _reviewNotice,
+        onBack: widget.onBack,
+      );
+    }
+
     if (_teaching) {
       return PopScope(
         canPop: false,
@@ -362,6 +376,12 @@ class _TeacherClassSetupViewState extends State<TeacherClassSetupView> {
                           style: typography.titleLarge?.copyWith(color: _text),
                         ),
                       ),
+                      if (_lastClip case final clip?)
+                        TextButton.icon(
+                          onPressed: _starting ? null : () => _openReview(clip),
+                          icon: const Icon(Icons.history, size: 18),
+                          label: const Text('Last recording'),
+                        ),
                     ],
                   ),
                 ),
