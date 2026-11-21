@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -7,6 +8,8 @@ import '../ui/core/layout/app_navigation.dart';
 import '../ui/core/theme/app_theme.dart';
 import '../ui/features/auth/views/role_selection_view.dart';
 import '../ui/features/home/widgets/home_header.dart';
+import '../ui/features/replay/replay_view_stub.dart'
+    if (dart.library.js_interop) '../ui/features/replay/replay_view_web.dart';
 
 class PromptLearnApp extends StatelessWidget {
   const PromptLearnApp({super.key, required this.roleRepository});
@@ -164,6 +167,8 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
                                 role: widget.role,
                                 now: DateTime.now(),
                               )
+                            : kIsWeb && _destination == AppDestination.courses
+                            ? ReplayView(role: widget.role)
                             : ColoredBox(
                                 color: AppColors.header,
                                 child: Padding(

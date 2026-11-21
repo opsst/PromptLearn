@@ -13,6 +13,7 @@ dependencies:
   flutter_svg: ^2.0.16
   intl: ^0.20.2
   shared_preferences: ^2.5.6
+  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:
@@ -27,3 +28,6 @@ flutter:
     - family: Inter
       fonts:
         - asset: assets/fonts/Inter-Variable.ttf
+    - family: Noto Sans Thai
+      fonts:
+        - asset: assets/fonts/NotoSansThai-Variable.ttf

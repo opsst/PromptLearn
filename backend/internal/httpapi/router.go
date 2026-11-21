@@ -9,6 +9,10 @@ import (
 
 // NewHandler registers the backend's HTTP routes.
 func NewHandler(syllabi *syllabus.Service, store *course.Store) http.Handler {
+	return newRouter(syllabi, store)
+}
+
+func newRouter(syllabi *syllabus.Service, store *course.Store) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthCheck)
 	mux.HandleFunc("GET /v1/curriculum/math", mathCurriculum)
