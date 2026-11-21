@@ -247,28 +247,6 @@ class _InkPainter extends CustomPainter {
       }
     }
 
-    for (final index in content.sampleSteps) {
-      final area = _area(sampleRegions[index], size);
-      final fontSize = (size.width * 0.032).clamp(13.0, 36.0);
-      final text = TextPainter(
-        text: TextSpan(
-          text: sampleText[index],
-          style: TextStyle(
-            color: _inkColor,
-            fontSize: fontSize,
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      text.paint(
-        canvas,
-        area.centerLeft.translate(area.width * 0.08, -text.height / 2),
-      );
-      text.dispose();
-    }
-
     for (final stroke in content.strokes) {
       _drawStroke(canvas, size, stroke);
     }

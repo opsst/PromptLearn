@@ -29,23 +29,18 @@ class PaperRegion {
       bottom <= 1.000001;
 }
 
-const homeworkDemoQuestionId = 'hw-3.1-q4';
-const homeworkDemoIssue = PaperRegion(0.31, 0.225, 0.21, 0.16);
-
 class HomeworkCheckRequest {
   const HomeworkCheckRequest({
     required this.question,
     required this.paperPng,
     required this.imageWidth,
     required this.imageHeight,
-    this.demoSampleVisible = false,
   });
 
   final HomeworkQuestion question;
   final Uint8List paperPng;
   final int imageWidth;
   final int imageHeight;
-  final bool demoSampleVisible;
 }
 
 enum HomeworkMarkStyle { circle, underline }

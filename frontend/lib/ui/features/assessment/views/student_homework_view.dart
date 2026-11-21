@@ -145,7 +145,6 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
     _stopTimer();
     final revision = _revision;
     final question = HomeworkNotebook.questions[_notebook.activeIndex];
-    final sampleVisible = _draft.content.sampleSteps.contains(1);
 
     setState(() {
       _checking = true;
@@ -175,7 +174,6 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
           ),
           imageWidth: image.width,
           imageHeight: image.height,
-          demoSampleVisible: sampleVisible,
         );
       } finally {
         image.dispose();
@@ -416,22 +414,26 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
   }
 
   Widget _toolButton(String label, String asset, PaperTool tool) {
-    final path = 'assets/assessment/$asset';
+    final selected = _tool == tool;
     return Semantics(
-      selected: _tool == tool,
+      selected: selected,
       child: IconButton(
         tooltip: label,
-        isSelected: _tool == tool,
+        isSelected: selected,
         style: IconButton.styleFrom(
-          backgroundColor: _tool == tool
+          backgroundColor: selected
               ? const Color(0xFFE3F1E8)
               : Colors.transparent,
         ),
         onPressed: _pointer == null ? () => setState(() => _tool = tool) : null,
         icon: SvgPicture.asset(
-          path,
+          'assets/assessment/$asset',
           width: 18,
           height: 18,
+          colorFilter: ColorFilter.mode(
+            selected ? _greenInk : Colors.black,
+            BlendMode.srcIn,
+          ),
           excludeFromSemantics: true,
         ),
       ),
@@ -565,10 +567,26 @@ class _ProgressCard extends StatelessWidget {
                 ),
             ],
           ),
-          const _Pill(
-            'AI hints · Demo',
-            foreground: _greenInk,
-            background: Color(0xFFE8F5EB),
+          Wrap(
+            spacing: 4,
+            children: [
+              TextButton.icon(
+                onPressed: notebook.activeIndex > 0
+                    ? () => onSelect(notebook.activeIndex - 1)
+                    : null,
+                icon: const Icon(Icons.chevron_left_rounded, size: 20),
+                label: const Text('Previous'),
+              ),
+              TextButton.icon(
+                onPressed:
+                    notebook.activeIndex < HomeworkNotebook.questions.length - 1
+                    ? () => onSelect(notebook.activeIndex + 1)
+                    : null,
+                iconAlignment: IconAlignment.end,
+                icon: const Icon(Icons.chevron_right_rounded, size: 20),
+                label: const Text('Next'),
+              ),
+            ],
           ),
         ],
       ),
@@ -602,21 +620,15 @@ class _HomeworkCard extends StatelessWidget {
 }
 
 class _Pill extends StatelessWidget {
-  const _Pill(
-    this.text, {
-    this.foreground = AppColors.mutedText,
-    this.background = AppColors.canvas,
-  });
+  const _Pill(this.text);
 
   final String text;
-  final Color foreground;
-  final Color background;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: background,
+        color: AppColors.canvas,
         borderRadius: BorderRadius.circular(100),
       ),
       child: Padding(
@@ -624,7 +636,7 @@ class _Pill extends StatelessWidget {
         child: Text(
           text,
           style: Theme.of(context).textTheme.labelSmall
-              ?.copyWith(color: foreground),
+              ?.copyWith(color: AppColors.mutedText),
         ),
       ),
     );

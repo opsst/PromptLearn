@@ -12,12 +12,11 @@ class PaperStroke {
 }
 
 class PaperContent {
-  const PaperContent({this.strokes = const [], this.sampleSteps = const {}});
+  const PaperContent({this.strokes = const []});
 
   final List<PaperStroke> strokes;
-  final Set<int> sampleSteps;
 
-  bool get hasWork => strokes.isNotEmpty || sampleSteps.isNotEmpty;
+  bool get hasWork => strokes.isNotEmpty;
 
   /// Removes entire strokes touched by this segment of the eraser gesture.
   PaperContent eraseBetween(Offset start, Offset end) {
@@ -29,52 +28,15 @@ class PaperContent {
       }
       return true;
     }).toList();
-    final keptSteps = sampleSteps.where((index) {
-      final region = sampleRegions[index];
-      final box = Rect.fromLTWH(
-        region.x,
-        region.y,
-        region.width,
-        region.height,
-      );
-      final edges = [
-        box.topLeft,
-        box.topRight,
-        box.bottomRight,
-        box.bottomLeft,
-        box.topLeft,
-      ];
-      if (box.contains(start) || box.contains(end)) return false;
-      for (var edge = 1; edge < edges.length; edge++) {
-        if (_eraserHitsSegment(start, end, edges[edge - 1], edges[edge])) {
-          return false;
-        }
-      }
-      return true;
-    }).toSet();
-    if (keptStrokes.length == strokes.length &&
-        keptSteps.length == sampleSteps.length) {
-      return this;
-    }
-    return PaperContent(strokes: keptStrokes, sampleSteps: keptSteps);
+    if (keptStrokes.length == strokes.length) return this;
+    return PaperContent(strokes: keptStrokes);
   }
 }
 
 const paperEraserRadius = 0.014;
-const sampleText = ['(x²)(x⁵)', '= x²ˣ⁵', '= x¹⁰'];
-const sampleRegions = [
-  PaperRegion(0.31, 0.06, 0.21, 0.13),
-  homeworkDemoIssue,
-  PaperRegion(0.31, 0.39, 0.21, 0.13),
-];
 
 class HomeworkDraft {
-  HomeworkDraft({bool withSample = false})
-    : _content = PaperContent(
-        sampleSteps: withSample ? const {0, 1, 2} : const {},
-      );
-
-  PaperContent _content;
+  PaperContent _content = const PaperContent();
   final List<PaperContent> _undoHistory = [];
   final List<PaperContent> _redoHistory = [];
 
@@ -91,7 +53,6 @@ class HomeworkDraft {
           ...content.strokes,
           PaperStroke(tool, List.unmodifiable(points)),
         ],
-        sampleSteps: content.sampleSteps,
       ),
     );
   }
@@ -157,16 +118,16 @@ class HomeworkNotebook {
     HomeworkQuestion('hw-3.1-q1', 'Simplify x² · x³.'),
     HomeworkQuestion('hw-3.1-q2', 'Simplify (a³)².'),
     HomeworkQuestion('hw-3.1-q3', 'Simplify y⁶ ÷ y², where y ≠ 0.'),
-    HomeworkQuestion(homeworkDemoQuestionId, 'Simplify (x²)(x⁵).'),
+    HomeworkQuestion('hw-3.1-q4', 'Simplify (x²)(x⁵).'),
     HomeworkQuestion('hw-3.1-q5', 'Simplify (m²)(m⁴).'),
     HomeworkQuestion('hw-3.1-q6', 'Simplify (2x²)(3x³).'),
     HomeworkQuestion('hw-3.1-q7', 'Simplify (p²)⁴.'),
     HomeworkQuestion('hw-3.1-q8', 'Simplify (x³)² ÷ x⁴, where x ≠ 0.'),
   ];
 
-  int activeIndex = 3;
+  int activeIndex = 0;
   bool automatic = false;
-  final _drafts = <int, HomeworkDraft>{3: HomeworkDraft(withSample: true)};
+  final _drafts = <int, HomeworkDraft>{};
 
   HomeworkDraft get draft =>
       _drafts.putIfAbsent(activeIndex, HomeworkDraft.new);

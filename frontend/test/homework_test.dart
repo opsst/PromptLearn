@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:ui' show PointerDeviceKind;
 
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:promptlearn/data/repositories/mock_homework_checker.dart';
@@ -37,27 +38,88 @@ void main() {
     expect(draft.canRedo, isFalse);
   });
 
-  test('Mock returns a circle only for the visible sample step', () async {
+  test('Mock acknowledges a snapshot without marking student work', () async {
     const checker = MockHomeworkChecker();
-    HomeworkCheckRequest request({required bool sample}) {
-      return HomeworkCheckRequest(
-        question: HomeworkNotebook.questions[3],
+    final result = await checker.check(
+      HomeworkCheckRequest(
+        question: HomeworkNotebook.questions.first,
         paperPng: Uint8List(1),
         imageWidth: 100,
         imageHeight: 100,
-        demoSampleVisible: sample,
-      );
-    }
+      ),
+    );
 
-    final marked = await checker.check(request(sample: true));
-    expect(marked.region, homeworkDemoIssue);
-    expect(marked.markStyle, HomeworkMarkStyle.circle);
-    expect((await checker.check(request(sample: false))).region, isNull);
+    expect(result.hint, 'Snapshot received.');
+    expect(result.region, isNull);
+  });
+
+  testWidgets('Previous and Next switch between blank question drafts', (
+    tester,
+  ) async {
+    final notebook = HomeworkNotebook();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: StudentHomeworkView(
+              notebook: notebook,
+              checker: _UnusedChecker(),
+              onBack: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Finder button(String label) => find.ancestor(
+      of: find.text(label),
+      matching: find.byWidgetPredicate((widget) => widget is TextButton),
+    );
+    ColorFilter? toolColor(String label) => tester
+        .widget<SvgPicture>(
+          find.descendant(
+            of: find.byTooltip(label),
+            matching: find.byType(SvgPicture),
+          ),
+        )
+        .colorFilter;
+    const selectedColor = ColorFilter.mode(Color(0xFF206D50), BlendMode.srcIn);
+    const unselectedColor = ColorFilter.mode(Colors.black, BlendMode.srcIn);
+
+    expect(notebook.activeIndex, 0);
+    expect(notebook.draft.content.hasWork, isFalse);
+    expect(tester.widget<TextButton>(button('Previous')).onPressed, isNull);
+    expect(toolColor('Pen'), selectedColor);
+    expect(toolColor('Eraser'), unselectedColor);
+
+    await tester.tap(find.byTooltip('Eraser'));
+    await tester.pump();
+    expect(toolColor('Pen'), unselectedColor);
+    expect(toolColor('Eraser'), selectedColor);
+
+    final firstDraft = notebook.draft;
+    firstDraft.addInk(PaperTool.pen, const [Offset(0.5, 0.5)]);
+    await tester.tap(button('Next'));
+    await tester.pump();
+    expect(notebook.activeIndex, 1);
+    expect(notebook.draft.content.hasWork, isFalse);
+    expect(find.text('Question 2'), findsOneWidget);
+    await tester.tap(button('Previous'));
+    await tester.pump();
+    expect(notebook.draft, same(firstDraft));
+    expect(notebook.draft.content.hasWork, isTrue);
+
+    await tester.tap(find.byTooltip('Question 8'));
+    await tester.pump();
+    expect(tester.widget<TextButton>(button('Next')).onPressed, isNull);
+    expect(notebook.draft.content.hasWork, isFalse);
   });
 
   testWidgets(
     'Eraser hides whole strokes while down and undo groups the drag',
     (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1200, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
       final notebook = HomeworkNotebook()..activeIndex = 0;
       final draft = notebook.draft;
       draft.addInk(PaperTool.pen, const [Offset(0.2, 0.4), Offset(0.8, 0.4)]);
@@ -252,6 +314,8 @@ void main() {
   testWidgets('Automatic check waits for the pen to lift and a 2.5 s pause', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     final checker = _UnusedChecker();
     final notebook = HomeworkNotebook();
     await tester.pumpWidget(
