@@ -1,13 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptlearn/app/prompt_learn_app.dart';
 import 'package:promptlearn/domain/models/user_role.dart';
 import 'package:promptlearn/domain/repositories/role_repository.dart';
+import 'package:promptlearn/domain/services/class_recording_service.dart';
 import 'package:promptlearn/ui/features/home/views/student_home_view.dart';
 import 'package:promptlearn/ui/features/home/views/teacher_home_view.dart';
 import 'package:promptlearn/ui/features/home/widgets/home_header.dart';
 import 'package:promptlearn/ui/features/syllabus/views/teacher_syllabus_dialog.dart';
+import 'package:video_player_platform_interface/video_player_platform_interface.dart';
 
 void main() {
   setUpAll(() async {
@@ -72,7 +76,11 @@ void main() {
     });
   }
 
-  for (final size in [const Size(1366, 1024), const Size(360, 640)]) {
+  for (final size in [
+    const Size(1366, 1024),
+    const Size(800, 1200),
+    const Size(360, 640),
+  ]) {
     testWidgets('Teacher dashboard and lesson plan work at $size', (
       tester,
     ) async {
@@ -88,6 +96,14 @@ void main() {
       expect(find.text('My syllabus'), findsOneWidget);
 
       if (size.width == 1366) {
+        expect(tester.getSize(find.byType(HomeHeader)).height, 100);
+        expect(
+          tester.getSize(find.byTooltip('Notifications')),
+          const Size.square(48),
+        );
+        expect(tester.widget<Text>(today).style?.fontSize, 16);
+        expect(tester.widget<Text>(startClass).style?.fontSize, 14);
+
         final dashboard = find.descendant(
           of: find.byType(TeacherHomeView),
           matching: find.byType(Scrollable),
@@ -123,6 +139,233 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  for (final size in [const Size(1366, 1024), const Size(360, 640)]) {
+    testWidgets('Teacher can configure and teach without recording at $size', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(size);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await _openApp(tester, _MemoryRoleRepository(UserRole.teacher));
+
+      Future<void> tap(Finder finder) async {
+        await tester.ensureVisible(finder);
+        await tester.tap(finder);
+        await tester.pumpAndSettle();
+      }
+
+      await tap(find.text('Start Class'));
+
+      final title = find.text('M.1/1 · Period 25').hitTestable();
+      final position = tester.getTopLeft(title);
+      final options = find.text('Before you start');
+      final plan = find.text('This period’s plan');
+      expect(find.text('Start teaching & recording'), findsOneWidget);
+      if (size.width == 1366) {
+        expect(tester.getTopLeft(plan).dy, tester.getTopLeft(options).dy);
+        expect(
+          tester.getTopLeft(plan).dx,
+          greaterThan(tester.getTopLeft(options).dx),
+        );
+      } else {
+        expect(
+          tester.getTopLeft(plan).dy,
+          greaterThan(tester.getTopLeft(options).dy),
+        );
+      }
+
+      await tap(find.text('Open lesson plan'));
+      expect(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text('Warm-up'),
+        ),
+        findsOneWidget,
+      );
+      await tap(find.text('Close'));
+      await tap(find.text('Whole screen'));
+      await tap(find.byType(Switch).first);
+      await tap(find.text('Test mic & screen'));
+      expect(
+        find.textContaining('Selected source: Whole screen'),
+        findsOneWidget,
+      );
+      await tap(find.text('Close'));
+      expect(tester.getTopLeft(title), position);
+
+      await tap(find.text('Start teaching'));
+      expect(find.text('Teaching · M.1/1'), findsOneWidget);
+      expect(find.text('Recording off'), findsOneWidget);
+      expect(find.textContaining('slide 1 / 14'), findsOneWidget);
+      await tap(find.byTooltip('Next slide'));
+      expect(find.textContaining('slide 2 / 14'), findsOneWidget);
+      expect(
+        find.text('Invite one student to read the expression aloud.'),
+        findsOneWidget,
+      );
+      await tap(find.byTooltip('Previous slide'));
+      expect(find.textContaining('slide 1 / 14'), findsOneWidget);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('End this class?'), findsOneWidget);
+      await tap(find.text('Keep teaching'));
+      await tap(find.text('Stop & end class'));
+      expect(find.text('Start Class').hitTestable(), findsOneWidget);
+      await tap(find.text('Start Class'));
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Start Class').hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets(
+    'Ending a recording opens the saved file and supports playback and seeking',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1366, 1024));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final recording = _FakeClassRecordingService();
+      addTearDown(recording.dispose);
+      final originalPlayer = VideoPlayerPlatform.instance;
+      final video = _FakeVideoPlayerPlatform();
+      VideoPlayerPlatform.instance = video;
+      addTearDown(() => VideoPlayerPlatform.instance = originalPlayer);
+      await _openApp(
+        tester,
+        _MemoryRoleRepository(UserRole.teacher),
+        recording: recording,
+      );
+
+      Future<void> tap(Finder finder) async {
+        await tester.ensureVisible(finder);
+        await tester.tap(finder);
+        await tester.pumpAndSettle();
+      }
+
+      await tap(find.text('Start Class'));
+      await tap(find.text('Whole screen'));
+      recording.cancelNextStart = true;
+      await tap(find.text('Start teaching & recording'));
+      expect(find.text('Screen sharing was cancelled.'), findsOneWidget);
+      expect(find.text('Start teaching & recording'), findsOneWidget);
+
+      await tap(find.text('Start teaching & recording'));
+      expect(recording.source, RecordingSource.screen);
+      expect(find.text('Starting recording…'), findsOneWidget);
+      expect(find.text('Teaching · M.1/1'), findsNothing);
+
+      recording.emit(
+        const RecordingStatus(
+          phase: RecordingPhase.recording,
+          source: RecordingSource.screen,
+          elapsed: Duration(seconds: 3),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('REC  00:00:03'), findsOneWidget);
+
+      await tap(find.byTooltip('Home'));
+      expect(find.text('Teaching · M.1/1'), findsOneWidget);
+
+      await tap(find.text('Stop & end class'));
+      expect(recording.stopCount, 1);
+      expect(find.text('Saving recording…'), findsOneWidget);
+
+      recording.emit(
+        const RecordingStatus(
+          phase: RecordingPhase.saved,
+          source: RecordingSource.screen,
+          clip: RecordingClip(
+            path: '/recordings/class.mp4',
+            name: 'class.mp4',
+            sizeBytes: 1024,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Class ended · M.1/1'), findsOneWidget);
+      expect(find.text('Recorded 00:46'), findsOneWidget);
+      expect(video.source?.sourceType, DataSourceType.file);
+      expect(
+        Uri.parse(video.source!.uri!).toFilePath(),
+        '/recordings/class.mp4',
+      );
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.ancestor(
+                of: find.text('Publish Lesson & Assignment'),
+                matching: find.byWidgetPredicate(
+                  (widget) => widget is FilledButton,
+                ),
+              ),
+            )
+            .onPressed,
+        isNull,
+      );
+
+      await tap(find.byTooltip('Play clip'));
+      expect(video.playCount, 1);
+      final slider = tester.widget<Slider>(find.byType(Slider));
+      slider.onChanged!(15000);
+      slider.onChangeEnd!(15000);
+      await tester.pumpAndSettle();
+      expect(video.position, const Duration(seconds: 15));
+
+      await tester.binding.setSurfaceSize(const Size(360, 640));
+      await tester.pumpAndSettle();
+      expect(video.createCount, 1);
+      expect(find.text('00:15 / 00:46'), findsOneWidget);
+
+      await tap(find.byTooltip('Pause clip'));
+      await tap(find.byTooltip('Back to Teacher Home'));
+      expect(find.text('Class ended · M.1/1'), findsNothing);
+      expect(find.text('Start Class').hitTestable(), findsOneWidget);
+      await tap(find.text('Start Class'));
+      await tap(find.text('Last recording'));
+      expect(find.text('Class ended · M.1/1'), findsOneWidget);
+      expect(video.createCount, 2);
+      await tap(find.byTooltip('Back to Teacher Home'));
+      expect(find.text('Class ended · M.1/1'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('Teacher Home keeps the lesson summary alongside on a tablet', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1164, 777));
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(top: 32, bottom: 16);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPadding);
+    await _openApp(tester, _MemoryRoleRepository(UserRole.teacher));
+
+    final startClass = find.text('Start Class');
+    final today = find.text('Today');
+    final flow = find.text('Lesson flow · 50 min');
+    expect(
+      tester.getTopLeft(flow).dx,
+      greaterThan(tester.getTopLeft(startClass).dx),
+    );
+    expect(
+      tester.getTopLeft(flow).dy,
+      lessThan(tester.getTopLeft(startClass).dy),
+    );
+    expect(
+      tester.getTopLeft(today).dx,
+      greaterThan(tester.getTopLeft(flow).dx),
+    );
+    expect(find.text('Needs your attention').hitTestable(), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Create syllabus'));
+    await tester.pumpAndSettle();
+    expect(find.text('Create syllabus').hitTestable(), findsOneWidget);
+    expect(tester.getSize(find.byType(HomeHeader)).height, 100);
+    expect(tester.takeException(), isNull);
+  });
 
   for (final size in [const Size(1366, 768), const Size(360, 640)]) {
     testWidgets('Teacher header stays visible when scrolling at $size', (
@@ -288,8 +531,16 @@ void main() {
   });
 }
 
-Future<void> _openApp(WidgetTester tester, RoleRepository repository) async {
-  await tester.pumpWidget(PromptLearnApp(roleRepository: repository));
+Future<void> _openApp(
+  WidgetTester tester,
+  RoleRepository repository, {
+  ClassRecordingService? recording,
+}) async {
+  await tester.pumpWidget(
+    recording == null
+        ? PromptLearnApp(roleRepository: repository)
+        : PromptLearnApp(roleRepository: repository, classRecording: recording),
+  );
   await tester.pumpAndSettle();
 }
 
@@ -310,4 +561,113 @@ class _MemoryRoleRepository implements RoleRepository {
   Future<void> clear() async {
     role = null;
   }
+}
+
+class _FakeClassRecordingService implements ClassRecordingService {
+  final _updates = StreamController<RecordingStatus>.broadcast();
+  RecordingStatus _status = const RecordingStatus();
+  RecordingSource? source;
+  bool cancelNextStart = false;
+  int stopCount = 0;
+
+  @override
+  bool get isSupported => true;
+
+  @override
+  Stream<RecordingStatus> get updates => _updates.stream;
+
+  void emit(RecordingStatus status) {
+    _status = status;
+    _updates.add(status);
+  }
+
+  @override
+  Future<RecordingStatus> status() async => _status;
+
+  @override
+  Future<void> start(RecordingSource source) async {
+    this.source = source;
+    if (cancelNextStart) {
+      cancelNextStart = false;
+      throw PlatformException(
+        code: 'cancelled',
+        message: 'Screen sharing was cancelled.',
+      );
+    }
+    emit(RecordingStatus(phase: RecordingPhase.starting, source: source));
+  }
+
+  @override
+  Future<void> stop() async {
+    stopCount++;
+    emit(RecordingStatus(phase: RecordingPhase.saving, source: source));
+  }
+
+  @override
+  Future<List<RecordingClip>> savedClips() async => [?_status.clip];
+
+  Future<void> dispose() => _updates.close();
+}
+
+class _FakeVideoPlayerPlatform extends VideoPlayerPlatform {
+  final _streams = <int, StreamController<VideoEvent>>{};
+  DataSource? source;
+  int playCount = 0;
+  int createCount = 0;
+  Duration position = Duration.zero;
+
+  @override
+  Future<void> init() async {}
+
+  @override
+  Future<int?> createWithOptions(VideoCreationOptions options) async {
+    source = options.dataSource;
+    position = Duration.zero;
+    return ++createCount;
+  }
+
+  @override
+  Stream<VideoEvent> videoEventsFor(int playerId) {
+    final stream = StreamController<VideoEvent>();
+    _streams[playerId] = stream;
+    stream.add(
+      VideoEvent(
+        eventType: VideoEventType.initialized,
+        duration: const Duration(seconds: 46),
+        size: const Size(1600, 1000),
+      ),
+    );
+    return stream.stream;
+  }
+
+  @override
+  Widget buildViewWithOptions(VideoViewOptions options) =>
+      const SizedBox.expand();
+
+  @override
+  Future<void> dispose(int playerId) async {
+    await _streams.remove(playerId)?.close();
+  }
+
+  @override
+  Future<void> play(int playerId) async => playCount++;
+
+  @override
+  Future<void> pause(int playerId) async {}
+
+  @override
+  Future<Duration> getPosition(int playerId) async => position;
+
+  @override
+  Future<void> seekTo(int playerId, Duration position) async =>
+      this.position = position;
+
+  @override
+  Future<void> setLooping(int playerId, bool looping) async {}
+
+  @override
+  Future<void> setVolume(int playerId, double volume) async {}
+
+  @override
+  Future<void> setPlaybackSpeed(int playerId, double speed) async {}
 }

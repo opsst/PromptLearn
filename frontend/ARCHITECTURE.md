@@ -74,9 +74,23 @@ frontend/
 
 ## หน้าจอสำหรับครูและนักเรียน
 
-โครงนำทางเลือกหน้า Home จาก `UserRole` ที่อ่านจากการล็อกอิน โดยประกอบ `TeacherHomeView` หรือ `StudentHomeView` ใน `lib/ui/features/home/views/` ทั้งสองหน้าใช้ `HomeHeader` ร่วมกันจาก `home/widgets/` และกลับเข้า Home ตามบทบาทใหม่เมื่อผู้ใช้สลับการล็อกอิน
+โครงนำทางเลือกหน้า Home จาก `UserRole` ที่อ่านจากการล็อกอิน โดยประกอบ `TeacherHomeView` หรือ `StudentHomeView` ใน `lib/ui/features/home/views/` ทั้งสองหน้าใช้ `HomeHeader` ขนาดขั้นต่ำ 100 dp ร่วมกันจาก `home/widgets/` และกลับเข้า Home ตามบทบาทใหม่เมื่อผู้ใช้สลับการล็อกอิน
 
 ใช้รูปแบบเดียวกันกับฟีเจอร์ที่ครูและนักเรียนมีขั้นตอนต่างกัน โดยเก็บ View ของแต่ละบทบาทใน `views/` ของฟีเจอร์นั้น และเก็บส่วนประกอบที่ใช้ร่วมกันใน `widgets/` เพิ่ม ViewModel แยกเมื่อสถานะหรือคำสั่งของทั้งสองบทบาทต่างกัน ตัวอย่างใน syllabus คือหน้าจัดการฉบับร่างของครูและหน้าอ่านฉบับเผยแพร่ของนักเรียน
+
+Teacher Home จัดคาบถัดไป แผนย่อ และตาราง Today ตามความกว้างที่เหลือหลังหัก Navbar และระยะขอบ หากพื้นที่แคบ การ์ดจะเรียงลงด้านล่าง ส่วนหน้าต่างแนวนอนที่เตี้ยใช้ความสูงของเนื้อหาจริงสำหรับแผนย่อเพื่อลดระยะเลื่อน
+
+### หน้าตั้งค่าก่อนสอนของครู
+
+ปุ่ม **Start Class** จาก Teacher Home เปิด `TeacherClassSetupView` ใน `lib/ui/features/classroom/views/` ภายใน shell เดิม คงตำแหน่งการเลื่อนของ Home ไว้เมื่อกดย้อนกลับ Header ตรึงด้านบนด้วย `AppPageLayout` ส่วนข้อมูลคาบและแผนตัวอย่างใน `classroom/models/` ใช้ร่วมกับแผนแบบย่อบน Teacher Home
+
+**Start teaching & recording** เปิดคำขอสิทธิ์ไมค์และการแชร์หน้าจอของ Android เมื่อเริ่มบันทึกจริง `TeacherTeachingView` แสดง REC และเวลาที่ผ่านไป แหล่ง **Whole screen** ใช้บันทึกต่อขณะสลับแอป หากต้องการแชร์เฉพาะ PromptLearn ให้เลือกรายการแอปในหน้าต่าง Android เมื่อระบบรองรับ การบันทึกใช้เสียงจากไมค์ของอุปกรณ์ [Android MediaProjection](https://developer.android.com/media/grow/media-projection)
+
+`AndroidClassRecordingService` ใน `lib/data/services/` เชื่อม Flutter กับ `ClassRecordingService.kt` ผ่าน MethodChannel และ EventChannel ตัว foreground service ถือ MediaProjection และ MediaRecorder จึงทำงานต่อได้ระหว่างสลับแอป ปุ่ม **Stop & end class** ปิด session และปิดไฟล์ `.partial` เป็น MP4 แบบ H.264/AAC เมื่ออ่านพบทั้งแทร็กภาพและเสียง คลิปอยู่ในพื้นที่ส่วนตัว `noBackupFilesDir/class-recordings/` และ `ClassRecordingService.savedClips()` ส่งคืนพาธ ชื่อ และขนาดไฟล์สำหรับงานอัปโหลด
+
+เมื่อบันทึก MP4 สำเร็จ แอปเปิด `TeacherClassEndedView` ภายใน shell เดิมและส่งพาธจาก `RecordingClip` ให้ `LocalClassClipPlayer` เล่นไฟล์โดยตรง เวลาใน Header และแถบเลื่อนอ่านจากไฟล์ หน้าตั้งค่าก่อนสอนมีปุ่ม **Last recording** เมื่อพบไฟล์ที่บันทึกไว้ [Flutter video_player](https://pub.dev/packages/video_player)
+
+สไลด์ 14 หน้า โน้ตประจำสไลด์ เช็กชื่อ และคำถามนักเรียนใช้ข้อมูลตัวอย่าง หน้าจบคาบแสดงสถานะรออัปโหลด ถอดเสียง และสร้าง timestamp ปุ่มเผยแพร่รอเชื่อม backend
 
 ## Header และการเลื่อนหน้าจอ
 

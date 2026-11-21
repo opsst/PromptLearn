@@ -14,11 +14,13 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+    private var recordingChannel: ClassRecordingChannel? = null
     private var inspectorChannel: MethodChannel? = null
     private var inspectorReady = false
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        recordingChannel = ClassRecordingChannel(this, flutterEngine.dartExecutor.binaryMessenger)
         if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) == 0) return
 
         inspectorChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL_NAME)
@@ -34,6 +36,8 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        recordingChannel?.dispose()
+        recordingChannel = null
         inspectorReady = false
         inspectorChannel?.setMethodCallHandler(null)
         inspectorChannel = null
@@ -59,7 +63,14 @@ class MainActivity : FlutterActivity() {
         grantResults: IntArray,
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        recordingChannel?.onRequestPermissionsResult(requestCode, grantResults)
         if (requestCode == PERMISSION_REQUEST && inspectorReady) postInspectorNotification()
+    }
+
+    @Deprecated("Android screen-capture consent returns an activity result")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        recordingChannel?.onActivityResult(requestCode, resultCode, data)
     }
 
     private fun consumeInspectorIntent(): Boolean {
