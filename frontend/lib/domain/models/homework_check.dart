@@ -27,12 +27,6 @@ class PaperRegion {
       height > 0 &&
       right <= 1.000001 &&
       bottom <= 1.000001;
-
-  bool overlaps(PaperRegion other) =>
-      x < other.right &&
-      right > other.x &&
-      y < other.bottom &&
-      bottom > other.y;
 }
 
 const homeworkDemoQuestionId = 'hw-3.1-q4';
@@ -44,7 +38,6 @@ class HomeworkCheckRequest {
     required this.paperPng,
     required this.imageWidth,
     required this.imageHeight,
-    this.selection,
     this.demoSampleVisible = false,
   });
 
@@ -52,14 +45,21 @@ class HomeworkCheckRequest {
   final Uint8List paperPng;
   final int imageWidth;
   final int imageHeight;
-  final PaperRegion? selection;
   final bool demoSampleVisible;
 }
 
+enum HomeworkMarkStyle { circle, underline }
+
 class HomeworkFeedback {
-  const HomeworkFeedback(this.hint, {this.region, this.isDemo = false});
+  const HomeworkFeedback(
+    this.hint, {
+    this.region,
+    this.markStyle = HomeworkMarkStyle.circle,
+    this.isDemo = false,
+  });
 
   final String hint;
   final PaperRegion? region;
+  final HomeworkMarkStyle markStyle;
   final bool isDemo;
 }

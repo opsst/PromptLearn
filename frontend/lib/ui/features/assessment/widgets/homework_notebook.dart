@@ -1,9 +1,8 @@
-import 'dart:math' as math;
 import 'dart:ui';
 
 import '../../../../domain/models/homework_check.dart';
 
-enum PaperTool { pen, highlighter, lasso, eraser }
+enum PaperTool { pen, highlighter, eraser }
 
 class PaperStroke {
   const PaperStroke(this.tool, this.points);
@@ -19,8 +18,49 @@ class PaperContent {
   final Set<int> sampleSteps;
 
   bool get hasWork => strokes.isNotEmpty || sampleSteps.isNotEmpty;
+
+  /// Removes entire strokes touched by this segment of the eraser gesture.
+  PaperContent eraseBetween(Offset start, Offset end) {
+    final keptStrokes = strokes.where((stroke) {
+      var previous = stroke.points.first;
+      for (final point in stroke.points) {
+        if (_eraserHitsSegment(start, end, previous, point)) return false;
+        previous = point;
+      }
+      return true;
+    }).toList();
+    final keptSteps = sampleSteps.where((index) {
+      final region = sampleRegions[index];
+      final box = Rect.fromLTWH(
+        region.x,
+        region.y,
+        region.width,
+        region.height,
+      );
+      final edges = [
+        box.topLeft,
+        box.topRight,
+        box.bottomRight,
+        box.bottomLeft,
+        box.topLeft,
+      ];
+      if (box.contains(start) || box.contains(end)) return false;
+      for (var edge = 1; edge < edges.length; edge++) {
+        if (_eraserHitsSegment(start, end, edges[edge - 1], edges[edge])) {
+          return false;
+        }
+      }
+      return true;
+    }).toSet();
+    if (keptStrokes.length == strokes.length &&
+        keptSteps.length == sampleSteps.length) {
+      return this;
+    }
+    return PaperContent(strokes: keptStrokes, sampleSteps: keptSteps);
+  }
 }
 
+const paperEraserRadius = 0.014;
 const sampleText = ['(x²)(x⁵)', '= x²ˣ⁵', '= x¹⁰'];
 const sampleRegions = [
   PaperRegion(0.31, 0.06, 0.21, 0.13),
@@ -30,105 +70,86 @@ const sampleRegions = [
 
 class HomeworkDraft {
   HomeworkDraft({bool withSample = false})
-    : content = PaperContent(
+    : _content = PaperContent(
         sampleSteps: withSample ? const {0, 1, 2} : const {},
       );
 
-  PaperContent content;
-  PaperRegion? selection;
-  final List<PaperContent> _history = [];
+  PaperContent _content;
+  final List<PaperContent> _undoHistory = [];
+  final List<PaperContent> _redoHistory = [];
 
-  bool get canUndo => _history.isNotEmpty || selection != null;
+  PaperContent get content => _content;
+  bool get canUndo => _undoHistory.isNotEmpty;
+  bool get canRedo => _redoHistory.isNotEmpty;
 
-  void applyStroke(PaperTool tool, List<Offset> points) {
-    switch (tool) {
-      case PaperTool.pen:
-      case PaperTool.highlighter:
-        _replace(
-          PaperContent(
-            strokes: [
-              ...content.strokes,
-              PaperStroke(tool, List.unmodifiable(points)),
-            ],
-            sampleSteps: content.sampleSteps,
-          ),
-        );
-      case PaperTool.lasso:
-        final xs = points.map((point) => point.dx);
-        final ys = points.map((point) => point.dy);
-        final left = xs.reduce(math.min);
-        final top = ys.reduce(math.min);
-        final region = PaperRegion(
-          left,
-          top,
-          xs.reduce(math.max) - left,
-          ys.reduce(math.max) - top,
-        );
-        selection = region.width > 0.012 && region.height > 0.012
-            ? region
-            : null;
-      case PaperTool.eraser:
-        final keptStrokes = content.strokes
-            .where(
-              (stroke) =>
-                  !stroke.points.any((point) => _isNearEraser(point, points)),
-            )
-            .toList();
-        final keptSteps = content.sampleSteps.where((index) {
-          final region = sampleRegions[index];
-          return !points.any(
-            (point) => Rect.fromLTWH(
-              region.x,
-              region.y,
-              region.width,
-              region.height,
-            ).inflate(0.012).contains(point),
-          );
-        }).toSet();
-        if (keptStrokes.length != content.strokes.length ||
-            keptSteps.length != content.sampleSteps.length) {
-          _replace(PaperContent(strokes: keptStrokes, sampleSteps: keptSteps));
-        }
-    }
+  void addInk(PaperTool tool, List<Offset> points) {
+    assert(tool != PaperTool.eraser);
+    if (points.isEmpty) return;
+    commit(
+      PaperContent(
+        strokes: [
+          ...content.strokes,
+          PaperStroke(tool, List.unmodifiable(points)),
+        ],
+        sampleSteps: content.sampleSteps,
+      ),
+    );
+  }
+
+  void commit(PaperContent next) {
+    if (identical(next, _content)) return;
+    _rememberForUndo();
+    _redoHistory.clear();
+    _content = next;
   }
 
   void undo() {
-    if (selection != null) {
-      selection = null;
-    } else if (_history.isNotEmpty) {
-      content = _history.removeLast();
-    }
+    if (!canUndo) return;
+    _redoHistory.add(_content);
+    _content = _undoHistory.removeLast();
   }
 
-  void _replace(PaperContent next) {
-    if (_history.length == 24) _history.removeAt(0);
-    _history.add(content);
-    content = next;
-    selection = null;
+  void redo() {
+    if (!canRedo) return;
+    _rememberForUndo();
+    _content = _redoHistory.removeLast();
+  }
+
+  void _rememberForUndo() {
+    if (_undoHistory.length == 24) _undoHistory.removeAt(0);
+    _undoHistory.add(_content);
   }
 }
 
-bool _isNearEraser(Offset point, List<Offset> eraserPath) {
-  const radiusSquared = 0.000196;
-  var start = eraserPath.first;
-  if ((point - start).distanceSquared <= radiusSquared) return true;
-
-  for (final end in eraserPath.skip(1)) {
-    final segment = end - start;
-    if (segment.distanceSquared > 0) {
-      final delta = point - start;
-      final position =
-          ((delta.dx * segment.dx + delta.dy * segment.dy) /
-                  segment.distanceSquared)
-              .clamp(0.0, 1.0);
-      if ((point - start - segment * position).distanceSquared <=
-          radiusSquared) {
-        return true;
-      }
-    }
-    start = end;
+bool _eraserHitsSegment(Offset a, Offset b, Offset c, Offset d) {
+  const limit = paperEraserRadius * paperEraserRadius;
+  if (_distanceToSegmentSquared(c, a, b) <= limit ||
+      _distanceToSegmentSquared(d, a, b) <= limit ||
+      _distanceToSegmentSquared(a, c, d) <= limit ||
+      _distanceToSegmentSquared(b, c, d) <= limit) {
+    return true;
   }
-  return false;
+
+  double side(Offset start, Offset end, Offset point) {
+    final axis = end - start;
+    final relative = point - start;
+    return axis.dx * relative.dy - axis.dy * relative.dx;
+  }
+
+  return side(a, b, c) * side(a, b, d) < 0 && side(c, d, a) * side(c, d, b) < 0;
+}
+
+double _distanceToSegmentSquared(Offset point, Offset start, Offset end) {
+  final segment = end - start;
+  final lengthSquared = segment.distanceSquared;
+  final delta = point - start;
+  if (lengthSquared == 0) return delta.distanceSquared;
+  final fraction =
+      ((delta.dx * segment.dx + delta.dy * segment.dy) / lengthSquared).clamp(
+        0.0,
+        1.0,
+      );
+  return (delta - segment * fraction).distanceSquared;
 }
 
 class HomeworkNotebook {

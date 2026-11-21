@@ -8,57 +8,155 @@ import 'package:promptlearn/domain/models/homework_check.dart';
 import 'package:promptlearn/domain/repositories/homework_checker.dart';
 import 'package:promptlearn/ui/features/assessment/views/student_homework_view.dart';
 import 'package:promptlearn/ui/features/assessment/widgets/homework_notebook.dart';
+import 'package:promptlearn/ui/features/assessment/widgets/homework_paper.dart';
 
 void main() {
-  test('Work and lasso stay with their question, and undo restores ink', () {
+  test('Each draft keeps its own undo and redo history', () {
     final notebook = HomeworkNotebook()..activeIndex = 0;
     final draft = notebook.draft;
-    draft.applyStroke(PaperTool.pen, const [
-      Offset(0.3, 0.3),
-      Offset(0.5, 0.5),
-    ]);
-    draft.applyStroke(PaperTool.lasso, const [
-      Offset(0.2, 0.2),
-      Offset(0.6, 0.6),
-    ]);
-    expect(draft.selection?.isValid, isTrue);
+    draft.addInk(PaperTool.pen, const [Offset(0.2, 0.5), Offset(0.8, 0.5)]);
 
     notebook.activeIndex = 1;
     expect(notebook.draft.content.hasWork, isFalse);
     notebook.activeIndex = 0;
     expect(notebook.draft, same(draft));
 
-    draft.undo();
-    expect(draft.selection, isNull);
-    draft.applyStroke(PaperTool.eraser, const [
-      Offset(0.2, 0.3),
-      Offset(0.4, 0.3),
-    ]);
+    draft.commit(
+      draft.content.eraseBetween(
+        const Offset(0.5, 0.3),
+        const Offset(0.5, 0.7),
+      ),
+    );
     expect(draft.content.hasWork, isFalse);
     draft.undo();
     expect(draft.content.hasWork, isTrue);
+    draft.redo();
+    expect(draft.content.hasWork, isFalse);
+    draft.undo();
+    draft.addInk(PaperTool.highlighter, const [Offset(0.3, 0.3)]);
+    expect(draft.canRedo, isFalse);
   });
 
-  test('Mock only marks the known sample near the selected work', () async {
+  test('Mock returns a circle only for the visible sample step', () async {
     const checker = MockHomeworkChecker();
-    HomeworkCheckRequest request({PaperRegion? region, bool sample = true}) {
+    HomeworkCheckRequest request({required bool sample}) {
       return HomeworkCheckRequest(
         question: HomeworkNotebook.questions[3],
         paperPng: Uint8List(1),
         imageWidth: 100,
         imageHeight: 100,
-        selection: region,
         demoSampleVisible: sample,
       );
     }
 
-    expect((await checker.check(request())).region, homeworkDemoIssue);
+    final marked = await checker.check(request(sample: true));
+    expect(marked.region, homeworkDemoIssue);
+    expect(marked.markStyle, HomeworkMarkStyle.circle);
     expect((await checker.check(request(sample: false))).region, isNull);
+  });
+
+  testWidgets(
+    'Eraser hides whole strokes while down and undo groups the drag',
+    (tester) async {
+      final notebook = HomeworkNotebook()..activeIndex = 0;
+      final draft = notebook.draft;
+      draft.addInk(PaperTool.pen, const [Offset(0.2, 0.4), Offset(0.8, 0.4)]);
+      draft.addInk(PaperTool.pen, const [Offset(0.2, 0.6), Offset(0.8, 0.6)]);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: StudentHomeworkView(
+                notebook: notebook,
+                checker: _UnusedChecker(),
+                onBack: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final finder = find.byType(HomeworkPaper);
+      final paper = tester.getRect(finder);
+      final first = Offset(paper.center.dx, paper.top + paper.height * 0.4);
+      final second = Offset(paper.center.dx, paper.top + paper.height * 0.6);
+      int visibleStrokes() =>
+          tester.widget<HomeworkPaper>(finder).visibleContent.strokes.length;
+
+      expect(find.byTooltip('Lasso'), findsNothing);
+      await tester.tap(find.byTooltip('Eraser'));
+      await tester.pump();
+
+      final cancelled = await tester.startGesture(
+        first,
+        kind: PointerDeviceKind.stylus,
+      );
+      await tester.pump();
+      expect(visibleStrokes(), 1);
+      await cancelled.cancel();
+      await tester.pump();
+      expect(visibleStrokes(), 2);
+
+      final drag = await tester.startGesture(
+        first,
+        kind: PointerDeviceKind.stylus,
+      );
+      await tester.pump();
+      expect(visibleStrokes(), 1);
+      await drag.moveTo(second);
+      await tester.pump();
+      expect(visibleStrokes(), 0);
+      expect(draft.content.strokes, hasLength(2));
+      await drag.up();
+      await tester.pump();
+      expect(draft.content.strokes, isEmpty);
+
+      await tester.tap(find.byTooltip('Undo'));
+      await tester.pump();
+      expect(visibleStrokes(), 2);
+      await tester.tap(find.byTooltip('Redo'));
+      await tester.pump();
+      expect(visibleStrokes(), 0);
+    },
+  );
+
+  testWidgets('A feedback underline uses the bottom of its paper region', (
+    tester,
+  ) async {
+    final draft = HomeworkDraft();
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Center(
+          child: SizedBox(
+            width: 448,
+            child: HomeworkPaper(
+              captureKey: GlobalKey(),
+              draft: draft,
+              visibleContent: draft.content,
+              tool: PaperTool.pen,
+              activeTrace: const [],
+              feedback: const HomeworkFeedback(
+                'Recheck this step.',
+                region: PaperRegion(0.25, 0.25, 0.5, 0.25),
+                markStyle: HomeworkMarkStyle.underline,
+              ),
+              onDown: (_, _) {},
+              onMove: (_, _) {},
+              onEnd: (_, {required cancelled}) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final size = tester.getSize(find.byType(HomeworkPaper));
     expect(
-      (await checker.check(
-        request(region: const PaperRegion(0.7, 0.7, 0.2, 0.2)),
-      )).region,
-      isNull,
+      find.byType(CustomPaint).last,
+      paints..line(
+        p1: Offset(size.width * 0.25, size.height * 0.5),
+        p2: Offset(size.width * 0.75, size.height * 0.5),
+      ),
     );
   });
 

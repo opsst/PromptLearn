@@ -35,6 +35,7 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
 
   PaperTool _tool = PaperTool.pen;
   List<Offset> _trace = const [];
+  PaperContent? _erasePreview;
   int? _pointer;
   int _revision = 0;
   Timer? _timer;
@@ -76,6 +77,9 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
       _workChanged();
       _pointer = pointer;
       _trace = [point];
+      if (_tool == PaperTool.eraser) {
+        _erasePreview = _draft.content.eraseBetween(point, point);
+      }
     });
   }
 
@@ -84,33 +88,54 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
         (_trace.last - point).distanceSquared < 0.000001) {
       return;
     }
-    setState(() => _trace.add(point));
+    setState(() {
+      final preview = _erasePreview;
+      if (preview == null) {
+        _trace.add(point);
+      } else {
+        _erasePreview = preview.eraseBetween(_trace.last, point);
+        _trace = [point];
+      }
+    });
   }
 
   void _finishStroke(int pointer, {required bool cancelled}) {
     if (_pointer != pointer) return;
+
+    final before = _draft.content;
     setState(() {
-      if (!cancelled) _draft.applyStroke(_tool, _trace);
-      _pointer = null;
-      _trace = const [];
+      if (!cancelled) {
+        final preview = _erasePreview;
+        if (preview != null) {
+          _draft.commit(preview);
+        } else {
+          _draft.addInk(_tool, _trace);
+        }
+      }
+      _resetStroke();
     });
-    if (!cancelled) _scheduleCheck();
+    if (_draft.content != before) _scheduleCheck();
+  }
+
+  void _resetStroke() {
+    _pointer = null;
+    _trace = const [];
+    _erasePreview = null;
   }
 
   void _selectQuestion(int index) {
     if (_notebook.activeIndex == index) return;
     setState(() {
       _workChanged();
-      _pointer = null;
-      _trace = const [];
+      _resetStroke();
       _notebook.activeIndex = index;
     });
   }
 
-  void _undo() {
+  void _editHistory(VoidCallback edit) {
     setState(() {
       _workChanged();
-      _draft.undo();
+      edit();
     });
     _scheduleCheck();
   }
@@ -120,7 +145,6 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
     _stopTimer();
     final revision = _revision;
     final question = HomeworkNotebook.questions[_notebook.activeIndex];
-    final selection = _draft.selection;
     final sampleVisible = _draft.content.sampleSteps.contains(1);
 
     setState(() {
@@ -151,7 +175,6 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
           ),
           imageWidth: image.width,
           imageHeight: image.height,
-          selection: selection,
           demoSampleVisible: sampleVisible,
         );
       } finally {
@@ -274,9 +297,10 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
       key: const ValueKey('homework-paper'),
       captureKey: _captureKey,
       draft: _draft,
+      visibleContent: _erasePreview ?? _draft.content,
       tool: _tool,
       activeTrace: _trace,
-      feedbackRegion: feedback?.region,
+      feedback: feedback,
       onDown: _startStroke,
       onMove: _extendStroke,
       onEnd: _finishStroke,
@@ -339,18 +363,9 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
           children: [
             _toolButton('Pen', 'pen.svg', PaperTool.pen),
             _toolButton('Highlighter', 'hl.svg', PaperTool.highlighter),
-            _toolButton('Lasso', 'lasso.png', PaperTool.lasso),
             _toolButton('Eraser', 'eraser.svg', PaperTool.eraser),
-            IconButton(
-              tooltip: 'Undo',
-              onPressed: _draft.canUndo && _pointer == null ? _undo : null,
-              icon: SvgPicture.asset(
-                'assets/assessment/undo.svg',
-                width: 18,
-                height: 18,
-                excludeFromSemantics: true,
-              ),
-            ),
+            _historyButton('Undo', _draft.canUndo, _draft.undo),
+            _historyButton('Redo', _draft.canRedo, _draft.redo, flipped: true),
           ],
         ),
         Wrap(
@@ -413,20 +428,34 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
               : Colors.transparent,
         ),
         onPressed: _pointer == null ? () => setState(() => _tool = tool) : null,
-        icon: asset.endsWith('.svg')
-            ? SvgPicture.asset(
-                path,
-                width: 18,
-                height: 18,
-                excludeFromSemantics: true,
-              )
-            : Image.asset(
-                path,
-                width: 18,
-                height: 18,
-                excludeFromSemantics: true,
-              ),
+        icon: SvgPicture.asset(
+          path,
+          width: 18,
+          height: 18,
+          excludeFromSemantics: true,
+        ),
       ),
+    );
+  }
+
+  Widget _historyButton(
+    String label,
+    bool enabled,
+    VoidCallback action, {
+    bool flipped = false,
+  }) {
+    final icon = SvgPicture.asset(
+      'assets/assessment/undo.svg',
+      width: 18,
+      height: 18,
+      excludeFromSemantics: true,
+    );
+    return IconButton(
+      tooltip: label,
+      onPressed: enabled && _pointer == null
+          ? () => _editHistory(action)
+          : null,
+      icon: flipped ? Transform.flip(flipX: true, child: icon) : icon,
     );
   }
 }

@@ -10,9 +10,10 @@ class HomeworkPaper extends StatefulWidget {
     super.key,
     required this.captureKey,
     required this.draft,
+    required this.visibleContent,
     required this.tool,
     required this.activeTrace,
-    required this.feedbackRegion,
+    required this.feedback,
     required this.onDown,
     required this.onMove,
     required this.onEnd,
@@ -20,9 +21,10 @@ class HomeworkPaper extends StatefulWidget {
 
   final GlobalKey captureKey;
   final HomeworkDraft draft;
+  final PaperContent visibleContent;
   final PaperTool tool;
   final List<Offset> activeTrace;
-  final PaperRegion? feedbackRegion;
+  final HomeworkFeedback? feedback;
   final void Function(int pointer, Offset point) onDown;
   final void Function(int pointer, Offset point) onMove;
   final void Function(int pointer, {required bool cancelled}) onEnd;
@@ -174,7 +176,7 @@ class _HomeworkPaperState extends State<HomeworkPaper> {
                             key: widget.captureKey,
                             child: CustomPaint(
                               painter: _InkPainter(
-                                widget.draft.content,
+                                widget.visibleContent,
                                 drawsInk
                                     ? PaperStroke(tool, widget.activeTrace)
                                     : null,
@@ -184,10 +186,12 @@ class _HomeworkPaperState extends State<HomeworkPaper> {
                           IgnorePointer(
                             child: CustomPaint(
                               painter: _MarkPainter(
-                                selection: widget.draft.selection,
-                                feedback: widget.feedbackRegion,
-                                tool: tool,
-                                trace: drawsInk ? const [] : widget.activeTrace,
+                                feedback: widget.feedback,
+                                eraser:
+                                    tool == PaperTool.eraser &&
+                                        widget.activeTrace.isNotEmpty
+                                    ? widget.activeTrace.last
+                                    : null,
                               ),
                             ),
                           ),
@@ -300,47 +304,52 @@ class _InkPainter extends CustomPainter {
 }
 
 class _MarkPainter extends CustomPainter {
-  const _MarkPainter({
-    required this.selection,
-    required this.feedback,
-    required this.tool,
-    required this.trace,
-  });
+  const _MarkPainter({required this.feedback, required this.eraser});
 
-  final PaperRegion? selection;
-  final PaperRegion? feedback;
-  final PaperTool tool;
-  final List<Offset> trace;
+  final HomeworkFeedback? feedback;
+  final Offset? eraser;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final feedbackRegion = feedback;
-    final selectionRegion = selection;
-    final paint = Paint()
-      ..color = AppColors.primary
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.2;
-    if (selectionRegion != null) {
-      final path = Path()..addOval(_area(selectionRegion, size));
-      for (final metric in path.computeMetrics()) {
-        for (var distance = 0.0; distance < metric.length; distance += 12) {
-          canvas.drawPath(metric.extractPath(distance, distance + 7), paint);
-        }
+    final hint = feedback;
+    final region = hint?.region;
+    if (hint != null && region != null && region.isValid) {
+      final area = _area(region, size);
+      final paint = Paint()
+        ..color = AppColors.primary
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = 3;
+      switch (hint.markStyle) {
+        case HomeworkMarkStyle.circle:
+          canvas.drawOval(area, paint);
+        case HomeworkMarkStyle.underline:
+          canvas.drawLine(area.bottomLeft, area.bottomRight, paint);
       }
     }
 
-    if (feedbackRegion != null && feedbackRegion.isValid) {
-      canvas.drawOval(_area(feedbackRegion, size), paint..strokeWidth = 3);
-    }
-
-    if (trace.isEmpty) return;
-    if (tool == PaperTool.lasso) {
-      canvas.drawPath(_tracePath(trace, size), paint);
-    } else if (tool == PaperTool.eraser) {
-      canvas.drawCircle(_project(trace.last, size), 9, paint);
+    final point = eraser;
+    if (point != null) {
+      final cursor = Rect.fromCenter(
+        center: _project(point, size),
+        width: size.width * paperEraserRadius * 2,
+        height: size.height * paperEraserRadius * 2,
+      );
+      canvas.drawOval(
+        cursor,
+        Paint()..color = AppColors.accent.withValues(alpha: 0.22),
+      );
+      canvas.drawOval(
+        cursor,
+        Paint()
+          ..color = AppColors.primary
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.6,
+      );
     }
   }
 
   @override
-  bool shouldRepaint(covariant _MarkPainter old) => true;
+  bool shouldRepaint(covariant _MarkPainter old) =>
+      old.feedback != feedback || old.eraser != eraser;
 }
