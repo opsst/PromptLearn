@@ -44,5 +44,10 @@ func (g OpenAIGenerator) Generate(ctx context.Context, req Request) (Draft, erro
 	if err := json.Unmarshal(raw, &draft); err != nil {
 		return Draft{}, fmt.Errorf("%w: decode structured answer", ErrInvalidDraft)
 	}
+	// Other question types may receive extra criteria from the model. The
+	// assessment uses scoring rows only for Show work.
+	if req.Question.Kind != "showWork" {
+		draft.Criteria = []Criterion{}
+	}
 	return draft, draft.Validate(req.Question)
 }

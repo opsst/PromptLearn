@@ -57,3 +57,24 @@ func TestDraftShowWork(t *testing.T) {
 		})
 	}
 }
+
+func TestShortAnswerIgnoresExtraCriteria(t *testing.T) {
+	generator := OpenAIGenerator{Client: generateJSONFunc(func(_ context.Context, _ openai.JSONRequest) (json.RawMessage, error) {
+		return json.RawMessage(`{
+			"answer":"2⁷",
+			"correct_option":null,
+			"alignment":"aligned",
+			"alignment_reason":"",
+			"criteria":[{"name":"Answer","full_points":1}],
+			"mistakes":[{"example":"2¹²","reason":"Multiplied the exponents"}],
+			"note":"Accept one power."
+		}`), nil
+	})}
+	draft, err := generator.Generate(context.Background(), Request{
+		Lesson:   Lesson{Title: "Multiplying powers", Steps: []string{"Add the exponents."}},
+		Question: Question{Kind: "shortAnswer", Prompt: "Simplify 2³ × 2⁴.", Points: 1},
+	})
+	if err != nil || draft.Answer != "2⁷" || draft.Criteria == nil || len(draft.Criteria) != 0 || len(draft.Mistakes) != 1 {
+		t.Fatalf("expected the answer and mistakes without scoring rows, got %+v, %v", draft, err)
+	}
+}
