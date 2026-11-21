@@ -72,7 +72,11 @@ void main() {
     });
   }
 
-  for (final size in [const Size(1366, 1024), const Size(360, 640)]) {
+  for (final size in [
+    const Size(1366, 1024),
+    const Size(800, 1200),
+    const Size(360, 640),
+  ]) {
     testWidgets('Teacher dashboard and lesson plan work at $size', (
       tester,
     ) async {
@@ -196,6 +200,41 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('Teacher Home keeps the lesson summary alongside on a tablet', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1164, 777));
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(top: 32, bottom: 16);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPadding);
+    await _openApp(tester, _MemoryRoleRepository(UserRole.teacher));
+
+    final startClass = find.text('Start Class');
+    final today = find.text('Today');
+    final flow = find.text('Lesson flow · 50 min');
+    expect(
+      tester.getTopLeft(flow).dx,
+      greaterThan(tester.getTopLeft(startClass).dx),
+    );
+    expect(
+      tester.getTopLeft(flow).dy,
+      lessThan(tester.getTopLeft(startClass).dy),
+    );
+    expect(
+      tester.getTopLeft(today).dx,
+      greaterThan(tester.getTopLeft(flow).dx),
+    );
+    expect(find.text('Needs your attention').hitTestable(), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Create syllabus'));
+    await tester.pumpAndSettle();
+    expect(find.text('Create syllabus').hitTestable(), findsOneWidget);
+    expect(tester.getSize(find.byType(HomeHeader)).height, 100);
+    expect(tester.takeException(), isNull);
+  });
 
   for (final size in [const Size(1366, 768), const Size(360, 640)]) {
     testWidgets('Teacher header stays visible when scrolling at $size', (

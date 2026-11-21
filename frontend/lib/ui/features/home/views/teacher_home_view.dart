@@ -16,6 +16,9 @@ const _lavender = Color(0xFFF2F3FF);
 const _line = Color(0xFFE6ECE8);
 const _upcomingGreen = Color(0xFF4ABE7A);
 const _actionLabelStyle = TextStyle(fontSize: 14);
+const _dashboardGap = 20.0;
+const _overviewFlex = 791;
+const _todayFlex = 302;
 
 class TeacherHomeView extends StatelessWidget {
   const TeacherHomeView({
@@ -42,10 +45,13 @@ class TeacherHomeView extends StatelessWidget {
                 final inset = constraints.maxWidth >= 900 ? 42.0 : 16.0;
                 final padding = EdgeInsets.fromLTRB(inset, 25, inset, 18);
                 final width = constraints.maxWidth - padding.horizontal;
-                final showTodayAlongside = width >= 950;
-                final lessonWidth = showTodayAlongside
-                    ? (width - 20) * 791 / 1093
-                    : width;
+                final rowWidth = width - _dashboardGap;
+                final lessonWidth =
+                    rowWidth * _overviewFlex / (_overviewFlex + _todayFlex);
+                final showTodayAlongside =
+                    lessonWidth >= _NextClass.minimumSplitWidth &&
+                    rowWidth - lessonWidth >= _Today.minimumColumnWidth;
+                final compactHeight = constraints.maxHeight < 700;
                 return SingleChildScrollView(
                   child: DecoratedBox(
                     decoration: const BoxDecoration(
@@ -82,14 +88,17 @@ class TeacherHomeView extends StatelessWidget {
                             child: IntrinsicHeight(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                                spacing: 20,
+                                spacing: _dashboardGap,
                                 children: [
                                   _DashboardRow(
                                     horizontal: showTodayAlongside,
-                                    flexes: const [791, 302],
+                                    flexes: const [_overviewFlex, _todayFlex],
                                     children: [
                                       _NextClass(
-                                        width: lessonWidth,
+                                        width: showTodayAlongside
+                                            ? lessonWidth
+                                            : width,
+                                        compactHeight: compactHeight,
                                         onStartClass: onStartClass,
                                       ),
                                       const _Today(),
@@ -140,14 +149,14 @@ class _DashboardRow extends StatelessWidget {
     if (!horizontal) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        spacing: 20,
+        spacing: _dashboardGap,
         children: children,
       );
     }
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        spacing: 20,
+        spacing: _dashboardGap,
         children: [
           for (var index = 0; index < children.length; index++)
             Expanded(flex: flexes[index], child: children[index]),
@@ -254,19 +263,31 @@ void _showDetails(BuildContext context, String title, Widget content) {
 }
 
 class _NextClass extends StatelessWidget {
-  const _NextClass({required this.width, required this.onStartClass});
+  const _NextClass({
+    required this.width,
+    required this.compactHeight,
+    required this.onStartClass,
+  });
+
+  static const _minimumOverviewWidth = 370.0;
+  static const _minimumFlowWidth = 220.0;
+  static const minimumSplitWidth = _minimumOverviewWidth + _minimumFlowWidth;
 
   final double width;
+  final bool compactHeight;
   final VoidCallback onStartClass;
 
   @override
   Widget build(BuildContext context) {
-    final split = width >= 680;
+    final split = width >= minimumSplitWidth;
+    final flowWidth = split
+        ? (width * 0.35).clamp(_minimumFlowWidth, 280.0)
+        : 0.0;
     final overview = _LessonOverview(
       onStartClass: onStartClass,
-      horizontalActions: (split ? width - 280 : width) >= 417,
+      horizontalActions: width - flowWidth >= 417,
     );
-    const flow = _LessonFlow();
+    final flow = _LessonFlow(compact: compactHeight || !split);
 
     return _card(
       split
@@ -275,7 +296,7 @@ class _NextClass extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Expanded(child: overview),
-                  const SizedBox(width: 280, child: flow),
+                  SizedBox(width: flowWidth, child: flow),
                 ],
               ),
             )
@@ -432,12 +453,14 @@ class _LessonButton extends StatelessWidget {
 }
 
 class _LessonFlow extends StatelessWidget {
-  const _LessonFlow();
+  const _LessonFlow({this.compact = false});
+
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 357),
+      constraints: BoxConstraints(minHeight: compact ? 0 : 357),
       color: const Color(0xFFF0FFE8),
       padding: const EdgeInsets.all(22),
       child: Column(
@@ -480,11 +503,17 @@ class _LessonFlow extends StatelessWidget {
 }
 
 class _EntryText extends StatelessWidget {
-  const _EntryText(this.title, this.description, {this.titleSize = 14});
+  const _EntryText(
+    this.title,
+    this.description, {
+    this.titleSize = 14,
+    this.descriptionTrailing,
+  });
 
   final String title;
   final String description;
   final double titleSize;
+  final Widget? descriptionTrailing;
 
   @override
   Widget build(BuildContext context) {
@@ -494,9 +523,17 @@ class _EntryText extends StatelessWidget {
       children: [
         Text(title, style: _style(context, titleSize, weight: FontWeight.w600)),
         if (description.isNotEmpty)
-          Text(
-            description,
-            style: _style(context, 12, color: AppColors.mutedText),
+          Wrap(
+            spacing: 6,
+            runSpacing: 3,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                description,
+                style: _style(context, 12, color: AppColors.mutedText),
+              ),
+              ?descriptionTrailing,
+            ],
           ),
       ],
     );
@@ -505,6 +542,8 @@ class _EntryText extends StatelessWidget {
 
 class _Today extends StatelessWidget {
   const _Today();
+
+  static const minimumColumnWidth = 250.0;
 
   static const _periods = [
     ('08:30', '3.2 Multiplying powers', 'M.1/2'),
@@ -543,33 +582,41 @@ class _Today extends StatelessWidget {
                     time,
                     style: _style(context, 13, weight: FontWeight.w600),
                   ),
-                  Expanded(child: _EntryText(title, room, titleSize: 13)),
-                  if (time == '10:20')
-                    DecoratedBox(
-                      decoration: const BoxDecoration(
-                        color: _upcomingGreen,
-                        borderRadius: BorderRadius.all(Radius.circular(999)),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 3,
-                        ),
-                        child: Text(
-                          'Upcoming',
-                          style: _style(
-                            context,
-                            10,
-                            weight: FontWeight.w600,
-                            color: _paper,
-                          ),
-                        ),
-                      ),
+                  Expanded(
+                    child: _EntryText(
+                      title,
+                      room,
+                      titleSize: 13,
+                      descriptionTrailing: time == '10:20'
+                          ? const _UpcomingBadge()
+                          : null,
                     ),
+                  ),
                 ],
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _UpcomingBadge extends StatelessWidget {
+  const _UpcomingBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        color: _upcomingGreen,
+        borderRadius: BorderRadius.all(Radius.circular(999)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+        child: Text(
+          'Upcoming',
+          style: _style(context, 10, weight: FontWeight.w600, color: _paper),
+        ),
       ),
     );
   }
