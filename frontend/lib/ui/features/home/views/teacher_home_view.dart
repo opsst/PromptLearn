@@ -26,11 +26,13 @@ class TeacherHomeView extends StatelessWidget {
     required this.displayName,
     required this.now,
     required this.onStartClass,
+    required this.onOpenAssessment,
   });
 
   final String displayName;
   final DateTime now;
   final VoidCallback onStartClass;
+  final VoidCallback onOpenAssessment;
 
   @override
   Widget build(BuildContext context) {
@@ -100,6 +102,7 @@ class TeacherHomeView extends StatelessWidget {
                                             : width,
                                         compactHeight: compactHeight,
                                         onStartClass: onStartClass,
+                                        onOpenAssessment: onOpenAssessment,
                                       ),
                                       const _Today(),
                                     ],
@@ -267,6 +270,7 @@ class _NextClass extends StatelessWidget {
     required this.width,
     required this.compactHeight,
     required this.onStartClass,
+    required this.onOpenAssessment,
   });
 
   static const _minimumOverviewWidth = 370.0;
@@ -276,6 +280,7 @@ class _NextClass extends StatelessWidget {
   final double width;
   final bool compactHeight;
   final VoidCallback onStartClass;
+  final VoidCallback onOpenAssessment;
 
   @override
   Widget build(BuildContext context) {
@@ -285,6 +290,7 @@ class _NextClass extends StatelessWidget {
         : 0.0;
     final overview = _LessonOverview(
       onStartClass: onStartClass,
+      onOpenAssessment: onOpenAssessment,
       horizontalActions: width - flowWidth >= 417,
     );
     final flow = _LessonFlow(compact: compactHeight || !split);
@@ -313,10 +319,12 @@ class _LessonOverview extends StatelessWidget {
   const _LessonOverview({
     required this.horizontalActions,
     required this.onStartClass,
+    required this.onOpenAssessment,
   });
 
   final bool horizontalActions;
   final VoidCallback onStartClass;
+  final VoidCallback onOpenAssessment;
 
   @override
   Widget build(BuildContext context) {
@@ -330,11 +338,7 @@ class _LessonOverview extends StatelessWidget {
       _LessonButton(
         label: 'Lesson Plan',
         iconAsset: 'assets/home/akar-icons_book-close.svg',
-        onPressed: () => _showDetails(
-          context,
-          TeacherClassPreview.lessonTitle,
-          const _LessonFlow(),
-        ),
+        onPressed: onOpenAssessment,
       ),
     ];
     return Padding(

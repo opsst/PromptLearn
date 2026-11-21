@@ -80,6 +80,18 @@ frontend/
 
 Teacher Home จัดคาบถัดไป แผนย่อ และตาราง Today ตามความกว้างที่เหลือหลังหัก Navbar และระยะขอบ หากพื้นที่แคบ การ์ดจะเรียงลงด้านล่าง ส่วนหน้าต่างแนวนอนที่เตี้ยใช้ความสูงของเนื้อหาจริงสำหรับแผนย่อเพื่อลดระยะเลื่อน
 
+### หน้าสร้างข้อสอบของครู
+
+ปุ่ม **Lesson Plan** บน Teacher Home เปิด `TeacherAssessmentBuilderView` ใน `ui/features/assessment/views/` ครูเลือก Quiz หรือ Homework แล้วเพิ่มคำถามแบบ Short answer, Show work, Multiple choice หรือ True or false ได้ ข้อมูลร่างเก็บชนิดโจทย์ ข้อความ คะแนน และตัวเลือก ผู้สอนตรวจหน้าตัวอย่างนักเรียนได้ก่อนเพิ่มเฉลยในขั้นถัดไป
+
+หน้า Create Assessment ใช้ `AppPageLayout` ตรึง Header และเลื่อนเฉพาะเนื้อหา บนแท็บเล็ตวาง Settings กับ Questions ข้างกันและจัดปุ่ม Header ในแถวเดียว หน้าต่างแคบเรียง Questions ก่อน Settings เพื่อให้เข้าถึงปุ่มเขียนโจทย์ได้ทันที
+
+`AssessmentDraftController` จัดลำดับการบันทึกร่างผ่าน `AssessmentDraftRepository` โดยใช้ SharedPreferences สำหรับร่างของ Unit 3 ในเครื่อง การนำเข้าโจทย์จากภาพและสร้างโจทย์ด้วย AI รอต่อในขั้นถัดไป
+
+จากหน้า Create Assessment ปุ่ม Next เปิดหน้า Scoring rubric พร้อม Header แบบคงที่ บนแท็บเล็ตจัดรายการคำถาม เฉลย และ Design with AI เป็นสามคอลัมน์ ส่วนจอแคบจัดเรียงลงด้านล่าง `AssessmentRubricController` ขอร่างของแต่ละข้อพร้อมชื่อและกิจกรรมจาก Lesson Plan โดยใช้แผนตัวอย่าง 3.2 ที่แสดงบน Teacher Home ผ่าน `AssessmentRubricGenerator` และบันทึกเฉลยกับข้อเดิม เมื่อแก้โจทย์ ตัวเลือก หรือคะแนน ระบบจะขอร่างใหม่เมื่อกลับเข้าหน้าทำเฉลย
+
+ครูแก้เฉลย เลือกคำตอบสำหรับ Multiple choice และ True / false และแก้คะแนน Show work ในตาราง คะแนน Full ต้องรวมเท่าคะแนนของข้อก่อนกดยืนยัน ข้อที่ AI มองว่านอกบทแสดงสีเหลืองพร้อมตัวเลือกเก็บหรือลบ ส่วนข้อผิดพลาดตัวอย่างแสดงสีแดง ครูแก้ร่างเองได้เมื่อ API ไม่พร้อมและตรวจข้อเสนอจาก Design with AI ก่อนนำไปใช้ การเผยแพร่ข้อสอบรอการเชื่อมระบบรายห้อง
+
 ### หน้าตั้งค่าก่อนสอนของครู
 
 ปุ่ม **Start Class** จาก Teacher Home เปิด `TeacherClassSetupView` ใน `lib/ui/features/classroom/views/` ภายใน shell เดิม คงตำแหน่งการเลื่อนของ Home ไว้เมื่อกดย้อนกลับ Header ตรึงด้านบนด้วย `AppPageLayout` ส่วนข้อมูลคาบและแผนตัวอย่างใน `classroom/models/` ใช้ร่วมกับแผนแบบย่อบน Teacher Home
