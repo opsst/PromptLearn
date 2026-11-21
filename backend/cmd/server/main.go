@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -59,6 +60,7 @@ func main() {
 	syllabi := syllabus.NewService(planner)
 	handler := httpapi.NewHandler(syllabi, store)
 	readTimeout := 10 * time.Second
+	writeTimeout := modelTimeout + 15*time.Second
 	if databaseURL := os.Getenv("REPLAY_DEMO_DATABASE_URL"); databaseURL != "" {
 		host, _, err := net.SplitHostPort(addr)
 		if err != nil || !httpapi.IsLoopbackHost(host) {
@@ -87,7 +89,14 @@ func main() {
 			log.Fatalf("open replay database: %v", err)
 		}
 		defer replays.Close()
-		handler = httpapi.NewDemoHandler(syllabi, store, replays, mediaDir, webDir)
+		transcriber, err := configureReplayTranscriber(key)
+		if err != nil {
+			log.Fatalf("configure replay transcription: %v", err)
+		}
+		handler = httpapi.NewDemoHandler(syllabi, store, replays, transcriber, mediaDir, webDir)
+		if transcriber != nil {
+			writeTimeout = 4 * time.Minute
+		}
 		readTimeout = 90 * time.Second
 	}
 
@@ -96,12 +105,49 @@ func main() {
 		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       readTimeout,
-		WriteTimeout:      modelTimeout + 15*time.Second,
+		WriteTimeout:      writeTimeout,
 		IdleTimeout:       60 * time.Second,
 	}
 
 	log.Printf("PromptLearn listening on %s", addr)
 	log.Fatal(server.ListenAndServe())
+}
+
+func configureReplayTranscriber(key string) (replay.Transcriber, error) {
+	model := strings.TrimSpace(os.Getenv("REPLAY_WHISPER_MODEL"))
+	switch os.Getenv("REPLAY_TRANSCRIBER") {
+	case "openai":
+		if key == "" {
+			return nil, errors.New("OPENAI_API_KEY is required when REPLAY_TRANSCRIBER=openai")
+		}
+		client := openai.NewTranscriptionClient(key, &http.Client{
+			Timeout: 40 * time.Second,
+			CheckRedirect: func(*http.Request, []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		})
+		return replay.NewOpenAITranscriber(client)
+	case "local":
+		if model == "" {
+			return nil, errors.New("REPLAY_WHISPER_MODEL is required when REPLAY_TRANSCRIBER=local")
+		}
+	case "":
+		if model == "" {
+			return nil, nil
+		}
+	default:
+		return nil, errors.New("REPLAY_TRANSCRIBER must be openai or local")
+	}
+
+	useGPU := false
+	if value := os.Getenv("REPLAY_WHISPER_USE_GPU"); value != "" {
+		var err error
+		useGPU, err = strconv.ParseBool(value)
+		if err != nil {
+			return nil, errors.New("REPLAY_WHISPER_USE_GPU must be true or false")
+		}
+	}
+	return replay.NewWhisper(os.Getenv("REPLAY_WHISPER_PYTHON"), model, useGPU)
 }
 
 func checkReplayDirectories(mediaDir, webDir string) error {
