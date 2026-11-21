@@ -1,6 +1,7 @@
 package course
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -21,19 +22,19 @@ func TestPublishedViewOnlyChangesAfterPublishing(t *testing.T) {
 		Schedule: &teaching.Schedule{Timezone: "Asia/Bangkok"},
 	}
 
-	saved, err := store.Create(preview)
+	saved, err := store.Create(context.Background(), preview)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.StudentView(saved.ID); !errors.Is(err, ErrNotFound) {
+	if _, err := store.StudentView(context.Background(), saved.ID); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("unpublished view should be absent: %v", err)
 	}
-	if _, err := store.Publish(saved.ID); err != nil {
+	if _, err := store.Publish(context.Background(), saved.ID); err != nil {
 		t.Fatal(err)
 	}
 
 	preview.Syllabus.CourseName = "คณิตศาสตร์ ฉบับปรับปรุง"
-	updated, err := store.Update(saved.ID, preview)
+	updated, err := store.Update(context.Background(), saved.ID, preview)
 	if err != nil || updated.Status != "unpublished_changes" {
 		t.Fatalf("could not save draft revision: %+v, %v", updated, err)
 	}
@@ -41,14 +42,14 @@ func TestPublishedViewOnlyChangesAfterPublishing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	view, err := reopened.StudentView(saved.ID)
+	view, err := reopened.StudentView(context.Background(), saved.ID)
 	if err != nil || view.CourseName != "คณิตศาสตร์" {
 		t.Fatalf("draft leaked into published view: %+v, %v", view, err)
 	}
-	if _, err := reopened.Publish(saved.ID); err != nil {
+	if _, err := reopened.Publish(context.Background(), saved.ID); err != nil {
 		t.Fatal(err)
 	}
-	view, err = reopened.StudentView(saved.ID)
+	view, err = reopened.StudentView(context.Background(), saved.ID)
 	if err != nil || view.CourseName != "คณิตศาสตร์ ฉบับปรับปรุง" {
 		t.Fatalf("new published snapshot was not saved: %+v, %v", view, err)
 	}

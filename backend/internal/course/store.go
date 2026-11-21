@@ -1,6 +1,7 @@
 package course
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -18,6 +19,14 @@ var (
 	ErrNotFound = errors.New("course not found")
 	ErrNotReady = errors.New("publishing requires a complete teaching schedule and 100 assessment points")
 )
+
+type Repository interface {
+	Create(context.Context, Preview) (Saved, error)
+	Get(context.Context, string) (Saved, error)
+	Update(context.Context, string, Preview) (Saved, error)
+	Publish(context.Context, string) (Saved, error)
+	StudentView(context.Context, string) (StudentView, error)
+}
 
 type Saved struct {
 	ID     string `json:"id"`
@@ -53,7 +62,7 @@ func OpenStore(dir string) (*Store, error) {
 	return &Store{dir: dir}, nil
 }
 
-func (s *Store) Create(preview Preview) (Saved, error) {
+func (s *Store) Create(_ context.Context, preview Preview) (Saved, error) {
 	var random [16]byte
 	if _, err := rand.Read(random[:]); err != nil {
 		return Saved{}, fmt.Errorf("generate course id: %w", err)
@@ -65,12 +74,15 @@ func (s *Store) Create(preview Preview) (Saved, error) {
 	return saved, nil
 }
 
-func (s *Store) Get(id string) (Saved, error) {
+func (s *Store) Get(_ context.Context, id string) (Saved, error) {
 	data, err := s.read(id)
+	if err == nil {
+		err = restoreHTML(&data.Draft.Preview)
+	}
 	return data.Draft, err
 }
 
-func (s *Store) Update(id string, preview Preview) (Saved, error) {
+func (s *Store) Update(_ context.Context, id string, preview Preview) (Saved, error) {
 	return s.change(id, func(data *record) error {
 		data.Draft.Preview = preview
 		if data.Published != nil {
@@ -80,23 +92,24 @@ func (s *Store) Update(id string, preview Preview) (Saved, error) {
 	})
 }
 
-func (s *Store) Publish(id string) (Saved, error) {
-	return s.change(id, func(data *record) error {
+func (s *Store) Publish(_ context.Context, id string) (Saved, error) {
+	saved, err := s.change(id, func(data *record) error {
 		draft := data.Draft
 		if draft.Schedule == nil || len(draft.Syllabus.AssessmentWeights) == 0 {
 			return ErrNotReady
 		}
-		data.Published = &StudentView{
-			ID: draft.ID, CourseName: draft.Syllabus.CourseName, CourseCode: draft.Syllabus.CourseCode,
-			Grade: draft.Syllabus.Grade, Term: draft.Syllabus.Term,
-			AssessmentWeights: draft.Syllabus.AssessmentWeights, Schedule: *draft.Schedule,
-		}
+		studentView := publishedView(draft)
+		data.Published = &studentView
 		data.Draft.Status = "published"
 		return nil
 	})
+	if err == nil {
+		err = restoreHTML(&saved.Preview)
+	}
+	return saved, err
 }
 
-func (s *Store) StudentView(id string) (StudentView, error) {
+func (s *Store) StudentView(_ context.Context, id string) (StudentView, error) {
 	data, err := s.read(id)
 	if err != nil {
 		return StudentView{}, err
@@ -143,6 +156,7 @@ func (s *Store) read(id string) (record, error) {
 }
 
 func (s *Store) write(data record) error {
+	data.Draft.Syllabus.DocumentHTML = ""
 	file, err := os.CreateTemp(s.dir, ".draft-*")
 	if err != nil {
 		return err
@@ -164,4 +178,12 @@ func (s *Store) write(data record) error {
 
 func (s *Store) path(id string) string {
 	return filepath.Join(s.dir, id+".json")
+}
+
+func publishedView(draft Saved) StudentView {
+	return StudentView{
+		ID: draft.ID, CourseName: draft.Syllabus.CourseName, CourseCode: draft.Syllabus.CourseCode,
+		Grade: draft.Syllabus.Grade, Term: draft.Syllabus.Term,
+		AssessmentWeights: draft.Syllabus.AssessmentWeights, Schedule: *draft.Schedule,
+	}
 }

@@ -94,9 +94,26 @@ func main() {
 	reviews := assignmentreview.NewService(reviewRepo, reviewer)
 	reviewRoute := httpapi.WithAssignmentReview(reviews)
 
-	store, err := course.OpenStore(dataDir)
-	if err != nil {
-		log.Fatal(err)
+	var store course.Repository
+	if databaseURL := strings.TrimSpace(os.Getenv("COURSE_SYLLABUS_DATABASE_URL")); databaseURL != "" {
+		host, _, err := net.SplitHostPort(addr)
+		if err != nil || !httpapi.IsLoopbackHost(host) {
+			log.Fatal("PostgreSQL syllabus demo requires a loopback HTTP_ADDR")
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		postgresStore, err := course.OpenPostgresDemo(ctx, databaseURL)
+		cancel()
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer postgresStore.Close()
+		store = postgresStore
+	} else {
+		fileStore, err := course.OpenStore(dataDir)
+		if err != nil {
+			log.Fatal(err)
+		}
+		store = fileStore
 	}
 
 	syllabi := syllabus.NewService(planner)

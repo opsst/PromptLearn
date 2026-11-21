@@ -39,6 +39,16 @@ func Build(edit Edit) (Preview, error) {
 	return preview, nil
 }
 
+func restoreHTML(preview *Preview) error {
+	var calendars []syllabus.DocumentCalendar
+	if preview.Schedule != nil {
+		calendars = documentCalendars(*preview.Schedule)
+	}
+	html, err := syllabus.RenderDocument(preview.Syllabus, calendars)
+	preview.Syllabus.DocumentHTML = html
+	return err
+}
+
 func documentCalendars(schedule teaching.Schedule) []syllabus.DocumentCalendar {
 	calendars := make([]syllabus.DocumentCalendar, 0, len(schedule.Classes))
 	for _, class := range schedule.Classes {
