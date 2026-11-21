@@ -114,15 +114,16 @@ double _distanceToSegmentSquared(Offset point, Offset start, Offset end) {
 }
 
 class HomeworkNotebook {
+  static const assignmentId = 'hw-3-1';
   static const questions = [
-    HomeworkQuestion('hw-3.1-q1', 'Simplify x² · x³.'),
-    HomeworkQuestion('hw-3.1-q2', 'Simplify (a³)².'),
-    HomeworkQuestion('hw-3.1-q3', 'Simplify y⁶ ÷ y², where y ≠ 0.'),
-    HomeworkQuestion('hw-3.1-q4', 'Simplify (x²)(x⁵).'),
-    HomeworkQuestion('hw-3.1-q5', 'Simplify (m²)(m⁴).'),
-    HomeworkQuestion('hw-3.1-q6', 'Simplify (2x²)(3x³).'),
-    HomeworkQuestion('hw-3.1-q7', 'Simplify (p²)⁴.'),
-    HomeworkQuestion('hw-3.1-q8', 'Simplify (x³)² ÷ x⁴, where x ≠ 0.'),
+    HomeworkQuestion('q1', 'Simplify x² · x³.'),
+    HomeworkQuestion('q2', 'Simplify (a³)².'),
+    HomeworkQuestion('q3', 'Simplify y⁶ ÷ y², where y ≠ 0.'),
+    HomeworkQuestion('q4', 'Simplify (x²)(x⁵).'),
+    HomeworkQuestion('q5', 'Solve for x: x + 7 = 22.'),
+    HomeworkQuestion('q6', 'Simplify (2x²)(3x³).'),
+    HomeworkQuestion('q7', 'Simplify (p²)⁴.'),
+    HomeworkQuestion('q8', 'Simplify (x³)² ÷ x⁴, where x ≠ 0.'),
   ];
 
   int activeIndex = 0;

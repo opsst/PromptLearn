@@ -290,19 +290,44 @@ class _MarkPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final hint = feedback;
-    final region = hint?.region;
-    if (hint != null && region != null && region.isValid) {
-      final area = _area(region, size);
+    if (hint != null) {
       final paint = Paint()
         ..color = AppColors.primary
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round
         ..strokeWidth = 3;
-      switch (hint.markStyle) {
-        case HomeworkMarkStyle.circle:
-          canvas.drawOval(area, paint);
-        case HomeworkMarkStyle.underline:
-          canvas.drawLine(area.bottomLeft, area.bottomRight, paint);
+      final region = hint.region;
+      if (region != null && region.isValid) {
+        final area = _area(region, size);
+        switch (hint.markStyle) {
+          case HomeworkMarkStyle.circle:
+            canvas.drawOval(area, paint);
+          case HomeworkMarkStyle.underline:
+            canvas.drawLine(area.bottomLeft, area.bottomRight, paint);
+        }
+      }
+      final highlight = Paint()..color = const Color(0x59FF7373);
+      for (final (index, issue) in hint.issues.indexed) {
+        if (!issue.region.isValid) continue;
+        final area = _area(issue.region, size);
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(area, const Radius.circular(6)),
+          highlight,
+        );
+        if (hint.issues.length > 1) {
+          final marker = TextPainter(
+            text: TextSpan(
+              text: '${index + 1}',
+              style: const TextStyle(
+                color: Color(0xFF8B3030),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            textDirection: TextDirection.ltr,
+          )..layout();
+          marker.paint(canvas, area.topLeft + const Offset(4, 1));
+          marker.dispose();
+        }
       }
     }
 

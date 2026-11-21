@@ -1,16 +1,35 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/http_inspector.dart';
 import 'app/prompt_learn_app.dart';
+import 'data/repositories/api_homework_checker.dart';
 import 'data/repositories/local_role_repository.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   final roleRepository = LocalRoleRepository(SharedPreferencesAsync());
-  runApp(PromptLearnApp(roleRepository: roleRepository));
+  const apiBase = String.fromEnvironment('PROMPTLEARN_API_BASE_URL');
+  if (apiBase.isEmpty) {
+    runApp(PromptLearnApp(roleRepository: roleRepository));
+  } else {
+    final base = Uri.tryParse(apiBase);
+    if (base == null ||
+        !base.hasAuthority ||
+        base.host.isEmpty ||
+        (base.scheme != 'http' && base.scheme != 'https')) {
+      throw ArgumentError('PROMPTLEARN_API_BASE_URL must be an HTTP(S) URL.');
+    }
+    runApp(
+      PromptLearnApp(
+        roleRepository: roleRepository,
+        homeworkChecker: ApiHomeworkChecker(base, http.Client()),
+      ),
+    );
+  }
   WidgetsBinding.instance.addPostFrameCallback((_) {
     unawaited(HttpInspector.initialize());
   });

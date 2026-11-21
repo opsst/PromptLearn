@@ -48,6 +48,7 @@ func main() {
 		planner = syllabus.OpenAIPlanner{Client: client}
 	}
 	var reviewer assignmentreview.Reviewer = assignmentreview.DemoReviewer{}
+	var paperOCR assignmentreview.PaperOCR
 	reviewMode := strings.TrimSpace(os.Getenv("ASSIGNMENT_REVIEW_MODE"))
 	switch reviewMode {
 	case "":
@@ -57,7 +58,8 @@ func main() {
 		if key == "" {
 			log.Fatal("OPENAI_API_KEY is required when ASSIGNMENT_REVIEW_MODE=openai")
 		}
-		reviewer = assignmentreview.OpenAIReviewer{Client: client}
+		openAIReviewer := assignmentreview.OpenAIReviewer{Client: client}
+		reviewer, paperOCR = openAIReviewer, openAIReviewer
 	default:
 		log.Fatal("ASSIGNMENT_REVIEW_MODE must be mock or openai")
 	}
@@ -91,7 +93,7 @@ func main() {
 		}
 		reviewRepo = repo
 	}
-	reviews := assignmentreview.NewService(reviewRepo, reviewer)
+	reviews := assignmentreview.NewService(reviewRepo, reviewer, paperOCR)
 	reviewRoute := httpapi.WithAssignmentReview(reviews)
 
 	var store course.Repository

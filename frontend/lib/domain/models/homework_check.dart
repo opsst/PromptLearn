@@ -31,12 +31,14 @@ class PaperRegion {
 
 class HomeworkCheckRequest {
   const HomeworkCheckRequest({
+    required this.assignmentId,
     required this.question,
     required this.paperPng,
     required this.imageWidth,
     required this.imageHeight,
   });
 
+  final String assignmentId;
   final HomeworkQuestion question;
   final Uint8List paperPng;
   final int imageWidth;
@@ -45,16 +47,34 @@ class HomeworkCheckRequest {
 
 enum HomeworkMarkStyle { circle, underline }
 
+enum HomeworkReviewStatus { correct, needsRevision, unreadable }
+
+class HomeworkIssue {
+  const HomeworkIssue({
+    required this.region,
+    required this.observation,
+    required this.hint,
+  });
+
+  final PaperRegion region;
+  final String observation;
+  final String hint;
+}
+
 class HomeworkFeedback {
   const HomeworkFeedback(
     this.hint, {
     this.region,
     this.markStyle = HomeworkMarkStyle.circle,
     this.isDemo = false,
+    this.status,
+    this.issues = const [],
   });
 
   final String hint;
   final PaperRegion? region;
   final HomeworkMarkStyle markStyle;
   final bool isDemo;
+  final HomeworkReviewStatus? status;
+  final List<HomeworkIssue> issues;
 }

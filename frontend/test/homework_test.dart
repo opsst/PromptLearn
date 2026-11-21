@@ -1,17 +1,84 @@
-import 'dart:typed_data';
+import 'dart:convert';
 import 'dart:ui' show PointerDeviceKind;
 
+import 'package:chucker_flutter/chucker_flutter.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:promptlearn/data/repositories/api_homework_checker.dart';
 import 'package:promptlearn/data/repositories/mock_homework_checker.dart';
 import 'package:promptlearn/domain/models/homework_check.dart';
 import 'package:promptlearn/domain/repositories/homework_checker.dart';
 import 'package:promptlearn/ui/features/assessment/views/student_homework_view.dart';
 import 'package:promptlearn/ui/features/assessment/widgets/homework_notebook.dart';
 import 'package:promptlearn/ui/features/assessment/widgets/homework_paper.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('Android debug logs a shortened image and the review JSON', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    ChuckerFlutter.configure(showNotification: false);
+    addTearDown(ChuckerFlutter.configure);
+    SharedPreferences.setMockInitialValues({});
+
+    const path = '/v1/assignments/hw-3-1/items/q4/reviews';
+    final paperPng = Uint8List.fromList(List.generate(48, (index) => index));
+    final image = base64Encode(paperPng);
+    const result = {
+      'review_id': 'saved-review',
+      'assignment_id': 'hw-3-1',
+      'item_id': 'q4',
+      'status': 'correct',
+      'message': 'Your work is correct.',
+      'issues': [],
+    };
+    var calls = 0;
+    final client = MockClient((actual) async {
+      calls++;
+      expect(jsonDecode(actual.body), {
+        'image_data_url': 'data:image/png;base64,$image',
+        'language': 'en',
+      });
+      return http.Response(
+        jsonEncode({...result, 'extra': 'not-reviewed'}),
+        200,
+      );
+    });
+    addTearDown(client.close);
+
+    final response =
+        await ApiHomeworkChecker(Uri.parse('http://localhost'), client).check(
+          HomeworkCheckRequest(
+            assignmentId: HomeworkNotebook.assignmentId,
+            question: HomeworkNotebook.questions[3],
+            paperPng: paperPng,
+            imageWidth: 1,
+            imageHeight: 1,
+          ),
+        );
+    expect(response.status, HomeworkReviewStatus.correct);
+    expect(response.hint, 'Your work is correct.');
+    expect(calls, 1);
+    final preferences = await SharedPreferences.getInstance();
+    final history = preferences.getString('api_responses')!;
+    final record = (jsonDecode(history) as List<dynamic>).single;
+    expect(record['method'], 'POST');
+    expect(record['path'], path);
+    expect(record['statusCode'], 200);
+    expect(record['request'], {
+      'image_data_url': 'data:image/png;base64,${image.substring(0, 24)}...',
+      'language': 'en',
+    });
+    expect(record['body'], result);
+    expect(history, isNot(contains(image)));
+  });
+
   test('Each draft keeps its own undo and redo history', () {
     final notebook = HomeworkNotebook()..activeIndex = 0;
     final draft = notebook.draft;
@@ -42,6 +109,7 @@ void main() {
     const checker = MockHomeworkChecker();
     final result = await checker.check(
       HomeworkCheckRequest(
+        assignmentId: HomeworkNotebook.assignmentId,
         question: HomeworkNotebook.questions.first,
         paperPng: Uint8List(1),
         imageWidth: 100,
@@ -273,6 +341,106 @@ void main() {
       ),
     );
   });
+
+  testWidgets(
+    'API sends the full PNG and fills the returned highlight regions',
+    (tester) async {
+      final transport = MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/v1/assignments/hw-3-1/items/q1/reviews');
+        expect(request.headers['content-type'], startsWith('application/json'));
+        expect(jsonDecode(request.body), {
+          'image_data_url': 'data:image/png;base64,iVBORw==',
+          'language': 'en',
+        });
+        return http.Response(
+          jsonEncode({
+            'review_id': 'saved-review',
+            'assignment_id': 'hw-3-1',
+            'item_id': 'q1',
+            'status': 'needs_revision',
+            'message': 'Check the highlighted steps.',
+            'issues': [
+              {
+                'box': {'x': 0.1, 'y': 0.4, 'width': 0.3, 'height': 0.1},
+                'observation': 'Check how you combined the powers.',
+                'hint': 'How many factors are there in all?',
+              },
+              {
+                'box': {'x': 0.6, 'y': 0.7, 'width': 0.2, 'height': 0.16},
+                'observation': 'Check this calculation.',
+                'hint': 'Can you verify it one operation at a time?',
+              },
+            ],
+          }),
+          200,
+        );
+      });
+      addTearDown(transport.close);
+      final feedback =
+          await ApiHomeworkChecker(
+            Uri.parse('http://127.0.0.1:8080'),
+            transport,
+          ).check(
+            HomeworkCheckRequest(
+              assignmentId: HomeworkNotebook.assignmentId,
+              question: HomeworkNotebook.questions.first,
+              paperPng: Uint8List.fromList([137, 80, 78, 71]),
+              imageWidth: 448,
+              imageHeight: 200,
+            ),
+          );
+      expect(feedback.status, HomeworkReviewStatus.needsRevision);
+      expect(feedback.issues.first.hint, 'How many factors are there in all?');
+
+      final draft = HomeworkDraft();
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(
+            child: SizedBox(
+              width: 448,
+              child: HomeworkPaper(
+                captureKey: GlobalKey(),
+                draft: draft,
+                visibleContent: draft.content,
+                tool: PaperTool.pen,
+                activeTrace: const [],
+                feedback: feedback,
+                onDown: (_, _) {},
+                onMove: (_, _) {},
+                onEnd: (_, {required cancelled}) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      final size = tester.getSize(find.byType(HomeworkPaper));
+      RRect expectedBox(PaperRegion region) => RRect.fromRectAndRadius(
+        Rect.fromLTWH(
+          region.x * size.width,
+          region.y * size.height,
+          region.width * size.width,
+          region.height * size.height,
+        ),
+        const Radius.circular(6),
+      );
+      expect(
+        find.byType(CustomPaint).last,
+        paints
+          ..rrect(
+            rrect: expectedBox(const PaperRegion(0.1, 0.4, 0.3, 0.1)),
+            style: PaintingStyle.fill,
+            color: const Color(0x59FF7373),
+          )
+          ..rrect(
+            rrect: expectedBox(const PaperRegion(0.6, 0.7, 0.2, 0.16)),
+            style: PaintingStyle.fill,
+            color: const Color(0x59FF7373),
+          ),
+      );
+    },
+  );
 
   testWidgets('Fingers zoom and pan while stylus ink follows the paper', (
     tester,

@@ -54,7 +54,10 @@ flutter run -d emulator-5554
 หากต้องการลองตรวจด้วย `GET /healthz` ให้รัน Go backend แล้วเปิดแอปบน Android Emulator ด้วยคำสั่งนี้จาก `frontend/`
 
 ```sh
-flutter run -d emulator-5554 --dart-define=PROMPTLEARN_API_BASE_URL=http://10.0.2.2:8080
+adb -s emulator-5554 reverse tcp:8080 tcp:8080
+flutter run -d emulator-5554 --dart-define=PROMPTLEARN_API_BASE_URL=http://127.0.0.1:8080
 ```
 
 แอป debug ส่ง health check หนึ่งครั้งตอนเริ่มเมื่อระบุ URL รายละเอียด HTTP อยู่ใน Chucker และตัวแจ้งเตือนใช้ข้อความสำหรับเปิดหน้าตรวจ
+
+รายการตรวจการบ้านใน Chucker บน Android debug แสดงเมธอด, endpoint, HTTP status, เวลา และ JSON ของ request/response ใน request แสดง Base64 ของรูปเพียง 24 ตัวแรกแล้วต่อด้วย `...` ส่วน API ยังได้รับรูปเต็ม [วิธีทดสอบ HW 3.1 กับ Go](HOMEWORK_CHECKER.md)
