@@ -99,6 +99,7 @@ class _TeacherClassSetupViewState extends State<TeacherClassSetupView> {
   RecordingClip? _lastClip;
   RecordingClip? _reviewClip;
   String? _reviewNotice;
+  bool _uploadOnReview = false;
   bool _teaching = false;
   bool _starting = false;
   bool _ending = false;
@@ -185,13 +186,21 @@ class _TeacherClassSetupViewState extends State<TeacherClassSetupView> {
           (status.interrupted
               ? 'Android stopped screen sharing. The clip so far was kept.'
               : null);
-      _openReview(clip, notice: notice);
+      _openReview(
+        clip,
+        notice: notice,
+        uploadOnOpen: _ending && !debugManualVideoUpload,
+      );
     } else if (status.phase == RecordingPhase.failed) {
       _finishWithError(status.message ?? 'No recording was saved.');
     }
   }
 
-  void _openReview(RecordingClip clip, {String? notice}) {
+  void _openReview(
+    RecordingClip clip, {
+    String? notice,
+    bool uploadOnOpen = false,
+  }) {
     widget.onNavigationLockChanged(false);
     setState(() {
       _recording = const RecordingStatus();
@@ -201,6 +210,7 @@ class _TeacherClassSetupViewState extends State<TeacherClassSetupView> {
       _lastClip = clip;
       _reviewClip = clip;
       _reviewNotice = notice;
+      _uploadOnReview = uploadOnOpen;
     });
   }
 
@@ -228,13 +238,16 @@ class _TeacherClassSetupViewState extends State<TeacherClassSetupView> {
   Future<void> _confirmEndClass() async {
     if (_ending || _confirmingEnd) return;
     _confirmingEnd = true;
+    final clipAction = widget.replayService == null || debugManualVideoUpload
+        ? 'saved on this device'
+        : 'saved and uploaded for transcription';
     final end = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('End this class?'),
         content: Text(
           _recording.inProgress
-              ? 'The recording will stop and the clip will be saved on this device.'
+              ? 'The recording will stop and the clip will be $clipAction.'
               : 'You will return to Teacher Home.',
         ),
         actions: [
@@ -326,6 +339,7 @@ class _TeacherClassSetupViewState extends State<TeacherClassSetupView> {
         key: ValueKey(clip.path),
         clip: clip,
         replayService: widget.replayService,
+        uploadOnOpen: _uploadOnReview,
         notice: _reviewNotice,
         onBack: widget.onBack,
       );

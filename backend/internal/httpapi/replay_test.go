@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -122,6 +123,13 @@ func TestReplayPublication(t *testing.T) {
 		decode(rec, &recording)
 		if recording.ID == "" {
 			t.Fatal("missing recordingId")
+		}
+		expected, err := replay.ParseTranscript(bytes.NewReader(fixture), recording.DurationMS)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if recording.DurationMS <= 0 || !slices.Equal(recording.Transcript, expected) {
+			t.Fatalf("upload response did not include the draft transcript: %+v", recording)
 		}
 		return recording.ID
 	}

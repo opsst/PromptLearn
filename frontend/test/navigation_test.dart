@@ -8,6 +8,7 @@ import 'package:promptlearn/domain/models/user_role.dart';
 import 'package:promptlearn/domain/repositories/role_repository.dart';
 import 'package:promptlearn/domain/services/class_recording_service.dart';
 import 'package:promptlearn/domain/services/class_replay_service.dart';
+import 'package:promptlearn/ui/features/classroom/views/teacher_class_ended_view.dart';
 import 'package:promptlearn/ui/features/home/views/student_home_view.dart';
 import 'package:promptlearn/ui/features/home/views/teacher_home_view.dart';
 import 'package:promptlearn/ui/features/home/widgets/home_header.dart';
@@ -222,7 +223,9 @@ void main() {
   }
 
   testWidgets(
-    'Ending a recording opens the saved file and supports playback and seeking',
+    debugManualVideoUpload
+        ? 'Ending a recording opens the preview and waits for Test video upload'
+        : 'Ending a recording opens the preview and starts uploading the saved clip',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(1366, 1024));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -274,6 +277,7 @@ void main() {
       await tap(find.text('Stop & end class'));
       expect(recording.stopCount, 1);
       expect(find.text('Saving recording…'), findsOneWidget);
+      expect(replay.uploadedPaths, isEmpty);
 
       recording.emit(
         const RecordingStatus(
@@ -286,14 +290,9 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump();
       expect(find.text('Class ended · M.1/1'), findsOneWidget);
-      expect(find.text('Recorded 00:46'), findsOneWidget);
-      expect(video.source?.sourceType, DataSourceType.file);
-      expect(
-        Uri.parse(video.source!.uri!).toFilePath(),
-        '/recordings/class.mp4',
-      );
       FilledButton publishButton(String label) => tester.widget<FilledButton>(
         find.ancestor(
           of: find.text(label),
@@ -305,27 +304,18 @@ void main() {
         matching: find.byWidgetPredicate((widget) => widget is OutlinedButton),
       );
       expect(publishButton('Publish replay').onPressed, isNull);
-
-      await tap(find.byTooltip('Play clip'));
-      expect(video.playCount, 1);
-      final slider = tester.widget<Slider>(find.byType(Slider));
-      slider.onChanged!(15000);
-      slider.onChangeEnd!(15000);
-      await tester.pumpAndSettle();
-      expect(video.position, const Duration(seconds: 15));
-
-      await tester.binding.setSurfaceSize(const Size(360, 640));
-      await tester.pumpAndSettle();
-      expect(video.createCount, 1);
-      expect(find.text('00:15 / 00:46'), findsOneWidget);
-
-      await tap(find.byTooltip('Pause clip'));
-      final upload = uploadButton('Upload clip');
-      await tester.ensureVisible(upload);
-      await tester.pumpAndSettle();
-      await tester.tap(upload);
-      await tester.pump();
+      expect(uploadButton('Upload clip'), findsNothing);
+      final testUpload = uploadButton('Test video upload');
+      if (debugManualVideoUpload) {
+        expect(replay.uploadedPaths, isEmpty);
+        await tester.tap(testUpload);
+        await tester.pump();
+        expect(tester.widget<OutlinedButton>(testUpload).onPressed, isNull);
+      } else {
+        expect(testUpload, findsNothing);
+      }
       expect(replay.uploadedPaths, ['/recordings/class.mp4']);
+
       replay.reportProgress!(45);
       await tester.pump();
       expect(find.textContaining('45%'), findsOneWidget);
@@ -339,15 +329,45 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Upload failed.'), findsOneWidget);
-      final retryUpload = uploadButton('Retry upload');
+      expect(find.text('Recorded 00:46'), findsOneWidget);
+      expect(video.source?.sourceType, DataSourceType.file);
+      expect(
+        Uri.parse(video.source!.uri!).toFilePath(),
+        '/recordings/class.mp4',
+      );
+
+      await tap(find.byTooltip('Play clip'));
+      expect(video.playCount, 1);
+      final slider = tester.widget<Slider>(find.byType(Slider));
+      slider.onChanged!(15000);
+      slider.onChangeEnd!(15000);
+      await tester.pumpAndSettle();
+      expect(video.position, const Duration(seconds: 15));
+
+      await tester.binding.setSurfaceSize(const Size(360, 640));
+      await tester.pumpAndSettle();
+      expect(video.createCount, 1);
+      expect(find.text('00:15 / 00:46'), findsOneWidget);
+      await tap(find.byTooltip('Pause clip'));
+
+      final retryUpload = debugManualVideoUpload
+          ? testUpload
+          : uploadButton('Retry upload');
       await tester.ensureVisible(retryUpload);
       await tester.pumpAndSettle();
       await tester.tap(retryUpload);
       await tester.pump();
       expect(replay.uploadedPaths, List.filled(2, '/recordings/class.mp4'));
-      replay.uploadResult.complete('class-replay-id');
+      replay.uploadResult.complete(
+        const ClassReplayDraft('class-replay-id', [
+          ClassTranscriptCue(Duration(milliseconds: 5250), 'มาลองแก้สมการ'),
+        ]),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Transcript ready'), findsOneWidget);
+      expect(find.text('00:05'), findsOneWidget);
+      await tap(find.text('มาลองแก้สมการ'));
+      expect(video.position, const Duration(milliseconds: 5250));
 
       await tap(find.text('Publish replay'));
       expect(publishButton('Publishing…').onPressed, isNull);
@@ -362,6 +382,7 @@ void main() {
       replay.publishResult.complete();
       await tester.pumpAndSettle();
       expect(publishButton('Published').onPressed, isNull);
+      expect(find.text('มาลองแก้สมการ'), findsOneWidget);
 
       await tap(find.byTooltip('Back to Teacher Home'));
       expect(find.text('Class ended · M.1/1'), findsNothing);
@@ -369,6 +390,11 @@ void main() {
       await tap(find.text('Start Class'));
       await tap(find.text('Last recording'));
       expect(find.text('Class ended · M.1/1'), findsOneWidget);
+      expect(replay.uploadedPaths, hasLength(2));
+      expect(
+        debugManualVideoUpload ? testUpload : uploadButton('Upload clip'),
+        findsOneWidget,
+      );
       expect(video.createCount, 2);
       await tap(find.byTooltip('Back to Teacher Home'));
       expect(find.text('Class ended · M.1/1'), findsNothing);
@@ -597,14 +623,17 @@ class _FakeClassReplayService implements ClassReplayService {
   final uploadedPaths = <String>[];
   final publishedIds = <String>[];
   void Function(int)? reportProgress;
-  late Completer<String> uploadResult;
+  late Completer<ClassReplayDraft> uploadResult;
   late Completer<void> publishResult;
 
   @override
-  Future<String> upload(RecordingClip clip, void Function(int) onProgress) {
+  Future<ClassReplayDraft> upload(
+    RecordingClip clip,
+    void Function(int) onProgress,
+  ) {
     uploadedPaths.add(clip.path);
     reportProgress = onProgress;
-    uploadResult = Completer<String>();
+    uploadResult = Completer<ClassReplayDraft>();
     return uploadResult.future;
   }
 

@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -13,6 +16,9 @@ const _green = Color(0xFF1E6C50);
 const _tint = Color(0xFFE3F1E9);
 const _line = Color(0xFFE2E9E5);
 
+const debugManualVideoUpload =
+    kDebugMode && bool.fromEnvironment('PROMPTLEARN_MANUAL_VIDEO_UPLOAD');
+
 class TeacherClassEndedView extends StatefulWidget {
   const TeacherClassEndedView({
     super.key,
@@ -20,29 +26,43 @@ class TeacherClassEndedView extends StatefulWidget {
     required this.onBack,
     this.notice,
     this.replayService,
+    this.uploadOnOpen = false,
   });
 
   final RecordingClip clip;
   final VoidCallback onBack;
   final String? notice;
   final ClassReplayService? replayService;
+  final bool uploadOnOpen;
 
   @override
   State<TeacherClassEndedView> createState() => _TeacherClassEndedViewState();
 }
 
 class _TeacherClassEndedViewState extends State<TeacherClassEndedView> {
-  final _playerKey = GlobalKey();
+  final _playerKey = GlobalKey<LocalClassClipPlayerState>();
   Duration? _duration;
   int? _uploadPercent;
-  String? _recordingId;
+  ClassReplayDraft? _draft;
+  String? get _recordingId => _draft?.recordingId;
   String? _replayError;
   bool _publishing = false;
   bool _published = false;
 
+  bool get _clipTooLarge => widget.clip.sizeBytes > maxReplayClipBytes;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.uploadOnOpen) unawaited(_upload());
+  }
+
   Future<void> _upload() async {
     final service = widget.replayService;
-    if (service == null || _uploadPercent != null || _recordingId != null) {
+    if (service == null ||
+        _clipTooLarge ||
+        _uploadPercent != null ||
+        _recordingId != null) {
       return;
     }
     setState(() {
@@ -50,12 +70,12 @@ class _TeacherClassEndedViewState extends State<TeacherClassEndedView> {
       _replayError = null;
     });
     try {
-      final id = await service.upload(widget.clip, (percent) {
+      final draft = await service.upload(widget.clip, (percent) {
         if (mounted && percent != _uploadPercent) {
           setState(() => _uploadPercent = percent);
         }
       });
-      if (mounted) setState(() => _recordingId = id);
+      if (mounted) setState(() => _draft = draft);
     } on ClassReplayException catch (error) {
       if (mounted) setState(() => _replayError = error.message);
     } finally {
@@ -90,9 +110,6 @@ class _TeacherClassEndedViewState extends State<TeacherClassEndedView> {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final canUpload =
-              widget.replayService != null &&
-              widget.clip.sizeBytes <= maxReplayClipBytes;
           final inset = constraints.maxWidth >= 900 ? 48.0 : 16.0;
           final wide = constraints.maxWidth - inset * 2 >= 810;
           final player = _ReplayCard(child: _buildClip(context));
@@ -106,7 +123,7 @@ class _TeacherClassEndedViewState extends State<TeacherClassEndedView> {
                   uploadPercent: _uploadPercent,
                   ready: _recordingId != null,
                   error: _replayError,
-                  canUpload: canUpload,
+                  canUpload: widget.replayService != null && !_clipTooLarge,
                   onUpload: _upload,
                 ),
               ),
@@ -184,6 +201,18 @@ class _TeacherClassEndedViewState extends State<TeacherClassEndedView> {
           color: _green,
           icon: Icons.check,
         ),
+        if (debugManualVideoUpload)
+          OutlinedButton.icon(
+            onPressed:
+                widget.replayService == null ||
+                    _clipTooLarge ||
+                    _uploadPercent != null ||
+                    _recordingId != null
+                ? null
+                : _upload,
+            icon: const Icon(Icons.cloud_upload_outlined, size: 17),
+            label: const Text('Test video upload'),
+          ),
         FilledButton.icon(
           onPressed: _recordingId == null || _publishing || _published
               ? null
@@ -288,12 +317,42 @@ class _TeacherClassEndedViewState extends State<TeacherClassEndedView> {
         ),
         const Divider(height: 1, color: _line),
         const _ReplayHeading('Transcript'),
-        Text(
-          _published
-              ? 'Students can watch the replay and jump to timestamps in Courses.'
-              : 'Students can use the transcript after you publish the replay.',
-          style: typography.bodySmall?.copyWith(color: AppColors.mutedText),
-        ),
+        if (_draft case final draft? when draft.transcript.isNotEmpty)
+          Column(
+            children: [
+              for (final cue in draft.transcript)
+                InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: _duration == null
+                      ? null
+                      : () => unawaited(
+                          _playerKey.currentState?.seekTo(cue.start),
+                        ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      spacing: 14,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          formatClipTime(cue.start),
+                          style: typography.bodyMedium?.copyWith(color: _green),
+                        ),
+                        Expanded(child: Text(cue.text)),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          )
+        else
+          Text(
+            _draft != null ? 'No transcript was returned for this clip.' : 'The transcript will appear here when transcription is complete.',
+            style: typography.bodySmall?.copyWith(color: AppColors.mutedText),
+          ),
       ],
     );
   }
@@ -488,7 +547,10 @@ class _ReplayStatus extends StatelessWidget {
             error!,
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
-        if (canUpload && !ready && uploadPercent == null)
+        if (!debugManualVideoUpload &&
+            canUpload &&
+            !ready &&
+            uploadPercent == null)
           OutlinedButton.icon(
             onPressed: onUpload,
             icon: const Icon(Icons.cloud_upload_outlined),

@@ -9,6 +9,7 @@ import 'app/prompt_learn_app.dart';
 import 'data/repositories/api_homework_checker.dart';
 import 'data/repositories/local_role_repository.dart';
 import 'data/services/api_class_replay_service.dart';
+import 'data/services/api_http_client.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +29,7 @@ void main() {
       PromptLearnApp(
         roleRepository: roleRepository,
         homeworkChecker: ApiHomeworkChecker(base, http.Client()),
-        classReplay: ApiClassReplayService(base, http.Client()),
+        classReplay: ApiClassReplayService(base, createApiHttpClient()),
       ),
     );
   }

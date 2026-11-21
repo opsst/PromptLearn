@@ -510,13 +510,18 @@ paths:
                 contentType: application/json
       responses:
         '201':
-          description: Draft and transcript saved. Use recordingId to publish the clip.
+          description: Draft saved. Use transcript to preview timestamps and recordingId to publish.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ReplayRecordingRef'
+                $ref: '#/components/schemas/ReplayDraft'
               example:
                 recordingId: '8f368301-2f08-4a28-a652-97e07eef40d0'
+                durationMs: 69021
+                transcript:
+                  - startMs: 0
+                    endMs: 3250
+                    text: 'วันนี้เราจะเรียนเรื่องสมการ'
         '400':
           $ref: '#/components/responses/ReplayInvalidMedia'
         '403':
@@ -898,6 +903,22 @@ components:
         recordingId:
           type: string
           format: uuid
+    ReplayDraft:
+      type: object
+      additionalProperties: false
+      required: [recordingId, durationMs, transcript]
+      properties:
+        recordingId:
+          type: string
+          format: uuid
+        durationMs:
+          type: integer
+          minimum: 1
+        transcript:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ReplaySegment'
     ReplaySegment:
       type: object
       additionalProperties: false

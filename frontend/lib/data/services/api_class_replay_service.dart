@@ -14,7 +14,7 @@ class ApiClassReplayService implements ClassReplayService {
   final http.Client client;
 
   @override
-  Future<String> upload(
+  Future<ClassReplayDraft> upload(
     RecordingClip clip,
     void Function(int) onProgress,
   ) async {
@@ -49,13 +49,22 @@ class ApiClassReplayService implements ClassReplayService {
         abort,
         const Duration(minutes: 4, seconds: 10),
       );
-      final recordingId = _readResponse(response, 201)?['recordingId'];
+      final body = _readResponse(response, 201);
+      final recordingId = body?['recordingId'];
       if (recordingId is! String || recordingId.isEmpty) {
         throw const ClassReplayException(
           'The server did not return a recording ID.',
         );
       }
-      return recordingId;
+      final transcript = body?['transcript'];
+      return ClassReplayDraft(recordingId, [
+        if (transcript is List)
+          for (final cue in transcript)
+            if (cue
+                case {'startMs': final int startMs, 'text': final String text}
+                when startMs >= 0 && text.isNotEmpty)
+              ClassTranscriptCue(Duration(milliseconds: startMs), text),
+      ]);
     } on FileSystemException {
       throw const ClassReplayException('Could not read the saved clip.');
     }

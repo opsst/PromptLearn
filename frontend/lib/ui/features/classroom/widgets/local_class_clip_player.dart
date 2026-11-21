@@ -28,10 +28,10 @@ class LocalClassClipPlayer extends StatefulWidget {
   final ValueChanged<Duration> onDuration;
 
   @override
-  State<LocalClassClipPlayer> createState() => _LocalClassClipPlayerState();
+  State<LocalClassClipPlayer> createState() => LocalClassClipPlayerState();
 }
 
-class _LocalClassClipPlayerState extends State<LocalClassClipPlayer> {
+class LocalClassClipPlayerState extends State<LocalClassClipPlayer> {
   VideoPlayerController? _controller;
   bool _failed = false;
   double? _seekPosition;
@@ -89,6 +89,14 @@ class _LocalClassClipPlayerState extends State<LocalClassClipPlayer> {
         setState(() => _seekPosition = null);
       }
     }
+  }
+
+  Future<void> seekTo(Duration position) async {
+    final controller = _controller;
+    if (_failed || controller == null || !controller.value.isInitialized) {
+      return;
+    }
+    await _seek(controller, position.inMilliseconds.toDouble());
   }
 
   @override
