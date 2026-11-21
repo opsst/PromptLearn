@@ -374,7 +374,7 @@ paths:
       operationId: reviewAssignmentWork
       summary: Check the student's reasoning on one assignment item
       description: |
-        Local demo for HW 3.1 (q1 to q8) and the original HW 3.2 example (q4). The backend loads the private question and rubric.
+        Local demo for HW 3.1 (q1, q2, q3, q5) and the original HW 3.2 example (q4). The backend loads the private question and rubric.
         Flutter sends the full paper PNG as a Base64 data URL. In OpenAI mode, if the client omits OCR blocks, the backend measures ink rows on the original image and transcribes them.
         The image-only path is designed for dark handwriting on the light Flutter notebook with rows in one column.
         Clients that already perform OCR can send positioned blocks in reading order and the same image used to find their boxes.
@@ -480,6 +480,80 @@ paths:
               schema:
                 $ref: '#/components/schemas/APIError'
               example: {code: review_timeout, message: assignment review timed out}
+
+  /v1/assignments/{assignment_id}/submissions:
+    post:
+      tags: [Assignment Review]
+      operationId: submitReviewedHomework
+      summary: Save the results of a completed homework submission
+      description: |
+        HW 3.1 requires one saved review per question (q1, q2, q3, and q5). The item q5 is displayed as question 4. Go resolves the reviews for the demo student,
+        calculates a formative score, and saves the selected answers and their mistakes as a report.
+        An unreadable answer has null awarded points and remains pending. Repeating the same set of
+        review IDs returns the same saved report.
+      parameters:
+        - name: assignment_id
+          in: path
+          required: true
+          schema: {type: string, enum: [hw-3-1]}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [review_ids]
+              properties:
+                review_ids:
+                  type: array
+                  minItems: 4
+                  maxItems: 4
+                  uniqueItems: true
+                  items: {type: string}
+            example:
+              review_ids: [review-q1, review-q2, review-q3, review-q5]
+      responses:
+        '201':
+          description: Formative report saved with question scores and highlighted mistakes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HomeworkSubmissionReport'
+              example:
+                id: report-example
+                assignment_id: hw-3-1
+                submitted_at: '2026-11-21T07:45:00Z'
+                points: 2
+                max_points: 4
+                pending: 1
+                questions:
+                  - {position: 1, item_id: q1, review_id: review-q1, prompt: 'Simplify x² · x³.', recognized_work: 'x^(2+3) = x^5', status: correct, message: 'Your work is correct.', awarded_points: 1, max_points: 1}
+                  - {position: 2, item_id: q2, review_id: review-q2, prompt: 'Simplify (a³)².', recognized_work: 'a^(3·2) = a^6', status: correct, message: 'Your work is correct.', awarded_points: 1, max_points: 1}
+                  - {position: 3, item_id: q3, review_id: review-q3, prompt: 'Simplify y⁶ ÷ y², where y ≠ 0.', recognized_work: '', status: unreadable, message: 'The work could not be read confidently.', awarded_points: null, max_points: 1}
+                  - {position: 4, item_id: q5, review_id: review-q5, prompt: 'Solve for x: x + 7 = 22.', recognized_work: 'x = 22 + 7', status: needs_revision, message: 'Take another look at the highlighted step.', awarded_points: 0, max_points: 1}
+                mistakes:
+                  - position: 4
+                    work: 'x = 22 + 7'
+                    block_id: line-2
+                    box: {x: 0.075, y: 0.39, width: 0.3, height: 0.17}
+                    kind: equivalence
+                    observation: Compare this line with the one before it.
+                    hint: How could you check whether the expression still has the same value after this change?
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: The local demo requires a loopback peer and host
+        '404':
+          description: An assignment or review is unavailable for the demo student
+        '413':
+          $ref: '#/components/responses/RequestTooLarge'
+        '415':
+          description: Request Content-Type must be application/json
+        '502':
+          description: Stored review evidence could not be read or validated
+        '503':
+          description: The submission report could not be saved
 
   /api/demo/recordings:
     post:
@@ -1385,6 +1459,41 @@ components:
           description: Highlights in reading order. Empty for correct and unreadable work.
           items:
             $ref: '#/components/schemas/AssignmentReviewIssue'
+    HomeworkSubmissionReport:
+      type: object
+      required: [id, assignment_id, submitted_at, points, max_points, pending, questions, mistakes]
+      properties:
+        id: {type: string}
+        assignment_id: {type: string}
+        submitted_at: {type: string, format: date-time}
+        points: {type: number}
+        max_points: {type: number}
+        pending: {type: integer, description: Number of unreadable answers with no score yet.}
+        questions:
+          type: array
+          items:
+            type: object
+            required: [position, item_id, review_id, prompt, recognized_work, status, message, awarded_points, max_points]
+            properties:
+              position: {type: integer}
+              item_id: {type: string}
+              review_id: {type: string}
+              prompt: {type: string}
+              recognized_work: {type: string}
+              status: {type: string, enum: [correct, needs_revision, unreadable]}
+              message: {type: string}
+              awarded_points: {type: number, nullable: true}
+              max_points: {type: number}
+        mistakes:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/AssignmentReviewIssue'
+              - type: object
+                required: [position, work]
+                properties:
+                  position: {type: integer}
+                  work: {type: string, description: OCR text from the flagged block only.}
   examples:
     Health:
       summary: Service is reachable

@@ -47,7 +47,18 @@ class HomeworkCheckRequest {
 
 enum HomeworkMarkStyle { circle, underline }
 
-enum HomeworkReviewStatus { correct, needsRevision, unreadable }
+enum HomeworkReviewStatus {
+  correct,
+  needsRevision,
+  unreadable;
+
+  factory HomeworkReviewStatus.fromApi(Object? value) => switch (value) {
+    'correct' => correct,
+    'needs_revision' => needsRevision,
+    'unreadable' => unreadable,
+    _ => throw const FormatException('Unknown homework review status.'),
+  };
+}
 
 class HomeworkIssue {
   const HomeworkIssue({
@@ -68,6 +79,7 @@ class HomeworkFeedback {
     this.markStyle = HomeworkMarkStyle.circle,
     this.isDemo = false,
     this.status,
+    this.reviewId,
     this.issues = const [],
   });
 
@@ -76,5 +88,6 @@ class HomeworkFeedback {
   final HomeworkMarkStyle markStyle;
   final bool isDemo;
   final HomeworkReviewStatus? status;
+  final String? reviewId;
   final List<HomeworkIssue> issues;
 }

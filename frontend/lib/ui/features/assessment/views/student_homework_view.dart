@@ -13,6 +13,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/notifications_button.dart';
 import '../widgets/homework_notebook.dart';
 import '../widgets/homework_paper.dart';
+import 'homework_progress_view.dart';
 
 class StudentHomeworkView extends StatefulWidget {
   const StudentHomeworkView({
@@ -44,6 +45,11 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
   bool _checking = false;
   bool _checkFailed = false;
   HomeworkFeedback? _feedback;
+  final _reviewedPapers = <int, ({PaperContent content, String id})>{};
+  bool _submitting = false;
+  bool _showReport = true;
+  bool _submitFailed = false;
+  int _reviewedCount = 0;
 
   HomeworkNotebook get _notebook => widget.notebook;
   HomeworkDraft get _draft => _notebook.draft;
@@ -141,19 +147,87 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
     _scheduleCheck();
   }
 
-  void _submitHomework() {
-    if (_pointer != null || !_notebook.canSubmit) return;
-    setState(_notebook.submit);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Homework submitted for this session.')),
+  Future<void> _submitHomework() async {
+    final notebook = _notebook;
+    if (_pointer != null || _submitting || _checking || !notebook.canSubmit) {
+      return;
+    }
+    final checker = widget.checker;
+    if (checker is! HomeworkSubmitter) {
+      setState(notebook.submit);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Homework submitted for this session.')),
+      );
+      return;
+    }
+
+    _stopTimer();
+    final papers = notebook.answerPapers;
+    final size =
+        (_captureKey.currentContext!.findRenderObject() as RenderBox).size;
+    setState(() {
+      _submitting = true;
+      _submitFailed = false;
+      _reviewedCount = 0;
+    });
+    try {
+      final ids = <String>[];
+      const parallelReviews = 2;
+      for (var start = 0; start < papers.length; start += parallelReviews) {
+        final end = math.min(start + parallelReviews, papers.length);
+        ids.addAll(
+          await Future.wait([
+            for (var index = start; index < end; index++)
+              _submitPaper(index, papers[index], size),
+          ]),
+        );
+        if (!mounted) return;
+        setState(() => _reviewedCount = ids.length);
+      }
+      final report = await (checker as HomeworkSubmitter).submit(
+        HomeworkNotebook.assignmentId,
+        ids,
+      );
+      notebook.recordSubmission(papers, report);
+      if (mounted) setState(() => _showReport = true);
+    } catch (_) {
+      if (mounted) setState(() => _submitFailed = true);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<String> _submitPaper(
+    int index,
+    PaperContent content,
+    Size size,
+  ) async {
+    final previous = _reviewedPapers[index];
+    if (previous != null && identical(previous.content, content)) {
+      return previous.id;
+    }
+    final checker = widget.checker;
+    final request = await captureAnswerPaper(
+      HomeworkNotebook.questions[index],
+      content,
+      size,
     );
+    final feedback = await checker
+        .check(request)
+        .timeout(const Duration(seconds: 65));
+    final id = feedback.reviewId;
+    if (id == null) throw StateError('A completed review ID is required.');
+    _reviewedPapers[index] = (content: content, id: id);
+    return id;
   }
 
   Future<void> _check() async {
     if (_checking || _pointer != null || !_draft.content.hasWork) return;
     _stopTimer();
     final revision = _revision;
-    final question = HomeworkNotebook.questions[_notebook.activeIndex];
+    final index = _notebook.activeIndex;
+    final content = _draft.content;
+    final question = HomeworkNotebook.questions[index];
 
     setState(() {
       _checking = true;
@@ -194,6 +268,9 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
           .check(request)
           .timeout(const Duration(seconds: 65));
       if (mounted && revision == _revision) {
+        if (feedback.reviewId case final String id) {
+          _reviewedPapers[index] = (content: content, id: id);
+        }
         setState(() => _feedback = feedback);
       }
     } catch (_) {
@@ -218,84 +295,111 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
 
   @override
   Widget build(BuildContext context) {
+    final report = _notebook.submittedReport;
+    if (report != null && _showReport) {
+      return HomeworkProgressView(
+        report: report,
+        onBack: () => setState(() => _showReport = false),
+      );
+    }
     final question = HomeworkNotebook.questions[_notebook.activeIndex];
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final inset = constraints.maxWidth >= 760 ? 32.0 : 12.0;
-        return AppPageLayout(
-          header: _HomeworkHeader(inset: inset, onBack: widget.onBack),
-          body: DecoratedBox(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFFE3F4EA),
-                  AppColors.canvas,
-                  Color(0xFFF0F7E7),
-                  AppColors.canvas,
-                ],
-                stops: [0, 0.30, 0.55, 0.85],
+    return AbsorbPointer(
+      absorbing: _submitting,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final inset = constraints.maxWidth >= 760 ? 32.0 : 12.0;
+          return AppPageLayout(
+            header: _HomeworkHeader(inset: inset, onBack: widget.onBack),
+            body: DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFE3F4EA),
+                    AppColors.canvas,
+                    Color(0xFFF0F7E7),
+                    AppColors.canvas,
+                  ],
+                  stops: [0, 0.30, 0.55, 0.85],
+                ),
+              ),
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(inset, 16, inset, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _ProgressCard(
+                      notebook: _notebook,
+                      onSelect: _selectQuestion,
+                      onSubmit: report != null
+                          ? () => setState(() => _showReport = true)
+                          : !_submitting &&
+                                !_checking &&
+                                _pointer == null &&
+                                _notebook.canSubmit
+                          ? _submitHomework
+                          : null,
+                    ),
+                    if (_submitting || _submitFailed)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: Semantics(
+                          liveRegion: true,
+                          child: Text(
+                            _submitting
+                                ? 'Reviewing answers · $_reviewedCount/${HomeworkNotebook.questions.length}'
+                                : 'Could not submit. Your work is still here. Try again.',
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    _HomeworkCard(
+                      padding: const EdgeInsets.all(18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                'Question ${_notebook.activeIndex + 1}',
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(color: _greenInk),
+                              ),
+                              const _Pill('1 pt'),
+                              const _Pill('Show your work'),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            question.prompt,
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _HomeworkCard(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _toolbar(),
+                          const SizedBox(height: 8),
+                          _paper(),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(inset, 16, inset, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _ProgressCard(
-                    notebook: _notebook,
-                    onSelect: _selectQuestion,
-                    onSubmit: _pointer == null && _notebook.canSubmit
-                        ? _submitHomework
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
-                  _HomeworkCard(
-                    padding: const EdgeInsets.all(18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 6,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            Text(
-                              'Question ${_notebook.activeIndex + 1}',
-                              style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(color: _greenInk),
-                            ),
-                            const _Pill('1 pt'),
-                            const _Pill('Show your work'),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          question.prompt,
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _HomeworkCard(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _toolbar(),
-                        const SizedBox(height: 8),
-                        _paper(),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
@@ -603,7 +707,13 @@ class _ProgressCard extends StatelessWidget {
             backgroundColor: Colors.black,
             foregroundColor: Colors.white,
           ),
-          child: Text(notebook.submitted ? 'Submitted' : 'Submit'),
+          child: Text(
+            notebook.submittedReport != null
+                ? 'View results'
+                : notebook.submitted
+                ? 'Submitted'
+                : 'Submit',
+          ),
         ),
       ],
     );

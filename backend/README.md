@@ -225,6 +225,8 @@ curl -sS http://127.0.0.1:8080/v1/assignments/hw-3-2/items/q4/reviews \
 
 โหมดเดโมเรียกได้จากเครื่องเดียวกับ server และใช้เฉพาะนักเรียนตัวอย่างที่ backend กำหนดไว้ การใช้งานกับ assignment จริงต้องผูกตัวตนจาก session ที่ยืนยันแล้ว
 
+**Submit HW 3.1** ส่ง `review_ids` ของทั้ง 4 ข้อไปที่ `POST /v1/assignments/hw-3-1/submissions` ระบบบันทึกผลพร้อมคะแนนระหว่างเรียน ข้อที่อ่านไม่ชัดมี `awarded_points: null` ส่วน `mistakes` เก็บข้อความและพิกัดเฉพาะขั้นที่ผิด การส่งรหัสชุดเดิมคืนรายงานเดิม [API Spec สำหรับ Submit](api-spec/index.html#submitReviewedHomework)
+
 ## การไหลของคำขอ
 
 ```mermaid

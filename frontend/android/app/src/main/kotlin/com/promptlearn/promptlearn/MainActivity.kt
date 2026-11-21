@@ -14,11 +14,13 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+    private var syllabusExport: SyllabusFileExport? = null
     private var inspectorChannel: MethodChannel? = null
     private var inspectorReady = false
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        syllabusExport = SyllabusFileExport(this, flutterEngine.dartExecutor.binaryMessenger)
         if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) == 0) return
 
         inspectorChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL_NAME)
@@ -34,10 +36,18 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        syllabusExport?.dispose()
+        syllabusExport = null
         inspectorReady = false
         inspectorChannel?.setMethodCallHandler(null)
         inspectorChannel = null
         super.cleanUpFlutterEngine(flutterEngine)
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        syllabusExport?.onActivityResult(requestCode, resultCode, data)
     }
 
     override fun onNewIntent(intent: Intent) {
