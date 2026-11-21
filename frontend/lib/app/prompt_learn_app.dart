@@ -1,18 +1,27 @@
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../data/repositories/mock_homework_checker.dart';
 import '../domain/models/user_role.dart';
+import '../domain/repositories/homework_checker.dart';
 import '../domain/repositories/role_repository.dart';
 import '../ui/core/layout/app_navigation.dart';
 import '../ui/core/theme/app_theme.dart';
+import '../ui/features/assessment/views/student_homework_view.dart';
+import '../ui/features/assessment/widgets/homework_notebook.dart';
 import '../ui/features/auth/views/role_selection_view.dart';
 import '../ui/features/home/views/student_home_view.dart';
 import '../ui/features/home/views/teacher_home_view.dart';
 
 class PromptLearnApp extends StatelessWidget {
-  const PromptLearnApp({super.key, required this.roleRepository});
+  const PromptLearnApp({
+    super.key,
+    required this.roleRepository,
+    this.homeworkChecker = const MockHomeworkChecker(),
+  });
 
   final RoleRepository roleRepository;
+  final HomeworkChecker homeworkChecker;
 
   @override
   Widget build(BuildContext context) {
@@ -22,16 +31,20 @@ class PromptLearnApp extends StatelessWidget {
       theme: AppTheme.light,
       home: AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.light,
-        child: _RoleGate(repository: roleRepository),
+        child: _RoleGate(
+          repository: roleRepository,
+          homeworkChecker: homeworkChecker,
+        ),
       ),
     );
   }
 }
 
 class _RoleGate extends StatefulWidget {
-  const _RoleGate({required this.repository});
+  const _RoleGate({required this.repository, required this.homeworkChecker});
 
   final RoleRepository repository;
+  final HomeworkChecker homeworkChecker;
 
   @override
   State<_RoleGate> createState() => _RoleGateState();
@@ -97,14 +110,23 @@ class _RoleGateState extends State<_RoleGate> {
       return RoleSelectionView(onSelect: _changeRole, isSaving: _saving);
     }
 
-    return _PromptLearnShell(role: role, onSwitchRole: () => _changeRole(null));
+    return _PromptLearnShell(
+      role: role,
+      homeworkChecker: widget.homeworkChecker,
+      onSwitchRole: () => _changeRole(null),
+    );
   }
 }
 
 class _PromptLearnShell extends StatefulWidget {
-  const _PromptLearnShell({required this.role, required this.onSwitchRole});
+  const _PromptLearnShell({
+    required this.role,
+    required this.homeworkChecker,
+    required this.onSwitchRole,
+  });
 
   final UserRole role;
+  final HomeworkChecker homeworkChecker;
   final VoidCallback onSwitchRole;
 
   @override
@@ -113,6 +135,7 @@ class _PromptLearnShell extends StatefulWidget {
 
 class _PromptLearnShellState extends State<_PromptLearnShell> {
   var _destination = AppDestination.home;
+  late final _homeworkNotebook = HomeworkNotebook();
 
   Widget _buildHome() {
     const displayName = 'Alexander P.';
@@ -122,6 +145,30 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
       UserRole.teacher => TeacherHomeView(displayName: displayName, now: now),
       UserRole.student => StudentHomeView(displayName: displayName, now: now),
     };
+  }
+
+  Widget _buildPage(BuildContext context, {required bool wide}) {
+    if (_destination == AppDestination.home) return _buildHome();
+
+    if (_destination == AppDestination.courses &&
+        widget.role == UserRole.student) {
+      return StudentHomeworkView(
+        notebook: _homeworkNotebook,
+        checker: widget.homeworkChecker,
+        onBack: () => setState(() => _destination = AppDestination.home),
+      );
+    }
+
+    return ColoredBox(
+      color: AppColors.header,
+      child: Padding(
+        padding: EdgeInsets.all(wide ? 42 : 20),
+        child: Text(
+          _destination.label,
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+      ),
+    );
   }
 
   @override
@@ -169,20 +216,7 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
                     color: AppColors.canvas,
                     child: SizedBox.expand(
                       child: SingleChildScrollView(
-                        child: _destination == AppDestination.home
-                            ? _buildHome()
-                            : ColoredBox(
-                                color: AppColors.header,
-                                child: Padding(
-                                  padding: EdgeInsets.all(wide ? 42 : 20),
-                                  child: Text(
-                                    _destination.label,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleLarge,
-                                  ),
-                                ),
-                              ),
+                        child: _buildPage(context, wide: wide),
                       ),
                     ),
                   ),

@@ -54,7 +54,11 @@ void main() {
       for (final destination in ['Courses', 'Learning tools', 'Profile']) {
         await tester.tap(find.byTooltip(destination));
         await tester.pumpAndSettle();
-        expect(find.text(destination), findsOneWidget);
+        final title = destination == 'Courses'
+            ? 'HW 3.1 · Mathematics'
+            : destination;
+        expect(find.text(title), findsOneWidget);
+        expect(tester.takeException(), isNull);
       }
 
       await tester.tap(find.byTooltip('Home'));
@@ -84,6 +88,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Courses'));
     await tester.pumpAndSettle();
+    expect(find.text('Courses'), findsOneWidget);
     await tester.tap(find.byTooltip('Switch login role'));
     await tester.pumpAndSettle();
     expect(repository.role, isNull);

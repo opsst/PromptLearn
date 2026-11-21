@@ -23,6 +23,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/navigation/
+    - assets/assessment/
   fonts:
     - family: Inter
       fonts:
