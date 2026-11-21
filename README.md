@@ -5,7 +5,7 @@
 ## โครงสร้าง repository
 
 - `frontend/` — แอป Flutter สำหรับครูและนักเรียน
-- `backend/` — API และบริการฝั่ง server (ยังไม่กำหนด stack)
+- `backend/` — Go HTTP service พร้อม endpoint สำหรับทดสอบการเชื่อมต่อ
 
 ## ขอบเขตแอป
 
@@ -15,4 +15,4 @@
 - Student AI tutoring ที่อ้างอิงเนื้อหาการเรียน
 - Analytics และข้อเสนอแนะเพื่อปรับปรุงการสอน
 
-ขณะนี้เตรียมโฟลเดอร์เพื่อให้ frontend และ backend เริ่มงานแยกกัน ยังไม่มี application scaffold, dependencies หรือบริการที่รันได้
+ดูวิธีรันและทดสอบ `GET /healthz` ใน [README ของ backend](backend/README.md)
