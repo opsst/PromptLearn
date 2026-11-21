@@ -78,6 +78,9 @@ class _SyllabusUnitFieldsState extends State<SyllabusUnitFields> {
           title: result.title,
           reference: result.reference,
           periods: result.periods,
+          additionalReferences: unit.additionalReferences
+              .where(draft.unitReferences.contains)
+              .toList(),
         ),
       );
     }
@@ -287,7 +290,7 @@ class _UnitCard extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              '${unit.reference} · ${lessons.length} ${lessons.length == 1 ? 'lesson' : 'lessons'}',
+                              '${unit.references.join(' · ')} · ${lessons.length} ${lessons.length == 1 ? 'lesson' : 'lessons'}',
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(

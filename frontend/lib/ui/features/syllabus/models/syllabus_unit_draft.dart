@@ -8,7 +8,9 @@ class SyllabusUnitDraft {
     required this.reference,
     required this.periods,
     required List<SyllabusLessonDraft> lessons,
-  }) : lessons = List.unmodifiable(lessons);
+    List<String> additionalReferences = const [],
+  }) : lessons = List.unmodifiable(lessons),
+       additionalReferences = List.unmodifiable(additionalReferences);
 
   final int id;
   final int colorIndex;
@@ -16,6 +18,9 @@ class SyllabusUnitDraft {
   final String reference;
   final int periods;
   final List<SyllabusLessonDraft> lessons;
+  final List<String> additionalReferences;
+
+  Set<String> get references => {reference, ...additionalReferences};
 
   int get lessonPeriods =>
       lessons.fold(0, (total, lesson) => total + lesson.periods);
@@ -25,6 +30,7 @@ class SyllabusUnitDraft {
     String? reference,
     int? periods,
     List<SyllabusLessonDraft>? lessons,
+    List<String>? additionalReferences,
   }) => SyllabusUnitDraft(
     id: id,
     colorIndex: colorIndex,
@@ -32,6 +38,7 @@ class SyllabusUnitDraft {
     reference: reference ?? this.reference,
     periods: periods ?? this.periods,
     lessons: lessons ?? this.lessons,
+    additionalReferences: additionalReferences ?? this.additionalReferences,
   );
 }
 

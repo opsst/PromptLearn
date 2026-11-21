@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
+import '../../../../domain/models/course_syllabus.dart';
 import '../models/syllabus_schedule.dart';
 import '../models/syllabus_sources.dart';
 import '../models/syllabus_unit_draft.dart';
@@ -92,15 +93,63 @@ class SyllabusEditorViewModel extends ChangeNotifier {
         if (indicator.chapters.isEmpty) indicator.code,
     },
   };
-  Set<String> get _selectedIndicators =>
-      _selectedIndicatorsBySemester[semester]!;
+  final _curriculum = <int, List<CurriculumRow>>{};
+  final _curriculumSelections = <(int, int), Set<String>>{};
+  Set<String> get _selectedIndicators {
+    if (!usesCurriculumCatalog) return _selectedIndicatorsBySemester[semester]!;
+    return _curriculumSelections.putIfAbsent((grade, semester), () {
+      final sample = _selectedIndicatorsBySemester[semester]!;
+      return {
+        if (grade == 1)
+          for (final row in _curriculum[grade]!)
+            if (row.codes.any(sample.contains)) _catalogLabel(row),
+      };
+    });
+  }
+
   final _customIndicators = <int, List<String>>{};
   SyllabusTextbook? _mathayomOneTextbook = mathayomOneTextbooks.first;
 
   StandardsSource get standardsSource => _standardsSource;
-  List<SyllabusIndicator> get indicators =>
-      grade == 1 ? mathayomOneIndicators : const [];
+  bool get usesCurriculumCatalog => _curriculum.containsKey(grade);
+
+  void setCurriculum(int grade, List<CurriculumRow> rows) {
+    _curriculum[grade] = List.unmodifiable(rows);
+    notifyListeners();
+  }
+
+  String _catalogLabel(CurriculumRow row) =>
+      row.codes.isEmpty ? row.title : row.codes.join(' · ');
+
+  String backendReferenceId(String reference) => switch (_standardsSource) {
+    StandardsSource.obec =>
+      _curriculum[grade]!
+          .firstWhere((row) => _catalogLabel(row) == reference)
+          .id,
+    StandardsSource.custom =>
+      'custom/${customIndicators.indexOf(reference) + 1}',
+  };
+
+  List<SyllabusIndicator> get indicators {
+    if (!usesCurriculumCatalog) {
+      return grade == 1 ? mathayomOneIndicators : const [];
+    }
+    return [
+      for (final row in _curriculum[grade]!)
+        (
+          code: _catalogLabel(row),
+          description: row.title,
+          chapters: <int>{
+            if (grade == 1)
+              for (final sample in mathayomOneIndicators)
+                if (row.codes.contains(sample.code)) ...sample.chapters,
+          }.toList(),
+        ),
+    ];
+  }
+
   bool _isRecommended(SyllabusIndicator indicator) =>
+      (usesCurriculumCatalog && grade != 1) ||
       indicator.chapters.isNotEmpty == (semester == 1);
 
   List<SyllabusIndicator> get recommendedIndicators =>
@@ -112,6 +161,11 @@ class SyllabusEditorViewModel extends ChangeNotifier {
     for (final indicator in indicators)
       if (_selectedIndicators.contains(indicator.code)) indicator,
   ];
+  int get selectedIndicatorCount => usesCurriculumCatalog
+      ? _curriculum[grade]!
+            .where((row) => _selectedIndicators.contains(_catalogLabel(row)))
+            .fold(0, (count, row) => count + math.max(1, row.codes.length))
+      : selectedIndicators.length;
   List<String> get customIndicators =>
       List.unmodifiable(_customIndicators[grade] ?? const <String>[]);
   List<SyllabusTextbook> get textbooks =>
@@ -154,6 +208,11 @@ class SyllabusEditorViewModel extends ChangeNotifier {
   final _units = <SyllabusUnitDraft>[];
   int _nextUnitId = 1;
   bool _unitsPrepared = false;
+  String? _generatedDescription;
+
+  String get description =>
+      _generatedDescription ??
+      'One-semester course in ${courseName.trim()} covering ${units.map((unit) => unit.title).join(', ')}.';
 
   List<SyllabusUnitDraft> get units => List.unmodifiable(_units);
   List<String> get unitReferences => switch (_standardsSource) {
@@ -167,7 +226,12 @@ class SyllabusEditorViewModel extends ChangeNotifier {
       (teachingTime.available - plannedPeriods).clamp(0, 2);
 
   void prepareUnits() {
-    if (_unitsPrepared) return;
+    final references = unitReferences;
+    if (_unitsPrepared) {
+      _addMissingUnits(references);
+      notifyListeners();
+      return;
+    }
     _unitsPrepared = true;
     final book = textbook;
     if (_standardsSource == StandardsSource.obec && book != null) {
@@ -192,8 +256,13 @@ class SyllabusEditorViewModel extends ChangeNotifier {
         }
       }
     }
-    final covered = _units.map((unit) => unit.reference).toSet();
-    for (final reference in unitReferences) {
+    _addMissingUnits(references);
+    notifyListeners();
+  }
+
+  void _addMissingUnits(List<String> references) {
+    final covered = _units.expand((unit) => unit.references).toSet();
+    for (final reference in references) {
       if (covered.contains(reference)) continue;
       final title = _standardsSource == StandardsSource.obec
           ? selectedIndicators
@@ -204,6 +273,50 @@ class SyllabusEditorViewModel extends ChangeNotifier {
         _newUnit(title, reference, 1, lessons: [(title: title, periods: 1)]),
       );
     }
+  }
+
+  void applyGeneratedPlan(CourseSyllabusDraft plan) {
+    final labels = {
+      for (final label in unitReferences) backendReferenceId(label): label,
+    };
+    final generated = <SyllabusUnitDraft>[];
+    for (final (index, unit) in plan.units.indexed) {
+      final references = unit.referenceIds.map((id) => labels[id]).toList();
+      if (references.isEmpty ||
+          references.any((label) => label == null) ||
+          unit.periods.isEmpty) {
+        throw const FormatException(
+          'The generated plan contains an invalid unit.',
+        );
+      }
+      generated.add(
+        SyllabusUnitDraft(
+          id: _nextUnitId++,
+          colorIndex: index,
+          title: unit.title,
+          reference: references.first!,
+          additionalReferences: references.skip(1).whereType<String>().toList(),
+          periods: unit.periods.length,
+          lessons: [
+            for (final period in unit.periods)
+              (title: period.title, periods: 1),
+          ],
+        ),
+      );
+    }
+    if (generated.isEmpty ||
+        generated.expand((unit) => unit.references).toSet().length !=
+            labels.length ||
+        generated.fold(0, (count, unit) => count + unit.periods) !=
+            plan.selection.totalSessions) {
+      throw const FormatException(
+        'The generated plan does not cover the selected standards or period count.',
+      );
+    }
+    _units
+      ..clear()
+      ..addAll(generated);
+    _generatedDescription = plan.description;
     notifyListeners();
   }
 
@@ -250,7 +363,7 @@ class SyllabusEditorViewModel extends ChangeNotifier {
     if (_units.isEmpty) return 'Add at least one unit.';
     final references = unitReferences.toSet();
     for (final unit in _units) {
-      if (!references.contains(unit.reference)) {
+      if (!references.containsAll(unit.references)) {
         return 'Choose a current indicator for ${unit.title}.';
       }
       if (unit.periods <= 0 ||
@@ -260,7 +373,7 @@ class SyllabusEditorViewModel extends ChangeNotifier {
       }
     }
     if (!references.every(
-      (reference) => _units.any((unit) => unit.reference == reference),
+      (reference) => _units.any((unit) => unit.references.contains(reference)),
     )) {
       return 'Assign every selected indicator to a unit.';
     }
@@ -425,6 +538,11 @@ class SyllabusEditorViewModel extends ChangeNotifier {
   ];
 
   int get schedulePeriodCount => _schedulePeriods.length;
+  List<SchedulePeriod> get schedulePeriods =>
+      List.unmodifiable(_schedulePeriods);
+
+  SyllabusEditResult? savedSyllabus;
+  String? savedPayload;
 
   void moveSchedulePeriod(int classIndex, int from, int to) {
     if (from == to) return;

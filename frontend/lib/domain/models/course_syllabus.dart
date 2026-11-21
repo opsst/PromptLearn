@@ -1,19 +1,34 @@
 class CurriculumRow {
-  const CurriculumRow(this.id, this.title, this.outcomes);
+  const CurriculumRow(
+    this.id,
+    this.title,
+    this.outcomes, {
+    this.codes = const [],
+  });
 
   factory CurriculumRow.fromJson(Map<String, dynamic> json) {
-    return CurriculumRow(json['id'] as String, json['title'] as String, [
-      for (final outcome in _objects(json['outcomes']))
-        [
+    final source = _objects(json['outcomes']);
+    return CurriculumRow(
+      json['id'] as String,
+      json['title'] as String,
+      [
+        for (final outcome in source)
+          [
+            if (outcome['code'] case final String code) code,
+            (outcome['text'] as String).replaceAll('\n', ' '),
+          ].join(' · '),
+      ],
+      codes: [
+        for (final outcome in source)
           if (outcome['code'] case final String code) code,
-          (outcome['text'] as String).replaceAll('\n', ' '),
-        ].join(' · '),
-    ]);
+      ],
+    );
   }
 
   final String id;
   final String title;
   final List<String> outcomes;
+  final List<String> codes;
 }
 
 class CourseSyllabusSelection {
@@ -21,6 +36,14 @@ class CourseSyllabusSelection {
     required this.grade,
     required this.term,
     required this.references,
+    this.title,
+    this.code,
+    this.credits,
+    this.academicYear,
+    this.totalSessions = periods,
+    this.sessionMinutes = minutes,
+    this.assessmentWeights = weights,
+    this.customReferences = const [],
   });
 
   static const periods = 54;
@@ -34,22 +57,63 @@ class CourseSyllabusSelection {
   final int grade;
   final int term;
   final List<String> references;
+  final String? title;
+  final String? code;
+  final double? credits;
+  final int? academicYear;
+  final int totalSessions;
+  final int sessionMinutes;
+  final Map<String, int> assessmentWeights;
+  final List<String> customReferences;
 
-  String get courseName => 'Mathematics (Mathayom $grade)';
+  String get courseName => title ?? 'Mathematics (Mathayom $grade)';
 
   Map<String, Object> toJson() => {
     'course_name': courseName,
+    'course_code': ?code,
+    'credits': ?credits,
+    'academic_year': ?academicYear,
     'grade': grade,
     'course_type': 'core',
     'term': term,
-    'total_sessions': periods,
-    'minutes_per_session': minutes,
+    'total_sessions': totalSessions,
+    'minutes_per_session': sessionMinutes,
     'reference_ids': references,
+    if (customReferences.isNotEmpty) 'custom_references': customReferences,
     'assessment_weights': [
-      for (final weight in weights.entries)
+      for (final weight in assessmentWeights.entries)
         {'category': weight.key, 'points': weight.value},
     ],
   };
+}
+
+class SyllabusEditResult {
+  const SyllabusEditResult({required this.documentHtml, this.id, this.status});
+
+  factory SyllabusEditResult.fromJson(Map<String, dynamic> json) {
+    final id = json['id'];
+    final status = json['status'];
+    if (json case {'syllabus': {'document_html': final String html}}) {
+      return SyllabusEditResult(
+        id: id is String ? id : null,
+        status: status is String ? status : null,
+        documentHtml: html,
+      );
+    }
+    throw const FormatException(
+      'The syllabus response did not include its document.',
+    );
+  }
+
+  final String? id;
+  final String? status;
+  final String documentHtml;
+}
+
+class SyllabusRequestException implements Exception {
+  const SyllabusRequestException(this.message);
+
+  final String message;
 }
 
 typedef SyllabusPeriod = ({int number, String title});

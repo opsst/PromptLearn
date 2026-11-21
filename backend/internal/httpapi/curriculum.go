@@ -28,6 +28,24 @@ func mathCurriculum(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "curriculum unavailable", http.StatusInternalServerError)
 		return
 	}
+	if query.Get("language") == "en" {
+		// Math returns filtered copies of the grade's groups and rows.
+		selection.Source = curriculum.EnglishSource(selection.Source)
+		for i, group := range selection.Groups {
+			for j, row := range group.Rows {
+				translated, err := curriculum.EnglishReference(curriculum.Reference{
+					Strand: group.Strand, StandardCode: group.StandardCode,
+					ObjectiveNumber: group.ObjectiveNumber, Statement: group.Statement, Row: row,
+				})
+				if err != nil {
+					log.Printf("translate math curriculum: %v", err)
+					http.Error(w, "curriculum unavailable", http.StatusInternalServerError)
+					return
+				}
+				selection.Groups[i].Rows[j] = translated.Row
+			}
+		}
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(selection); err != nil {

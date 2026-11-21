@@ -61,8 +61,8 @@ func (s *PostgresStore) Create(ctx context.Context, preview Preview) (Saved, err
 		var courseID string
 		err := tx.QueryRow(ctx, `
 			INSERT INTO promptlearn.courses (organization_id, subject_code, title, grade_level, credits)
-			VALUES ($1, $2, $3, $4, 0) RETURNING id::text
-		`, demoOrganization, draft.CourseCode, draft.CourseName, gradeLabel(draft.Grade)).Scan(&courseID)
+			VALUES ($1, $2, $3, $4, COALESCE($5::numeric, 0)) RETURNING id::text
+		`, demoOrganization, draft.CourseCode, draft.CourseName, gradeLabel(draft.Grade), draft.Credits).Scan(&courseID)
 		if err != nil {
 			return err
 		}
@@ -129,8 +129,8 @@ func (s *PostgresStore) Publish(ctx context.Context, id string) (Saved, error) {
 		}
 		draft := saved.Syllabus
 		if _, err := tx.Exec(ctx, `
-			UPDATE promptlearn.courses SET subject_code = $2, title = $3, grade_level = $4 WHERE id = $1
-		`, id, draft.CourseCode, draft.CourseName, gradeLabel(draft.Grade)); err != nil {
+			UPDATE promptlearn.courses SET subject_code = $2, title = $3, grade_level = $4, credits = COALESCE($5::numeric, credits) WHERE id = $1
+		`, id, draft.CourseCode, draft.CourseName, gradeLabel(draft.Grade), draft.Credits); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `

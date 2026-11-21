@@ -1,8 +1,14 @@
+import 'dart:convert';
+
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../domain/models/course_syllabus.dart';
+import '../../../../domain/repositories/course_syllabus_repository.dart';
 import '../../../core/layout/app_page_layout.dart';
 import '../../../core/theme/app_theme.dart';
+import '../models/syllabus_editor_payload.dart';
+import '../models/syllabus_html_export.dart';
 import '../models/syllabus_sources.dart';
 import '../view_models/syllabus_editor_view_model.dart';
 import '../widgets/syllabus_assessment_fields.dart';
@@ -23,9 +29,10 @@ const _border = OutlineInputBorder(
 );
 
 class SyllabusEditorView extends StatefulWidget {
-  const SyllabusEditorView({super.key, required this.draft});
+  const SyllabusEditorView({super.key, required this.draft, this.repository});
 
   final SyllabusEditorViewModel draft;
+  final CourseSyllabusRepository? repository;
 
   @override
   State<SyllabusEditorView> createState() => _SyllabusEditorViewState();
@@ -35,6 +42,8 @@ class _SyllabusEditorViewState extends State<SyllabusEditorView> {
   final _form = GlobalKey<FormState>();
 
   int _step = 0;
+  bool _busy = false;
+  SyllabusEditResult? _preview;
 
   void _changeStep(int step) {
     FocusScope.of(context).unfocus();
@@ -43,6 +52,7 @@ class _SyllabusEditorViewState extends State<SyllabusEditorView> {
   }
 
   void _back() {
+    if (_busy) return;
     if (_step == 0) {
       Navigator.of(context).pop();
     } else {
@@ -51,10 +61,11 @@ class _SyllabusEditorViewState extends State<SyllabusEditorView> {
   }
 
   void _goHome() {
+    if (_busy) return;
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
-  void _continue() {
+  Future<void> _continue() async {
     final draft = widget.draft;
     if (_step == 0) {
       final validFields = _form.currentState!.validate();
@@ -62,6 +73,17 @@ class _SyllabusEditorViewState extends State<SyllabusEditorView> {
           ? draft.timetableError
           : 'Check the highlighted course fields.';
       if (error == null) {
+        final repository = widget.repository;
+        if (repository != null && !draft.usesCurriculumCatalog) {
+          await _request(() async {
+            final grade = draft.grade;
+            final rows = await repository.loadCurriculum(grade, english: true);
+            if (!mounted) return;
+            draft.setCurriculum(grade, rows);
+            _changeStep(1);
+          });
+          return;
+        }
         _changeStep(1);
         return;
       }
@@ -99,22 +121,140 @@ class _SyllabusEditorViewState extends State<SyllabusEditorView> {
     if (_step == 4) {
       final error = draft.scheduleError;
       if (error == null) {
-        _changeStep(5);
+        final repository = widget.repository;
+        if (repository == null) {
+          _changeStep(5);
+        } else {
+          await _request(() async {
+            final preview = await repository.previewEdit(draft.toBackendEdit());
+            if (!mounted) return;
+            _preview = preview;
+            _changeStep(5);
+          });
+        }
       } else {
         _showMessage(error);
       }
     }
   }
 
-  void _saveDraft() {
-    _showMessage('Draft kept for this session.');
-    Navigator.of(context).pop();
+  Future<void> _saveDraft() async {
+    final repository = widget.repository;
+    if (repository == null) {
+      _showMessage('Draft kept for this session.');
+      Navigator.of(context).pop();
+      return;
+    }
+    await _request(() async {
+      final saved = await _saveCurrent(repository);
+      if (mounted) _showMessage('Saved to backend · ${saved.id}');
+    });
   }
 
-  void _publish() {
-    _showMessage(
-      'Publishing this draft is unavailable until the backend supports its schedule and review settings.',
+  Future<SyllabusEditResult> _saveCurrent(
+    CourseSyllabusRepository repository,
+  ) async {
+    final draft = widget.draft;
+    final edit = draft.toBackendEdit();
+    final payload = jsonEncode(edit);
+    final previous = draft.savedSyllabus;
+    if (payload == draft.savedPayload && previous != null) {
+      return previous;
+    }
+    final saved = await repository.saveEdit(edit, id: draft.savedSyllabus?.id);
+    if (mounted) {
+      draft.savedSyllabus = saved;
+      draft.savedPayload = payload;
+      _preview = saved;
+    }
+    return saved;
+  }
+
+  Future<void> _publish() async {
+    final repository = widget.repository;
+    if (repository == null) {
+      _showMessage('Connect to the syllabus backend to publish.');
+      return;
+    }
+    await _request(() async {
+      final saved = await _saveCurrent(repository);
+      if (!mounted) return;
+      final published = saved.status == 'published'
+          ? saved
+          : await repository.publish(saved.id!);
+      if (!mounted) return;
+      widget.draft.savedSyllabus = published;
+      _preview = published;
+      _showMessage(
+        'Syllabus published to ${widget.draft.classes.length} classes.',
+      );
+    });
+  }
+
+  Future<void> _export() async {
+    final document = _preview?.documentHtml;
+    if (document == null) return;
+    await _request(() async {
+      final message = await exportSyllabusHtml(
+        grade: widget.draft.grade,
+        term: widget.draft.semester,
+        html: document,
+      );
+      if (mounted && message != null) _showMessage(message);
+    });
+  }
+
+  Future<void> _generateSyllabus() async {
+    final repository = widget.repository;
+    if (repository == null || _busy) return;
+    final draft = widget.draft;
+    final replace = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Generate a syllabus draft?'),
+        content: const Text(
+          'This replaces the current units and lessons using the selected curriculum and available periods.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Generate draft'),
+          ),
+        ],
+      ),
     );
+    if (!mounted || replace != true) return;
+    await _request(() async {
+      final generated = await repository.generate(
+        draft.backendSelection(
+          sessionCount: draft.teachingTime.available,
+          includeScores: false,
+        ),
+      );
+      if (!mounted) return;
+      draft.applyGeneratedPlan(generated);
+      _showMessage('Syllabus units generated. Review them before continuing.');
+    });
+  }
+
+  Future<void> _request(Future<void> Function() operation) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await operation();
+    } on SyllabusRequestException catch (error) {
+      if (mounted) _showMessage(error.message);
+    } on Exception {
+      if (mounted) {
+        _showMessage('Could not complete the syllabus request. Try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   void _showMessage(String message) {
@@ -123,11 +263,21 @@ class _SyllabusEditorViewState extends State<SyllabusEditorView> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
+  String get _statusLabel {
+    final draft = widget.draft;
+    if (_step != 5 || draft.savedSyllabus?.status != 'published') {
+      return 'Draft syllabus';
+    }
+    return jsonEncode(draft.toBackendEdit()) == draft.savedPayload
+        ? 'Published'
+        : 'Unpublished changes';
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return PopScope<void>(
-      canPop: _step == 0,
+      canPop: _step == 0 && !_busy,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && _step != 0) _back();
       },
@@ -139,7 +289,7 @@ class _SyllabusEditorViewState extends State<SyllabusEditorView> {
               final wide =
                   constraints.maxWidth >= 1000 && constraints.maxHeight >= 560;
               final inset = wide ? 48.0 : 16.0;
-              return Padding(
+              final panel = Padding(
                 padding: EdgeInsets.all(wide ? 22 : 8),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(wide ? 44 : 22),
@@ -148,11 +298,16 @@ class _SyllabusEditorViewState extends State<SyllabusEditorView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _EditorHeader(
-                          wide: wide,
-                          inset: inset,
-                          onBack: _goHome,
+                        ListenableBuilder(
+                          listenable: widget.draft,
+                          builder: (context, _) => _EditorHeader(
+                            wide: wide,
+                            inset: inset,
+                            onBack: _goHome,
+                            status: _statusLabel,
+                          ),
                         ),
+                        if (_busy) const LinearProgressIndicator(),
                         Expanded(
                           child: Stack(
                             children: [
@@ -206,7 +361,17 @@ class _SyllabusEditorViewState extends State<SyllabusEditorView> {
                                         1 => _StandardsSection(
                                           draft: widget.draft,
                                         ),
-                                        2 => _UnitsSection(draft: widget.draft),
+                                        2 => _UnitsSection(
+                                          draft: widget.draft,
+                                          onGenerate:
+                                              widget.repository != null &&
+                                                  widget
+                                                          .draft
+                                                          .standardsSource ==
+                                                      StandardsSource.obec
+                                              ? _generateSyllabus
+                                              : null,
+                                        ),
                                         3 => _AssessmentSection(
                                           draft: widget.draft,
                                         ),
@@ -230,6 +395,7 @@ class _SyllabusEditorViewState extends State<SyllabusEditorView> {
                             onBack: _back,
                             onSave: _saveDraft,
                             onPublish: _publish,
+                            onExport: _preview == null ? null : _export,
                           )
                         else
                           _EditorFooter(
@@ -238,12 +404,14 @@ class _SyllabusEditorViewState extends State<SyllabusEditorView> {
                             onContinue: _continue,
                             backLabel: _step == 0 ? 'Cancel' : 'Back',
                             onBack: _back,
+                            connected: widget.repository != null,
                           ),
                       ],
                     ),
                   ),
                 ),
               );
+              return AbsorbPointer(absorbing: _busy, child: panel);
             },
           ),
         ),
@@ -257,11 +425,13 @@ class _EditorHeader extends StatelessWidget {
     required this.wide,
     required this.inset,
     required this.onBack,
+    required this.status,
   });
 
   final bool wide;
   final double inset;
   final VoidCallback onBack;
+  final String status;
 
   @override
   Widget build(BuildContext context) {
@@ -304,7 +474,7 @@ class _EditorHeader extends StatelessWidget {
                       vertical: 4,
                     ),
                     child: Text(
-                      'Draft syllabus',
+                      status,
                       style: Theme.of(context).textTheme.labelMedium
                           ?.copyWith(color: const Color(0xFF963F14)),
                     ),
@@ -442,9 +612,10 @@ class _StandardsSection extends StatelessWidget {
 }
 
 class _UnitsSection extends StatelessWidget {
-  const _UnitsSection({required this.draft});
+  const _UnitsSection({required this.draft, this.onGenerate});
 
   final SyllabusEditorViewModel draft;
+  final VoidCallback? onGenerate;
 
   @override
   Widget build(BuildContext context) {
@@ -464,6 +635,15 @@ class _UnitsSection extends StatelessWidget {
           ],
         ),
         const _CourseSetupSteps(step: 2),
+        if (onGenerate != null)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: OutlinedButton.icon(
+              onPressed: onGenerate,
+              icon: const Icon(Icons.auto_awesome_outlined),
+              label: const Text('Generate syllabus draft'),
+            ),
+          ),
         LayoutBuilder(
           builder: (context, constraints) {
             final units = SyllabusUnitFields(draft: draft);
@@ -617,12 +797,14 @@ class _ReviewFooter extends StatelessWidget {
     required this.onBack,
     required this.onSave,
     required this.onPublish,
+    this.onExport,
   });
 
   final double inset;
   final VoidCallback onBack;
   final VoidCallback onSave;
   final VoidCallback onPublish;
+  final VoidCallback? onExport;
 
   @override
   Widget build(BuildContext context) {
@@ -656,6 +838,16 @@ class _ReviewFooter extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
+              if (onExport != null)
+                OutlinedButton.icon(
+                  onPressed: onExport,
+                  icon: Icon(
+                    canDownloadSyllabusHtml ? Icons.download : Icons.copy,
+                  ),
+                  label: Text(
+                    canDownloadSyllabusHtml ? 'Download HTML' : 'Copy HTML',
+                  ),
+                ),
               OutlinedButton(
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(0, 48),
@@ -911,6 +1103,7 @@ class _EditorFooter extends StatelessWidget {
     required this.onContinue,
     required this.backLabel,
     required this.onBack,
+    required this.connected,
   });
 
   final double inset;
@@ -918,6 +1111,7 @@ class _EditorFooter extends StatelessWidget {
   final VoidCallback onContinue;
   final String backLabel;
   final VoidCallback onBack;
+  final bool connected;
 
   @override
   Widget build(BuildContext context) {
@@ -946,11 +1140,16 @@ class _EditorFooter extends StatelessWidget {
               onPressed: onBack,
               child: Text(backLabel),
             ),
-            const Expanded(
+            Expanded(
               child: Text(
-                'Draft saved for this session',
+                connected
+                    ? 'Save from Review & publish'
+                    : 'Draft saved for this session',
                 textAlign: TextAlign.end,
-                style: TextStyle(fontSize: 13, color: AppColors.mutedText),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.mutedText,
+                ),
               ),
             ),
             FilledButton.icon(

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../domain/repositories/course_syllabus_repository.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../classroom/models/teacher_class_preview.dart';
 import '../../syllabus/models/syllabus_preview.dart';
@@ -32,6 +33,7 @@ class TeacherHomeView extends StatelessWidget {
     required this.onStartClass,
     required this.onOpenAssessment,
     this.courseDetailNavigation,
+    this.syllabusRepository,
   });
 
   final String displayName;
@@ -39,6 +41,7 @@ class TeacherHomeView extends StatelessWidget {
   final VoidCallback onStartClass;
   final VoidCallback onOpenAssessment;
   final Widget? courseDetailNavigation;
+  final CourseSyllabusRepository? syllabusRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -123,6 +126,7 @@ class TeacherHomeView extends StatelessWidget {
                                         _Syllabi(
                                           courseDetailNavigation:
                                               courseDetailNavigation,
+                                          repository: syllabusRepository,
                                         ),
                                       ],
                                     ),
@@ -862,9 +866,10 @@ class _TileIcon extends StatelessWidget {
 }
 
 class _Syllabi extends StatefulWidget {
-  const _Syllabi({this.courseDetailNavigation});
+  const _Syllabi({this.courseDetailNavigation, this.repository});
 
   final Widget? courseDetailNavigation;
+  final CourseSyllabusRepository? repository;
 
   @override
   State<_Syllabi> createState() => _SyllabiState();
@@ -882,7 +887,8 @@ class _SyllabiState extends State<_Syllabi> {
   void _showCreateSyllabus(BuildContext context) {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (context) => SyllabusEditorView(draft: _draft),
+        builder: (context) =>
+            SyllabusEditorView(draft: _draft, repository: widget.repository),
       ),
     );
   }

@@ -293,6 +293,7 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
       UserRole.teacher => TeacherHomeView(
         displayName: displayName,
         now: now,
+        syllabusRepository: widget.syllabusRepository,
         onStartClass: () => _openHomeDetail(_HomeDetail.classSetup),
         onOpenAssessment: () => _openHomeDetail(_HomeDetail.assessment),
         courseDetailNavigation: AppNavigation(
