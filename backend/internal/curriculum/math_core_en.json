@@ -1,0 +1,431 @@
+{
+  "core/1/1.1/1": {
+    "title": "Rational Numbers",
+    "outcomes": [
+      "Understand rational numbers and the relationships among them, and use their properties to solve mathematical and real-life problems.",
+      "Understand and use the properties of powers with positive integer exponents to solve mathematical and real-life problems."
+    ],
+    "content": [
+      "- Integers",
+      "- Properties of integers",
+      "- Decimals and fractions",
+      "- Rational numbers and their properties",
+      "- Powers with positive integer exponents",
+      "- Applying knowledge of integers, rational numbers, and powers to solve problems"
+    ]
+  },
+  "core/1/1.1/3": {
+    "title": "Ratios",
+    "outcomes": [
+      "Understand and apply ratios, proportions, and percentages to solve mathematical and real-life problems."
+    ],
+    "content": [
+      "- Ratios involving several numbers",
+      "- Proportions",
+      "- Applying knowledge of ratios, proportions, and percentages to solve problems"
+    ]
+  },
+  "core/2/1.1/1": {
+    "title": "Rational Numbers",
+    "outcomes": [
+      "Understand and use the properties of powers with integer exponents to solve mathematical and real-life problems."
+    ],
+    "content": [
+      "- Powers with integer exponents",
+      "- Applying knowledge of powers to solve problems"
+    ]
+  },
+  "core/2/1.1/2": {
+    "title": "Real Numbers",
+    "outcomes": [
+      "Understand real numbers and the relationships among them, and use their properties to solve mathematical and real-life problems."
+    ],
+    "content": [
+      "- Irrational numbers",
+      "- Real numbers",
+      "- Square roots and cube roots of rational numbers",
+      "- Applying knowledge of real numbers"
+    ]
+  },
+  "core/4/1.1/1": {
+    "title": "Sets",
+    "outcomes": [
+      "Understand and use knowledge of sets and elementary logic to communicate and convey mathematical meaning."
+    ],
+    "content": [
+      "- Introduction to sets and basic set notation",
+      "- Union, intersection, and complement of sets",
+      "Elementary Logic",
+      "- Propositions and logical connectives (negation, and, or, if ... then ..., if and only if)"
+    ]
+  },
+  "core/5/1.1/1": {
+    "title": "Powers",
+    "outcomes": [
+      "Understand the meaning of addition, multiplication, equality, and inequality, and use their properties for real numbers written in radical form and real numbers written as powers with rational exponents."
+    ],
+    "content": [
+      "- The nth root of a real number, where n is a natural number greater than 1",
+      "- Powers with rational exponents"
+    ]
+  },
+  "core/2/1.2/1": {
+    "title": "Polynomials",
+    "outcomes": [
+      "Understand the principles of operations on polynomials and use polynomials to solve mathematical problems."
+    ],
+    "content": [
+      "- Polynomials",
+      "- Addition, subtraction, and multiplication of polynomials",
+      "- Division of a polynomial by a monomial when the quotient is a polynomial"
+    ]
+  },
+  "core/2/1.2/2": {
+    "title": "Factoring Polynomials",
+    "outcomes": [
+      "Understand and use the factoring of quadratic polynomials to solve mathematical problems."
+    ],
+    "content": [
+      "- Factoring quadratic polynomials using",
+      "o The distributive property",
+      "o Perfect squares",
+      "o The difference of squares"
+    ]
+  },
+  "core/3/1.2/1": {
+    "title": "Factoring Polynomials",
+    "outcomes": [
+      "Understand and use the factoring of polynomials of degree greater than two to solve mathematical problems."
+    ],
+    "content": [
+      "- Factoring polynomials of degree greater than two"
+    ]
+  },
+  "core/3/1.2/2": {
+    "title": "Quadratic Functions",
+    "outcomes": [
+      "Understand and use knowledge of quadratic functions to solve mathematical problems."
+    ],
+    "content": [
+      "- Graphs of quadratic functions",
+      "- Applying knowledge of quadratic functions to solve problems"
+    ]
+  },
+  "core/5/1.2/1": {
+    "title": "Functions",
+    "outcomes": [
+      "Use functions and their graphs to describe given situations."
+    ],
+    "content": [
+      "- Functions and their graphs (linear functions, quadratic functions, step functions, and exponential functions)"
+    ]
+  },
+  "core/5/1.2/2": {
+    "title": "Sequences and Series",
+    "outcomes": [
+      "Understand and apply knowledge of sequences and series."
+    ],
+    "content": [
+      "- Arithmetic and geometric sequences",
+      "- Arithmetic and geometric series"
+    ]
+  },
+  "core/1/1.3/1": {
+    "title": "Linear Equations in One Variable",
+    "outcomes": [
+      "Understand and use the properties of equality and the properties of numbers to analyze and solve problems using linear equations in one variable."
+    ],
+    "content": [
+      "- Linear equations in one variable",
+      "- Solving linear equations in one variable",
+      "- Applying knowledge of how to solve linear equations in one variable in real life"
+    ]
+  },
+  "core/1/1.3/2": {
+    "title": "Linear Equations in Two Variables",
+    "outcomes": [
+      "Understand and use knowledge of graphs to solve mathematical and real-life problems.",
+      "Understand and use knowledge of linear relationships to solve mathematical and real-life problems."
+    ],
+    "content": [
+      "- Graphs of linear relationships",
+      "- Linear equations in two variables",
+      "- Applying knowledge of linear equations in two variables and graphs of linear relationships in real life"
+    ]
+  },
+  "core/3/1.3/1": {
+    "title": "Linear Inequalities in One Variable",
+    "outcomes": [
+      "Understand and use the properties of inequality to analyze and solve problems using linear inequalities in one variable."
+    ],
+    "content": [
+      "- Linear inequalities in one variable",
+      "- Solving linear inequalities in one variable",
+      "- Applying knowledge of how to solve linear inequalities in one variable to solve problems"
+    ]
+  },
+  "core/3/1.3/2": {
+    "title": "Quadratic Equations in One Variable",
+    "outcomes": [
+      "Apply quadratic equations in one variable to solve mathematical problems."
+    ],
+    "content": [
+      "- Quadratic equations in one variable",
+      "- Solving quadratic equations in one variable",
+      "- Applying knowledge of how to solve quadratic equations in one variable to solve problems"
+    ]
+  },
+  "core/3/1.3/3": {
+    "title": "Systems of Equations",
+    "outcomes": [
+      "Apply systems of linear equations in two variables to solve mathematical problems."
+    ],
+    "content": [
+      "- Systems of linear equations in two variables",
+      "- Solving systems of linear equations in two variables",
+      "- Applying knowledge of how to solve systems of linear equations in two variables to solve problems"
+    ]
+  },
+  "core/5/1.3/1": {
+    "title": "Interest and the Value of Money",
+    "outcomes": [
+      "Understand and use knowledge of interest and the value of money to solve problems."
+    ],
+    "content": [
+      "- Interest",
+      "- Value of money",
+      "- Periodic payments"
+    ]
+  },
+  "core/2/2.1/1": {
+    "title": "Surface Area",
+    "outcomes": [
+      "Apply knowledge of the surface area of prisms and cylinders to solve mathematical and real-life problems."
+    ],
+    "content": [
+      "- Finding the surface area of prisms and cylinders",
+      "- Applying knowledge of the surface area of prisms and cylinders to solve problems"
+    ]
+  },
+  "core/2/2.1/2": {
+    "title": "Volume",
+    "outcomes": [
+      "Apply knowledge of the volume of prisms and cylinders to solve mathematical and real-life problems."
+    ],
+    "content": [
+      "- Finding the volume of prisms and cylinders",
+      "- Applying knowledge of the volume of prisms and cylinders to solve problems"
+    ]
+  },
+  "core/3/2.1/1": {
+    "title": "Surface Area",
+    "outcomes": [
+      "Apply knowledge of the surface area of pyramids, cones, and spheres to solve mathematical and real-life problems."
+    ],
+    "content": [
+      "- Finding the surface area of pyramids, cones, and spheres",
+      "- Applying knowledge of the surface area of pyramids, cones, and spheres to solve problems"
+    ]
+  },
+  "core/3/2.1/2": {
+    "title": "Volume",
+    "outcomes": [
+      "Apply knowledge of the volume of pyramids, cones, and spheres to solve mathematical and real-life problems."
+    ],
+    "content": [
+      "- Finding the volume of pyramids, cones, and spheres",
+      "- Applying knowledge of the volume of pyramids, cones, and spheres to solve problems"
+    ]
+  },
+  "core/1/2.2/1": {
+    "title": "Geometric Constructions",
+    "outcomes": [
+      "Use geometric knowledge and tools such as a compass and straightedge, as well as The Geometer’s Sketchpad or other dynamic geometry software, to construct geometric figures and apply knowledge of these constructions to solve real-life problems."
+    ],
+    "content": [
+      "- Basic geometric constructions",
+      "- Constructing two-dimensional geometric figures using basic geometric constructions",
+      "- Applying knowledge of basic geometric constructions in real life"
+    ]
+  },
+  "core/1/2.2/2": {
+    "title": "Dimensional Relationships of Geometric Figures",
+    "outcomes": [
+      "Understand and use geometric knowledge to analyze the relationships between two-dimensional and three-dimensional geometric figures."
+    ],
+    "content": [
+      "- Cross sections of three-dimensional geometric figures",
+      "- Front, side, and top views of three-dimensional geometric figures made up of cubes"
+    ]
+  },
+  "core/2/2.2/1": {
+    "title": "Geometric Constructions",
+    "outcomes": [
+      "Use geometric knowledge and tools such as a compass and straightedge, as well as The Geometer’s Sketchpad or other dynamic geometry software, to construct geometric figures and apply knowledge of these constructions to solve real-life problems."
+    ],
+    "content": [
+      "- Applying knowledge of geometric constructions in real life"
+    ]
+  },
+  "core/2/2.2/2": {
+    "title": "Parallel Lines",
+    "outcomes": [
+      "Use knowledge of the properties of parallel lines and triangles to solve mathematical problems."
+    ],
+    "content": [
+      "- Properties of parallel lines and triangles"
+    ]
+  },
+  "core/2/2.2/3": {
+    "title": "Geometric Transformations",
+    "outcomes": [
+      "Understand and use knowledge of geometric transformations to solve mathematical and real-life problems."
+    ],
+    "content": [
+      "- Translation",
+      "- Reflection",
+      "- Rotation",
+      "- Applying knowledge of geometric transformations to solve problems"
+    ]
+  },
+  "core/2/2.2/4": {
+    "title": "Congruence",
+    "outcomes": [
+      "Understand and use the properties of congruent triangles to solve mathematical and real-life problems."
+    ],
+    "content": [
+      "- Congruence of triangles",
+      "- Applying knowledge of congruence to solve problems"
+    ]
+  },
+  "core/2/2.2/5": {
+    "title": "The Pythagorean Theorem",
+    "outcomes": [
+      "Understand and use the Pythagorean theorem and its converse to solve mathematical and real-life problems."
+    ],
+    "content": [
+      "- The Pythagorean theorem and its converse",
+      "- Applying knowledge of the Pythagorean theorem and its converse in real life"
+    ]
+  },
+  "core/3/2.2/1": {
+    "title": "Similarity",
+    "outcomes": [
+      "Understand and use the properties of similar triangles to solve mathematical and real-life problems."
+    ],
+    "content": [
+      "- Similar triangles",
+      "- Applying knowledge of similarity to solve problems"
+    ]
+  },
+  "core/3/2.2/2": {
+    "title": "Trigonometric Ratios",
+    "outcomes": [
+      "Understand and use knowledge of trigonometric ratios to solve mathematical and real-life problems."
+    ],
+    "content": [
+      "- Trigonometric ratios",
+      "- Using the values of trigonometric ratios for angles of 30°, 45°, and 60° to solve problems"
+    ]
+  },
+  "core/3/2.2/3": {
+    "title": "Circles",
+    "outcomes": [
+      "Understand and use circle theorems to solve mathematical problems."
+    ],
+    "content": [
+      "- Circles, chords, and tangents",
+      "- Circle theorems"
+    ]
+  },
+  "core/1/3.1/1": {
+    "title": "Statistics",
+    "outcomes": [
+      "Understand and use statistical knowledge to present and interpret data, and apply statistics in real life using appropriate technology."
+    ],
+    "content": [
+      "- Formulating statistical questions",
+      "- Collecting data",
+      "- Presenting data",
+      "o Pictographs",
+      "o Bar charts",
+      "o Line graphs",
+      "o Pie charts",
+      "- Interpreting data",
+      "- Applying statistics in real life"
+    ]
+  },
+  "core/2/3.1/1": {
+    "title": "Statistics",
+    "outcomes": [
+      "Understand and use statistical knowledge to present data, analyze data from dot plots, stem-and-leaf plots, histograms, and measures of central tendency, and interpret the results. Apply statistics in real life using appropriate technology."
+    ],
+    "content": [
+      "- Presenting and analyzing data",
+      "o Dot plots",
+      "o Stem-and-leaf plots",
+      "o Histograms",
+      "o Measures of central tendency",
+      "- Interpreting results",
+      "- Applying statistics in real life"
+    ]
+  },
+  "core/3/3.1/1": {
+    "title": "Statistics",
+    "outcomes": [
+      "Understand and use statistical knowledge to present and analyze data from box plots and interpret the results. Apply statistics in real life using appropriate technology."
+    ],
+    "content": [
+      "- Data and data analysis",
+      "o Box plots",
+      "- Interpreting results",
+      "- Applying statistics in real life"
+    ]
+  },
+  "core/6/3.1/1": {
+    "title": "Statistics",
+    "outcomes": [
+      "Understand and use statistical knowledge to present data and interpret statistical measures to inform decisions."
+    ],
+    "content": [
+      "- Data",
+      "- Position of data values",
+      "- Measures of central tendency (mode, median, arithmetic mean)",
+      "- Measures of dispersion (range, standard deviation, variance)",
+      "- Presenting qualitative and quantitative data",
+      "- Interpreting statistical measures"
+    ]
+  },
+  "core/3/3.2/1": {
+    "title": "Probability",
+    "outcomes": [
+      "Understand random experiments and use their outcomes to find the probabilities of events."
+    ],
+    "content": [
+      "- Events from random experiments",
+      "- Probability",
+      "- Applying knowledge of probability in real life"
+    ]
+  },
+  "core/4/3.2/1": {
+    "title": "Basic Counting Principles",
+    "outcomes": [
+      "Understand and use the addition and multiplication principles, permutations, and combinations to solve problems."
+    ],
+    "content": [
+      "- Addition and multiplication principles",
+      "- Linear permutations when all objects are distinct",
+      "- Combinations when all objects are distinct"
+    ]
+  },
+  "core/4/3.2/2": {
+    "title": "Probability",
+    "outcomes": [
+      "Calculate probabilities and apply knowledge of probability."
+    ],
+    "content": [
+      "- Random experiments and events",
+      "- Probabilities of events"
+    ]
+  }
+}
