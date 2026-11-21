@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -61,6 +62,95 @@ void main() {
     );
   });
 
+  testWidgets('Fingers zoom and pan while stylus ink follows the paper', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final notebook = HomeworkNotebook();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: StudentHomeworkView(
+              notebook: notebook,
+              checker: _UnusedChecker(),
+              onBack: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final paper = tester.getRect(find.byKey(const ValueKey('homework-paper')));
+    final center = paper.center;
+    final left = await tester.startGesture(
+      center.translate(-40, 0),
+      pointer: 1,
+    );
+    final right = await tester.startGesture(
+      center.translate(40, 0),
+      pointer: 2,
+    );
+    await left.moveBy(const Offset(-40, 0));
+    await right.moveBy(const Offset(40, 0));
+    await left.up();
+    await right.up();
+    await tester.pump();
+
+    final pan = await tester.startGesture(center, pointer: 3);
+    await pan.moveBy(Offset(paper.width * 0.10, 0));
+    await pan.up();
+    await tester.pump();
+    expect(notebook.draft.content.strokes, isEmpty);
+
+    final pen = await tester.startGesture(
+      center + Offset(paper.width * 0.25, paper.height * 0.10),
+      pointer: 4,
+      kind: PointerDeviceKind.stylus,
+    );
+    final palm = await tester.startGesture(center, pointer: 5);
+    await palm.moveBy(const Offset(30, 20));
+    await pen.moveBy(const Offset(12, 6));
+    await palm.up();
+    await pen.up();
+    await tester.pump();
+
+    final stroke = notebook.draft.content.strokes.single;
+    expect(stroke.points.first.dx, closeTo(0.575, 0.001));
+    expect(stroke.points.first.dy, closeTo(0.55, 0.001));
+    expect(
+      stroke.points.last.dx - stroke.points.first.dx,
+      closeTo(12 / (paper.width * 2), 0.001),
+    );
+
+    final pinchLeft = await tester.startGesture(
+      center.translate(-80, 0),
+      pointer: 6,
+    );
+    final pinchRight = await tester.startGesture(
+      center.translate(80, 0),
+      pointer: 7,
+    );
+    await pinchLeft.moveBy(const Offset(40, 0));
+    await pinchRight.moveBy(const Offset(-40, 0));
+    await pinchLeft.up();
+    await pinchRight.up();
+    await tester.pump();
+
+    final penAfterZoomOut = await tester.startGesture(
+      center,
+      pointer: 8,
+      kind: PointerDeviceKind.stylus,
+    );
+    await penAfterZoomOut.up();
+    await tester.pump();
+    expect(
+      notebook.draft.content.strokes.last.points.first.dx,
+      closeTo(0.5, 0.001),
+    );
+  });
+
   testWidgets('Automatic check waits for the pen to lift and a 2.5 s pause', (
     tester,
   ) async {
@@ -84,7 +174,10 @@ void main() {
     expect(notebook.automatic, isTrue);
 
     final paper = find.byKey(const ValueKey('homework-paper'));
-    final gesture = await tester.startGesture(tester.getCenter(paper));
+    final gesture = await tester.startGesture(
+      tester.getCenter(paper),
+      kind: PointerDeviceKind.stylus,
+    );
     await gesture.moveBy(const Offset(12, 3));
     await tester.pump(const Duration(seconds: 3));
     expect(find.text('Checking…'), findsNothing);

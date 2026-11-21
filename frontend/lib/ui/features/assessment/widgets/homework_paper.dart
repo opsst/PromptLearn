@@ -5,7 +5,7 @@ import '../../../../domain/models/homework_check.dart';
 import '../../../core/theme/app_theme.dart';
 import 'homework_notebook.dart';
 
-class HomeworkPaper extends StatelessWidget {
+class HomeworkPaper extends StatefulWidget {
   const HomeworkPaper({
     super.key,
     required this.captureKey,
@@ -28,7 +28,104 @@ class HomeworkPaper extends StatelessWidget {
   final void Function(int pointer, {required bool cancelled}) onEnd;
 
   @override
+  State<HomeworkPaper> createState() => _HomeworkPaperState();
+}
+
+class _HomeworkPaperState extends State<HomeworkPaper> {
+  static const _penKinds = {
+    PointerDeviceKind.stylus,
+    PointerDeviceKind.invertedStylus,
+  };
+
+  final _fingers = <int, Offset>{};
+  int? _penPointer;
+  double _zoom = 1;
+  Offset _pan = Offset.zero;
+
+  @override
+  void didUpdateWidget(covariant HomeworkPaper oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.draft != widget.draft) {
+      _fingers.clear();
+      _penPointer = null;
+      _zoom = 1;
+      _pan = Offset.zero;
+    }
+  }
+
+  Offset _viewportPoint(PointerEvent event, Size size) => Offset(
+    event.localPosition.dx / size.width,
+    event.localPosition.dy / size.height,
+  );
+
+  Offset _paperPoint(Offset viewportPoint) {
+    final point = (viewportPoint - _pan) / _zoom;
+    return Offset(point.dx.clamp(0.0, 1.0), point.dy.clamp(0.0, 1.0));
+  }
+
+  void _down(PointerDownEvent event, Size size) {
+    if (_penPointer != null) return;
+
+    final point = _viewportPoint(event, size);
+    if (_penKinds.contains(event.kind)) {
+      _fingers.clear();
+      _penPointer = event.pointer;
+      widget.onDown(event.pointer, _paperPoint(point));
+    } else if (event.kind == PointerDeviceKind.touch) {
+      _fingers[event.pointer] = point;
+    }
+  }
+
+  void _move(PointerMoveEvent event, Size size) {
+    if (_penPointer == event.pointer) {
+      widget.onMove(event.pointer, _paperPoint(_viewportPoint(event, size)));
+      return;
+    }
+    if (!_fingers.containsKey(event.pointer)) return;
+
+    final previous = _fingers.values.take(2).toList(growable: false);
+    _fingers[event.pointer] = _viewportPoint(event, size);
+    final current = _fingers.values.take(2).toList(growable: false);
+
+    if (current.length == 1) {
+      _movePaper(_zoom, _pan + current.first - previous.first);
+      return;
+    }
+
+    final previousSpan = _project(previous[1] - previous[0], size).distance;
+    final currentSpan = _project(current[1] - current[0], size).distance;
+    final zoom = previousSpan < 1
+        ? _zoom
+        : (_zoom * currentSpan / previousSpan).clamp(1.0, 4.0);
+    final previousCenter = (previous[0] + previous[1]) / 2;
+    final currentCenter = (current[0] + current[1]) / 2;
+    final paperAnchor = (previousCenter - _pan) / _zoom;
+    _movePaper(zoom, currentCenter - paperAnchor * zoom);
+  }
+
+  void _movePaper(double zoom, Offset pan) {
+    final lower = 1 - zoom;
+    final bounded = Offset(pan.dx.clamp(lower, 0.0), pan.dy.clamp(lower, 0.0));
+    if (zoom == _zoom && bounded == _pan) return;
+
+    setState(() {
+      _zoom = zoom;
+      _pan = bounded;
+    });
+  }
+
+  void _end(int pointer, {required bool cancelled}) {
+    if (_penPointer == pointer) {
+      _penPointer = null;
+      widget.onEnd(pointer, cancelled: cancelled);
+    } else {
+      _fingers.remove(pointer);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final tool = widget.tool;
     final drawsInk = tool == PaperTool.pen || tool == PaperTool.highlighter;
     return AspectRatio(
       aspectRatio: 2.24,
@@ -42,51 +139,61 @@ class HomeworkPaper extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              Offset normalize(Offset point) => Offset(
-                (point.dx / constraints.maxWidth).clamp(0.0, 1.0),
-                (point.dy / constraints.maxHeight).clamp(0.0, 1.0),
-              );
-
+              final size = constraints.biggest;
               return RawGestureDetector(
                 gestures: {
                   EagerGestureRecognizer:
                       GestureRecognizerFactoryWithHandlers<
                         EagerGestureRecognizer
-                      >(EagerGestureRecognizer.new, (_) {}),
+                      >(
+                        () => EagerGestureRecognizer(
+                          supportedDevices: const {
+                            PointerDeviceKind.touch,
+                            ..._penKinds,
+                          },
+                        ),
+                        (_) {},
+                      ),
                 },
                 child: Listener(
                   behavior: HitTestBehavior.opaque,
-                  onPointerDown: (event) =>
-                      onDown(event.pointer, normalize(event.localPosition)),
-                  onPointerMove: (event) =>
-                      onMove(event.pointer, normalize(event.localPosition)),
-                  onPointerUp: (event) =>
-                      onEnd(event.pointer, cancelled: false),
+                  onPointerDown: (event) => _down(event, size),
+                  onPointerMove: (event) => _move(event, size),
+                  onPointerUp: (event) => _end(event.pointer, cancelled: false),
                   onPointerCancel: (event) =>
-                      onEnd(event.pointer, cancelled: true),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      RepaintBoundary(
-                        key: captureKey,
-                        child: CustomPaint(
-                          painter: _InkPainter(
-                            draft.content,
-                            drawsInk ? PaperStroke(tool, activeTrace) : null,
+                      _end(event.pointer, cancelled: true),
+                  child: Transform.translate(
+                    offset: _project(_pan, size),
+                    child: Transform.scale(
+                      scale: _zoom,
+                      alignment: Alignment.topLeft,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          RepaintBoundary(
+                            key: widget.captureKey,
+                            child: CustomPaint(
+                              painter: _InkPainter(
+                                widget.draft.content,
+                                drawsInk
+                                    ? PaperStroke(tool, widget.activeTrace)
+                                    : null,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      IgnorePointer(
-                        child: CustomPaint(
-                          painter: _MarkPainter(
-                            selection: draft.selection,
-                            feedback: feedbackRegion,
-                            tool: tool,
-                            trace: drawsInk ? const [] : activeTrace,
+                          IgnorePointer(
+                            child: CustomPaint(
+                              painter: _MarkPainter(
+                                selection: widget.draft.selection,
+                                feedback: widget.feedbackRegion,
+                                tool: tool,
+                                trace: drawsInk ? const [] : widget.activeTrace,
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               );
