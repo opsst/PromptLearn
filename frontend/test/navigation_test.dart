@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:promptlearn/app/prompt_learn_app.dart';
 import 'package:promptlearn/domain/models/user_role.dart';
 import 'package:promptlearn/domain/repositories/role_repository.dart';
+import 'package:promptlearn/ui/features/home/views/student_home_view.dart';
+import 'package:promptlearn/ui/features/home/views/teacher_home_view.dart';
 import 'package:promptlearn/ui/features/home/widgets/home_header.dart';
 
 void main() {
@@ -72,17 +74,13 @@ void main() {
 
     await tester.tap(find.text('Login as Teacher'));
     await tester.pumpAndSettle();
-    expect(
-      tester.widget<HomeHeader>(find.byType(HomeHeader)).role,
-      UserRole.teacher,
-    );
+    expect(find.byType(TeacherHomeView), findsOneWidget);
+    expect(find.byType(StudentHomeView), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await _openApp(tester, repository);
-    expect(
-      tester.widget<HomeHeader>(find.byType(HomeHeader)).role,
-      UserRole.teacher,
-    );
+    expect(find.byType(TeacherHomeView), findsOneWidget);
+    expect(find.byType(StudentHomeView), findsNothing);
 
     await tester.tap(find.byTooltip('Courses'));
     await tester.pumpAndSettle();
@@ -94,10 +92,8 @@ void main() {
     await tester.tap(find.text('Login as Student'));
     await tester.pumpAndSettle();
     expect(repository.role, UserRole.student);
-    expect(
-      tester.widget<HomeHeader>(find.byType(HomeHeader)).role,
-      UserRole.student,
-    );
+    expect(find.byType(StudentHomeView), findsOneWidget);
+    expect(find.byType(TeacherHomeView), findsNothing);
     expect(find.textContaining('Alexander P.'), findsOneWidget);
   });
 }

@@ -6,7 +6,8 @@ import '../domain/repositories/role_repository.dart';
 import '../ui/core/layout/app_navigation.dart';
 import '../ui/core/theme/app_theme.dart';
 import '../ui/features/auth/views/role_selection_view.dart';
-import '../ui/features/home/widgets/home_header.dart';
+import '../ui/features/home/views/student_home_view.dart';
+import '../ui/features/home/views/teacher_home_view.dart';
 
 class PromptLearnApp extends StatelessWidget {
   const PromptLearnApp({super.key, required this.roleRepository});
@@ -113,6 +114,16 @@ class _PromptLearnShell extends StatefulWidget {
 class _PromptLearnShellState extends State<_PromptLearnShell> {
   var _destination = AppDestination.home;
 
+  Widget _buildHome() {
+    const displayName = 'Alexander P.';
+    final now = DateTime.now();
+
+    return switch (widget.role) {
+      UserRole.teacher => TeacherHomeView(displayName: displayName, now: now),
+      UserRole.student => StudentHomeView(displayName: displayName, now: now),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -159,11 +170,7 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
                     child: SizedBox.expand(
                       child: SingleChildScrollView(
                         child: _destination == AppDestination.home
-                            ? HomeHeader(
-                                displayName: 'Alexander P.',
-                                role: widget.role,
-                                now: DateTime.now(),
-                              )
+                            ? _buildHome()
                             : ColoredBox(
                                 color: AppColors.header,
                                 child: Padding(
