@@ -17,7 +17,7 @@ recording_id=$(curl --fail-with-body --silent --show-error \
 printf 'recordingId=%s\n' "$recording_id"
 ```
 
-Backend แยกเสียงจาก MP4 แบ่งที่จังหวะหยุดพูด แล้วส่งเสียงแต่ละช่วงให้ `gpt-transcribe` โดยใช้เวลาจากคลิปต้นฉบับกำหนด `startMs` และ `endMs` คำขอจะรอจนบันทึกคลิปและ transcript สำเร็จ จากนั้น API ตอบ `201 Created` พร้อม `recordingId` ของฉบับร่าง เส้นย้อนหลัง `/video` ตอบ `404` จนกว่าจะเผยแพร่
+Backend แยกเสียงจาก MP4 แบ่งที่จังหวะหยุดพูด แล้วส่งเสียงแต่ละช่วงให้ `gpt-transcribe` โดยใช้เวลาจากคลิปต้นฉบับกำหนด `startMs` และ `endMs` คำขอจะรอจนบันทึกคลิปและ transcript สำเร็จ จากนั้น API ตอบ `201 Created` พร้อม `recordingId`, `durationMs` และ `transcript` ครูใช้ `startMs` เพื่อข้ามเวลาในพรีวิวได้ทันที เส้นย้อนหลัง `/video` ตอบ `404` จนกว่าจะเผยแพร่
 
 ## 2. ครูพรีวิวฉบับร่าง
 

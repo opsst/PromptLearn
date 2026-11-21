@@ -11,6 +11,8 @@ import 'package:promptlearn/domain/repositories/assessment_draft_repository.dart
 import 'package:promptlearn/domain/repositories/assessment_rubric_generator.dart';
 import 'package:promptlearn/domain/repositories/role_repository.dart';
 import 'package:promptlearn/domain/services/class_recording_service.dart';
+import 'package:promptlearn/domain/services/class_replay_service.dart';
+import 'package:promptlearn/ui/core/layout/app_navigation.dart';
 import 'package:promptlearn/ui/features/home/views/student_home_view.dart';
 import 'package:promptlearn/ui/features/home/views/teacher_home_view.dart';
 import 'package:promptlearn/ui/features/home/widgets/home_header.dart';
@@ -474,11 +476,12 @@ void main() {
   }
 
   testWidgets(
-    'Ending a recording opens the saved file and supports playback and seeking',
+    'Ending a recording opens the preview and starts uploading the saved clip',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(1366, 1024));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       final recording = _FakeClassRecordingService();
+      final replay = _FakeClassReplayService();
       addTearDown(recording.dispose);
       final originalPlayer = VideoPlayerPlatform.instance;
       final video = _FakeVideoPlayerPlatform();
@@ -488,6 +491,7 @@ void main() {
         tester,
         _MemoryRoleRepository(UserRole.teacher),
         recording: recording,
+        replay: replay,
       );
 
       Future<void> tap(Finder finder) async {
@@ -524,6 +528,7 @@ void main() {
       await tap(find.text('Stop & end class'));
       expect(recording.stopCount, 1);
       expect(find.text('Saving recording…'), findsOneWidget);
+      expect(replay.uploadedPaths, isEmpty);
 
       recording.emit(
         const RecordingStatus(
@@ -536,26 +541,42 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump();
       expect(find.text('Class ended · M.1/1'), findsOneWidget);
+      FilledButton publishButton(String label) => tester.widget<FilledButton>(
+        find.ancestor(
+          of: find.text(label),
+          matching: find.byWidgetPredicate((widget) => widget is FilledButton),
+        ),
+      );
+      Finder uploadButton(String label) => find.ancestor(
+        of: find.text(label),
+        matching: find.byWidgetPredicate((widget) => widget is OutlinedButton),
+      );
+      expect(publishButton('Publish replay').onPressed, isNull);
+      expect(uploadButton('Upload clip'), findsNothing);
+      expect(find.text('Test video upload'), findsNothing);
+      expect(replay.uploadedPaths, ['/recordings/class.mp4']);
+
+      replay.reportProgress!(45);
+      await tester.pump();
+      expect(find.textContaining('45%'), findsOneWidget);
+      replay.reportProgress!(100);
+      await tester.pump();
+      expect(find.text('กำลังถอดเสียง'), findsOneWidget);
+      expect(publishButton('Publish replay').onPressed, isNull);
+
+      replay.uploadResult.completeError(
+        const ClassReplayException('Upload failed.'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Upload failed.'), findsOneWidget);
       expect(find.text('Recorded 00:46'), findsOneWidget);
       expect(video.source?.sourceType, DataSourceType.file);
       expect(
         Uri.parse(video.source!.uri!).toFilePath(),
         '/recordings/class.mp4',
-      );
-      expect(
-        tester
-            .widget<FilledButton>(
-              find.ancestor(
-                of: find.text('Publish Lesson & Assignment'),
-                matching: find.byWidgetPredicate(
-                  (widget) => widget is FilledButton,
-                ),
-              ),
-            )
-            .onPressed,
-        isNull,
       );
 
       await tap(find.byTooltip('Play clip'));
@@ -570,14 +591,48 @@ void main() {
       await tester.pumpAndSettle();
       expect(video.createCount, 1);
       expect(find.text('00:15 / 00:46'), findsOneWidget);
-
       await tap(find.byTooltip('Pause clip'));
+
+      final retryUpload = uploadButton('Retry upload');
+      await tester.ensureVisible(retryUpload);
+      await tester.pumpAndSettle();
+      await tester.tap(retryUpload);
+      await tester.pump();
+      expect(replay.uploadedPaths, List.filled(2, '/recordings/class.mp4'));
+      replay.uploadResult.complete(
+        const ClassReplayDraft('class-replay-id', [
+          ClassTranscriptCue(Duration(milliseconds: 5250), 'มาลองแก้สมการ'),
+        ]),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Transcript ready'), findsOneWidget);
+      expect(find.text('00:05'), findsOneWidget);
+      await tap(find.text('มาลองแก้สมการ'));
+      expect(video.position, const Duration(milliseconds: 5250));
+
+      await tap(find.text('Publish replay'));
+      expect(publishButton('Publishing…').onPressed, isNull);
+      replay.publishResult.completeError(
+        const ClassReplayException('Publish failed.'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Publish failed.'), findsOneWidget);
+      await tap(find.text('Publish replay'));
+      expect(replay.publishedIds, List.filled(2, 'class-replay-id'));
+      expect(replay.uploadedPaths, hasLength(2));
+      replay.publishResult.complete();
+      await tester.pumpAndSettle();
+      expect(publishButton('Published').onPressed, isNull);
+      expect(find.text('มาลองแก้สมการ'), findsOneWidget);
+
       await tap(find.byTooltip('Back to Teacher Home'));
       expect(find.text('Class ended · M.1/1'), findsNothing);
       expect(find.text('Start Class').hitTestable(), findsOneWidget);
       await tap(find.text('Start Class'));
       await tap(find.text('Last recording'));
       expect(find.text('Class ended · M.1/1'), findsOneWidget);
+      expect(replay.uploadedPaths, hasLength(2));
+      expect(uploadButton('Upload clip'), findsOneWidget);
       expect(video.createCount, 2);
       await tap(find.byTooltip('Back to Teacher Home'));
       expect(find.text('Class ended · M.1/1'), findsNothing);
@@ -848,10 +903,19 @@ void main() {
         addTearDown(() => tester.binding.setSurfaceSize(null));
         await _openApp(tester, _MemoryRoleRepository(UserRole.teacher));
 
+        final homeHeaderHeight = tester.getSize(find.byType(HomeHeader)).height;
         final create = find.text('Create syllabus');
         await tester.ensureVisible(create);
         await tester.tap(create);
         await tester.pumpAndSettle();
+        final syllabusHeader = find.byKey(
+          const ValueKey('syllabus-editor-header'),
+        );
+        final syllabusHeaderHeight = tester.getSize(syllabusHeader).height;
+        expect(syllabusHeaderHeight, 100);
+        if (size.width >= 1000) {
+          expect(syllabusHeaderHeight, homeHeaderHeight);
+        }
         for (var step = 0; step < 3; step++) {
           await tester.tap(find.text('Continue'));
           await tester.pumpAndSettle();
@@ -973,7 +1037,8 @@ void main() {
       for (var index = 1; index < cards.length; index++) {
         expect(cards[index].dx, greaterThan(cards[index - 1].dx));
       }
-      expect(find.byTooltip('Courses'), findsOneWidget);
+      expect(find.byType(AppNavigation), findsNothing);
+      expect(find.widgetWithText(FilledButton, 'Publish'), findsOneWidget);
 
       final inquiry = find.widgetWithText(
         CheckboxListTile,
@@ -1026,10 +1091,22 @@ void main() {
       addTearDown(() => tester.binding.setSurfaceSize(null));
       await _openApp(tester, _MemoryRoleRepository(UserRole.teacher));
 
+      final homeHeaderHeight = tester.getSize(find.byType(HomeHeader)).height;
       final math101 = find.text('Math 101').last;
       await tester.ensureVisible(math101);
       await tester.tap(math101);
       await tester.pumpAndSettle();
+      final courseHeader = find.byKey(const ValueKey('course-detail-header'));
+      expect(tester.getSize(courseHeader).height, 100);
+      if (size.width >= 1000) {
+        expect(tester.getSize(courseHeader).height, homeHeaderHeight);
+      }
+      final headerPosition = tester.getTopLeft(courseHeader);
+      final status = find.descendant(
+        of: find.byType(Table),
+        matching: find.text('Rescheduled'),
+      );
+      expect(tester.widget<Text>(status).style?.fontSize, 11);
       expect(find.text('Teaching Schedule'), findsOneWidget);
       expect(find.text('24 / 54 periods'), findsOneWidget);
       expect(find.text('3.3 Dividing powers'), findsOneWidget);
@@ -1038,6 +1115,7 @@ void main() {
       await tester.tap(next);
       await tester.pumpAndSettle();
       expect(find.text('4.1 Decimals and fractions'), findsOneWidget);
+      expect(tester.getTopLeft(courseHeader), headerPosition);
 
       final search = find.byType(TextField);
       await tester.ensureVisible(search);
@@ -1154,6 +1232,7 @@ Future<void> _openApp(
   WidgetTester tester,
   RoleRepository repository, {
   ClassRecordingService? recording,
+  ClassReplayService? replay,
   AssessmentDraftRepository? assessment,
   AssessmentRubricGenerator? rubricGenerator,
 }) async {
@@ -1162,17 +1241,45 @@ Future<void> _openApp(
     recording == null
         ? PromptLearnApp(
             roleRepository: repository,
+            classReplay: replay,
             assessmentDraftRepository: drafts,
             assessmentRubricGenerator: rubricGenerator,
           )
         : PromptLearnApp(
             roleRepository: repository,
             classRecording: recording,
+            classReplay: replay,
             assessmentDraftRepository: drafts,
             assessmentRubricGenerator: rubricGenerator,
           ),
   );
   await tester.pumpAndSettle();
+}
+
+class _FakeClassReplayService implements ClassReplayService {
+  final uploadedPaths = <String>[];
+  final publishedIds = <String>[];
+  void Function(int)? reportProgress;
+  late Completer<ClassReplayDraft> uploadResult;
+  late Completer<void> publishResult;
+
+  @override
+  Future<ClassReplayDraft> upload(
+    RecordingClip clip,
+    void Function(int) onProgress,
+  ) {
+    uploadedPaths.add(clip.path);
+    reportProgress = onProgress;
+    uploadResult = Completer<ClassReplayDraft>();
+    return uploadResult.future;
+  }
+
+  @override
+  Future<void> publish(String recordingId) {
+    publishedIds.add(recordingId);
+    publishResult = Completer<void>();
+    return publishResult.future;
+  }
 }
 
 class _MemoryRoleRepository implements RoleRepository {

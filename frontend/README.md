@@ -62,11 +62,17 @@ flutter run -d emulator-5554 --dart-define=PROMPTLEARN_API_BASE_URL=http://127.0
 
 รายการตรวจการบ้านใน Chucker บน Android debug แสดงเมธอด, endpoint, HTTP status, เวลา และ JSON ของ request/response ใน request แสดง Base64 ของรูปเพียง 24 ตัวแรกแล้วต่อด้วย `...` ส่วน API ยังได้รับรูปเต็ม [วิธีทดสอบ HW 3.1 กับ Go](HOMEWORK_CHECKER.md)
 
+## สร้าง Course Syllabus จาก Teacher Home
+
+ตั้ง `PROMPTLEARN_API_BASE_URL` ตอนบิ้ว แล้วเปิด **Teacher Home → Create syllabus** ขั้น Standards โหลดตัวชี้วัด สพฐ. สำหรับ ม.1–6 จาก Go และขั้น Units กด **Generate syllabus draft** เพื่อขอร่างภาษาอังกฤษสำหรับตัวชี้วัดและจำนวนคาบที่เลือก เมื่อกด Continue จาก Teaching schedule ระบบตรวจแผนและตารางรายห้องกับ Go ที่หน้า Review สามารถดาวน์โหลด HTML, บันทึกร่าง และเผยแพร่ได้ หลังบันทึกไฟล์ HTML บน Android แอปจะเปิดพรีวิวเอกสารทันที การบันทึกร่างซ้ำใน Wizard เดิมจะอัปเดตร่างตามรหัสเดิม
+
+ตารางใช้เวลาเริ่มคาบจากตารางตัวอย่างและคาบละ 50 นาที แอปส่งเลขคาบของโรงเรียน เวลาท้องถิ่น และลำดับคาบหลังจัดตารางไปพร้อมกัน [API Spec](../backend/api-spec/index.html#previewSyllabus)
+
 ## ทดสอบ Course Syllabus จาก Profile
 
 เปิด Go backend และกำหนด `PROMPTLEARN_API_BASE_URL` ตอนบิ้วตามตัวอย่างด้านบน จากนั้นเข้าสู่ระบบเป็น Teacher แล้วเปิด **Profile → Test syllabus integration**
 
-เลือกชั้น ม.1–ม.6 เทอม 1 หรือ 2 และแถวหลักสูตรที่ใช้สอน กด **Generate draft** เพื่อดูร่างภาษาอังกฤษ จากนั้นกด **Download HTML** บน Android เพื่อบันทึกไฟล์ลงเครื่องและเปิดดูด้วยเบราว์เซอร์ แพลตฟอร์มอื่นใช้ **Copy HTML** การกด **Save draft** จะบันทึกร่างใน Go และแสดงรหัสร่าง
+เลือกชั้น ม.1–ม.6 เทอม 1 หรือ 2 และแถวหลักสูตรที่ใช้สอน กด **Generate draft** เพื่อดูร่างภาษาอังกฤษ จากนั้นกด **Download HTML** บน Android เพื่อบันทึกไฟล์ลงเครื่องและเปิดพรีวิวใน PromptLearn แพลตฟอร์มอื่นใช้ **Copy HTML** การกด **Save draft** จะบันทึกร่างใน Go และแสดงรหัสร่าง
 
 เดโมใช้คณิตศาสตร์พื้นฐาน 54 คาบ คาบละ 50 นาที และคะแนน Classwork 40%, Unit Quizzes 30%, Final Exam 30% หน้า ม.1 เทอม 1 เลือกหัวข้อตั้งต้นจากตัวอย่างใน repo [API Spec](../backend/api-spec/index.html#generateSyllabusDraft)
 

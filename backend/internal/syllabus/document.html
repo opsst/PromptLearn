@@ -33,7 +33,7 @@
     <p class="metadata">Course Syllabus</p>
     <h1>{{.CourseName}}</h1>
     <p>Matthayom {{.Grade}} · Semester {{.Term}}{{if .CourseCode}} · {{.CourseCode}}{{end}}</p>
-    <p>{{.CourseTypeLabel}} · {{.TotalSessions}} periods · {{.MinutesPerSession}} minutes per period</p>
+    <p>{{.CourseTypeLabel}} · {{.TotalSessions}} periods · {{.MinutesPerSession}} minutes per period{{if .Credits}} · {{.Credits}} credits{{end}}{{if .AcademicYear}} · Academic year {{.AcademicYear}}{{end}}</p>
     <nav aria-label="Syllabus sections">
       <a href="#learning-outcomes">Learning Outcomes</a>
       <a href="#learning-units">Learning Units</a>
@@ -69,7 +69,7 @@
       </table>
       {{if .Assessments}}
       <p><strong>Unit Assessment</strong></p>
-      <ul>{{range .Assessments}}<li>Period {{.Session}} · {{.Title}} · {{.Category}} · {{.Points}} points</li>{{end}}</ul>
+      <ul>{{range .Assessments}}<li>{{if .Session}}Period {{.Session}} · {{else}}Date to be announced · {{end}}{{.Title}} · {{.Category}} · {{.Points}} points</li>{{end}}</ul>
       {{end}}
     </article>
     {{end}}

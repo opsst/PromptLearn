@@ -2,6 +2,7 @@ import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../core/layout/app_page_layout.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/course_detail_preview.dart';
 import '../models/syllabus_preview.dart';
@@ -112,11 +113,14 @@ class _TeacherCourseDetailViewState extends State<TeacherCourseDetailView> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Container(
-                        color: Colors.white,
-                        constraints: BoxConstraints(minHeight: wide ? 142 : 72),
+                        key: const ValueKey('course-detail-header'),
+                        color: AppColors.header,
+                        constraints: const BoxConstraints(
+                          minHeight: AppPageLayout.headerMinHeight,
+                        ),
                         padding: EdgeInsets.symmetric(
                           horizontal: wide ? inset : 8,
-                          vertical: 10,
+                          vertical: 12,
                         ),
                         child: Row(
                           spacing: wide ? 12 : 4,
@@ -133,7 +137,6 @@ class _TeacherCourseDetailViewState extends State<TeacherCourseDetailView> {
                               child: Text(
                                 widget.course.title,
                                 style: theme.textTheme.titleLarge?.copyWith(
-                                  fontSize: wide ? 32 : 22,
                                   color: _ink,
                                 ),
                               ),
@@ -482,7 +485,10 @@ class _TeacherCourseDetailViewState extends State<TeacherCourseDetailView> {
         Text(
           '${widget.course.classCount} classes · ${widget.course.studentCount} students',
         ),
-        Text(widget.course.status),
+        Text(
+          widget.course.status,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
         const Divider(color: _line),
         for (final unit in rows.map((row) => row.unit).toSet()) Text(unit),
       ],
@@ -760,11 +766,11 @@ class _StatusBadge extends StatelessWidget {
           borderRadius: BorderRadius.circular(999),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
           child: Text(
             status.label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               color: accent,
               fontWeight: FontWeight.w600,
             ),

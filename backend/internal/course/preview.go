@@ -2,6 +2,9 @@
 package course
 
 import (
+	"fmt"
+	"slices"
+
 	"github.com/opsst/PromptLearn/backend/internal/syllabus"
 	"github.com/opsst/PromptLearn/backend/internal/teaching"
 )
@@ -10,12 +13,39 @@ type Edit struct {
 	Course    syllabus.Input      `json:"course"`
 	Plan      syllabus.Plan       `json:"plan"`
 	Timetable *teaching.Timetable `json:"timetable"`
+	Settings  *EditorSettings     `json:"settings,omitempty"`
+}
+
+type EditorSettings struct {
+	Textbook           *Textbook       `json:"textbook,omitempty"`
+	TeachingApproaches []string        `json:"teaching_approaches"`
+	StudentDetails     []string        `json:"student_details"`
+	TeachingNotes      string          `json:"teaching_notes"`
+	LessonGroups       [][]LessonGroup `json:"lesson_groups,omitempty"`
+	CalendarEvents     []CalendarEvent `json:"calendar_events,omitempty"`
+}
+
+type Textbook struct {
+	Title    string   `json:"title"`
+	Pages    int      `json:"pages"`
+	Chapters []string `json:"chapters"`
+}
+
+type LessonGroup struct {
+	Title   string `json:"title"`
+	Periods int    `json:"periods"`
+}
+
+type CalendarEvent struct {
+	Date string `json:"date"`
+	Name string `json:"name"`
 }
 
 type Preview struct {
 	Syllabus  syllabus.Draft      `json:"syllabus"`
 	Timetable *teaching.Timetable `json:"timetable,omitempty"`
 	Schedule  *teaching.Schedule  `json:"schedule,omitempty"`
+	Settings  *EditorSettings     `json:"settings,omitempty"`
 }
 
 // Build validates a teacher-edited syllabus and optionally places it on a calendar.
@@ -24,7 +54,13 @@ func Build(edit Edit) (Preview, error) {
 	if err != nil {
 		return Preview{}, err
 	}
-	preview := Preview{Syllabus: draft, Timetable: edit.Timetable}
+	if settings := edit.Settings; settings != nil {
+		if !validChoices(settings.TeachingApproaches, []string{"inquiry", "fiveE", "cpa", "flipped"}) ||
+			!validChoices(settings.StudentDetails, []string{"topics", "assessmentDates", "scores", "indicators", "notes"}) {
+			return Preview{}, fmt.Errorf("%w: unknown or repeated syllabus setting", syllabus.ErrInvalidInput)
+		}
+	}
+	preview := Preview{Syllabus: draft, Timetable: edit.Timetable, Settings: edit.Settings}
 	if edit.Timetable != nil {
 		schedule, err := teaching.Place(*edit.Timetable, draft)
 		if err != nil {
@@ -37,6 +73,15 @@ func Build(edit Edit) (Preview, error) {
 		}
 	}
 	return preview, nil
+}
+
+func validChoices(values, allowed []string) bool {
+	for i, value := range values {
+		if !slices.Contains(allowed, value) || slices.Contains(values[:i], value) {
+			return false
+		}
+	}
+	return true
 }
 
 func restoreHTML(preview *Preview) error {

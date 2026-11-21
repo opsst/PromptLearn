@@ -114,7 +114,9 @@ func (d replayDemo) upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	keep = true
-	writeJSON(w, http.StatusCreated, map[string]string{"recordingId": id})
+	writeJSON(w, http.StatusCreated, replay.Recording{
+		ID: id, DurationMS: media.DurationMS, Transcript: segments,
+	})
 }
 
 func (d replayDemo) transcript(w http.ResponseWriter, r *http.Request, path string, media replay.Media) ([]replay.Segment, bool) {

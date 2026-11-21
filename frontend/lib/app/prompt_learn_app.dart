@@ -13,6 +13,7 @@ import '../domain/repositories/course_syllabus_repository.dart';
 import '../domain/repositories/homework_checker.dart';
 import '../domain/repositories/role_repository.dart';
 import '../domain/services/class_recording_service.dart';
+import '../domain/services/class_replay_service.dart';
 import '../ui/core/layout/app_navigation.dart';
 import '../ui/core/layout/app_page_layout.dart';
 import '../ui/core/theme/app_theme.dart';
@@ -39,6 +40,7 @@ class PromptLearnApp extends StatefulWidget {
     required this.roleRepository,
     this.homeworkChecker = const MockHomeworkChecker(),
     this.classRecording = const AndroidClassRecordingService(),
+    this.classReplay,
     this.assessmentDraftRepository = const LocalAssessmentDraftRepository(),
     this.assessmentRubricGenerator,
     this.syllabusRepository,
@@ -48,6 +50,7 @@ class PromptLearnApp extends StatefulWidget {
   final RoleRepository roleRepository;
   final HomeworkChecker homeworkChecker;
   final ClassRecordingService classRecording;
+  final ClassReplayService? classReplay;
   final AssessmentDraftRepository assessmentDraftRepository;
   final AssessmentRubricGenerator? assessmentRubricGenerator;
   final CourseSyllabusRepository? syllabusRepository;
@@ -102,6 +105,7 @@ class _PromptLearnAppState extends State<PromptLearnApp> {
           onRoleChanged: (role) => _role.value = role,
           homeworkChecker: widget.homeworkChecker,
           classRecording: widget.classRecording,
+          classReplay: widget.classReplay,
           assessmentDraftRepository: widget.assessmentDraftRepository,
           assessmentRubricGenerator: widget.assessmentRubricGenerator,
           syllabusRepository: widget.syllabusRepository,
@@ -117,6 +121,7 @@ class _RoleGate extends StatefulWidget {
     required this.onRoleChanged,
     required this.homeworkChecker,
     required this.classRecording,
+    required this.classReplay,
     required this.assessmentDraftRepository,
     required this.assessmentRubricGenerator,
     required this.syllabusRepository,
@@ -126,6 +131,7 @@ class _RoleGate extends StatefulWidget {
   final ValueChanged<UserRole?> onRoleChanged;
   final HomeworkChecker homeworkChecker;
   final ClassRecordingService classRecording;
+  final ClassReplayService? classReplay;
   final AssessmentDraftRepository assessmentDraftRepository;
   final AssessmentRubricGenerator? assessmentRubricGenerator;
   final CourseSyllabusRepository? syllabusRepository;
@@ -202,6 +208,7 @@ class _RoleGateState extends State<_RoleGate> {
       role: role,
       homeworkChecker: widget.homeworkChecker,
       classRecording: widget.classRecording,
+      classReplay: widget.classReplay,
       assessmentDraftRepository: widget.assessmentDraftRepository,
       assessmentRubricGenerator: widget.assessmentRubricGenerator,
       syllabusRepository: widget.syllabusRepository,
@@ -215,6 +222,7 @@ class _PromptLearnShell extends StatefulWidget {
     required this.role,
     required this.homeworkChecker,
     required this.classRecording,
+    required this.classReplay,
     required this.assessmentDraftRepository,
     required this.assessmentRubricGenerator,
     required this.syllabusRepository,
@@ -224,6 +232,7 @@ class _PromptLearnShell extends StatefulWidget {
   final UserRole role;
   final HomeworkChecker homeworkChecker;
   final ClassRecordingService classRecording;
+  final ClassReplayService? classReplay;
   final AssessmentDraftRepository assessmentDraftRepository;
   final AssessmentRubricGenerator? assessmentRubricGenerator;
   final CourseSyllabusRepository? syllabusRepository;
@@ -328,9 +337,10 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
       UserRole.teacher => TeacherHomeView(
         displayName: displayName,
         now: now,
+        syllabusRepository: widget.syllabusRepository,
         onStartClass: () => _openHomeDetail(_HomeDetail.classSetup),
         onOpenAssessment: () => _openHomeDetail(_HomeDetail.assessment),
-        reviewNavigation: AppNavigation(
+        courseDetailNavigation: AppNavigation(
           destination: AppDestination.courses,
           vertical: true,
           reviewStyle: true,
@@ -379,6 +389,7 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
                 _HomeDetail.classSetup => TeacherClassSetupView(
                   onBack: _closeHomeDetail,
                   recordingService: widget.classRecording,
+                  replayService: widget.classReplay,
                   onNavigationLockChanged: (locked) => _classLocked = locked,
                 ),
                 _HomeDetail.assessment => TeacherAssessmentBuilderView(

@@ -21,14 +21,17 @@ type Timetable struct {
 }
 
 type Class struct {
-	ID    string `json:"id"`
-	Slots []Slot `json:"slots"`
+	ID           string `json:"id"`
+	StudentCount *int   `json:"student_count,omitempty"`
+	Slots        []Slot `json:"slots"`
+	SessionOrder []int  `json:"session_order,omitempty"`
 }
 
 // Slot uses an ISO weekday (1 is Monday, 7 is Sunday) and Bangkok local time.
 type Slot struct {
-	Weekday   int    `json:"weekday"`
-	StartTime string `json:"start_time"`
+	Weekday      int    `json:"weekday"`
+	StartTime    string `json:"start_time"`
+	PeriodNumber int    `json:"period_number,omitempty"`
 }
 
 type ClassAvailability struct {
@@ -98,27 +101,58 @@ func Place(timetable Timetable, draft syllabus.Draft) (Schedule, error) {
 			scored[assessment.Session] = append(scored[assessment.Session], assessment)
 		}
 	}
-	result := Schedule{Timezone: "Asia/Bangkok", AvailableSessions: availability.AvailableSessions}
-	for _, class := range availability.Classes {
-		out := ClassSchedule{ClassAvailability: class, Meetings: make([]Meeting, 0, draft.TotalSessions)}
-		classWindows := windows[class.ClassID]
-		for _, unit := range draft.Units {
-			for _, session := range unit.Sessions {
-				slot := classWindows[len(out.Meetings)]
-				assessments := scored[session.Number]
-				if assessments == nil {
-					assessments = []syllabus.Assessment{}
-				}
-				out.Meetings = append(out.Meetings, Meeting{
-					Session: session.Number, Unit: unit.Title, Title: session.Title,
-					Date: slot.date, StartTime: clockTime(slot.start), EndTime: clockTime(slot.end),
-					Assessments: assessments,
-				})
+	sessions := make([]Meeting, 0, draft.TotalSessions)
+	for _, unit := range draft.Units {
+		for _, session := range unit.Sessions {
+			assessments := scored[session.Number]
+			if assessments == nil {
+				assessments = []syllabus.Assessment{}
 			}
+			sessions = append(sessions, Meeting{
+				Session: session.Number, Unit: unit.Title, Title: session.Title, Assessments: assessments,
+			})
 		}
-		result.Classes = append(result.Classes, out)
+	}
+	result := Schedule{Timezone: "Asia/Bangkok", AvailableSessions: availability.AvailableSessions}
+	for i, class := range availability.Classes {
+		meetings, err := placeClass(timetable.Classes[i], windows[class.ClassID], sessions)
+		if err != nil {
+			return Schedule{}, err
+		}
+		result.Classes = append(result.Classes, ClassSchedule{ClassAvailability: class, Meetings: meetings})
 	}
 	return result, nil
+}
+
+func placeClass(class Class, windows []window, sessions []Meeting) ([]Meeting, error) {
+	order := class.SessionOrder
+	if len(order) == 0 {
+		order = make([]int, len(sessions))
+		for i := range order {
+			order[i] = i + 1
+		}
+	}
+	if len(order) > len(windows) {
+		return nil, fmt.Errorf("%w: session order for %q exceeds its available slots", ErrInvalidTimetable, class.ID)
+	}
+	seen := make([]bool, len(sessions))
+	meetings := make([]Meeting, 0, len(sessions))
+	for index, position := range order {
+		if position == 0 {
+			continue
+		}
+		if position < 1 || position > len(sessions) || seen[position-1] {
+			return nil, fmt.Errorf("%w: %q must place each course session once", ErrInvalidTimetable, class.ID)
+		}
+		seen[position-1] = true
+		slot, meeting := windows[index], sessions[position-1]
+		meeting.Date, meeting.StartTime, meeting.EndTime = slot.date, clockTime(slot.start), clockTime(slot.end)
+		meetings = append(meetings, meeting)
+	}
+	if len(meetings) != len(sessions) {
+		return nil, fmt.Errorf("%w: %q must place each course session once", ErrInvalidTimetable, class.ID)
+	}
+	return meetings, nil
 }
 
 func summarize(timetable Timetable, windows map[string][]window) Availability {
@@ -176,10 +210,21 @@ func weeklyIntervals(classes []Class, minutes int) ([8][]interval, error) {
 			return slots, fmt.Errorf("%w: each class requires a unique id and weekly slots", ErrInvalidTimetable)
 		}
 		classIDs[class.ID] = true
+		if class.StudentCount != nil && *class.StudentCount < 0 {
+			return slots, fmt.Errorf("%w: student_count cannot be negative", ErrInvalidTimetable)
+		}
+		periods := make(map[[2]int]bool)
 		for _, slot := range class.Slots {
 			clock, err := time.Parse("15:04", slot.StartTime)
 			if err != nil || slot.Weekday < 1 || slot.Weekday > 7 {
 				return slots, fmt.Errorf("%w: invalid weekly slot for class %q", ErrInvalidTimetable, class.ID)
+			}
+			period := [2]int{slot.Weekday, slot.PeriodNumber}
+			if slot.PeriodNumber < 0 || slot.PeriodNumber > 32 || periods[period] {
+				return slots, fmt.Errorf("%w: invalid or repeated period number for %q", ErrInvalidTimetable, class.ID)
+			}
+			if slot.PeriodNumber != 0 {
+				periods[period] = true
 			}
 			start := clock.Hour()*60 + clock.Minute()
 			end := start + minutes
