@@ -42,7 +42,11 @@ func TestCreateSyllabusDraft(t *testing.T) {
 	if draft.Term != 1 || len(draft.References) != 1 || len(draft.References[0].Row.Outcomes) != 2 {
 		t.Fatalf("grouped indicators were lost: %+v", draft.References)
 	}
-	if !strings.Contains(draft.DocumentHTML, "ค 1.1 ม.1/2") {
-		t.Error("second indicator missing in document")
+	second := draft.References[0].Row.Outcomes[1]
+	if second.Code != "ค 1.1 ม.1/2" || !strings.Contains(draft.DocumentHTML, second.Text) {
+		t.Error("second learning outcome or its API reference is missing")
+	}
+	if strings.Contains(draft.DocumentHTML, second.Code) {
+		t.Error("indicator code should stay in the JSON references")
 	}
 }
