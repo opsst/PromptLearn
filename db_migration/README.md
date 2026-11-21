@@ -38,8 +38,14 @@ Migration ทำงานใน transaction เดียว ตัวอย่�
 - **คลิปและความเป็นส่วนตัว** ตรวจช่วงเวลาว่าอยู่ในคลิป เก็บช่วงที่ดูด้วย union อะตอมมิกเพื่อกันการนับซ้ำ ใช้พิกัดนักเรียนชั่วคราวตอนตรวจเช็กชื่อ รวมถึงงดบันทึกใน payload ของคิวหรือ request log ส่วนไฟล์สื่อและภาพคำตอบใช้ object storage และเก็บ metadata ใน `assets`
 - **งานเบื้องหลัง** ให้ worker claim งานและรองรับ retry โดยใช้ `idempotency_key` กันการสร้างงานซ้ำ `payload` เก็บรหัสแถวที่เกี่ยวข้อง เช่น ไฟล์นำเข้าตาราง คาบ หรือคลิป ส่วนผลลัพธ์ถาวรเขียนลงตารางของ flow นั้น
 
-## Migration สำหรับ syllabus API
+## ตรวจการเชื่อมต่อจาก Go
 
-หลังใช้ `schema.sql` ให้ใช้ [002_syllabus_api_records.sql](./002_syllabus_api_records.sql)
-เพื่อเพิ่ม persistence สำหรับ API syllabus ปัจจุบัน ตารางนี้เก็บร่างและ snapshot ที่เผยแพร่
-ตาม contract ของ API ดูวิธีเปิดใช้ PostgreSQL และนำเข้าไฟล์เดิมใน [Backend README](../backend/README.md)
+ตั้ง `DATABASE_URL` ใน environment เป็น PostgreSQL connection string แล้วรันจากโฟลเดอร์ `backend`
+
+```sh
+go run ./cmd/dbcheck
+```
+
+คำสั่งนี้ตรวจการเชื่อมต่อภายใน 5 วินาที ใช้ได้ทั้งก่อนและหลังรัน migration
+ส่วน backend ที่ต้องใช้ฐานข้อมูลในอนาคตสามารถเรียก `internal/database.OpenPostgres`
+และปิด pool เมื่อเลิกใช้

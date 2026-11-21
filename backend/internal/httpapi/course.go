@@ -32,7 +32,7 @@ func coursePreview(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func registerCourseStoreRoutes(mux *http.ServeMux, store CourseStore) {
+func registerCourseStoreRoutes(mux *http.ServeMux, store *course.Store) {
 	mux.HandleFunc("POST /v1/syllabi", func(w http.ResponseWriter, r *http.Request) {
 		preview, ok := buildPreview(w, r)
 		if !ok {

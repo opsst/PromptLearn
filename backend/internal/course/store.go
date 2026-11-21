@@ -53,19 +53,12 @@ func OpenStore(dir string) (*Store, error) {
 	return &Store{dir: dir}, nil
 }
 
-func newDraft(preview Preview) (Saved, error) {
+func (s *Store) Create(preview Preview) (Saved, error) {
 	var random [16]byte
 	if _, err := rand.Read(random[:]); err != nil {
 		return Saved{}, fmt.Errorf("generate course id: %w", err)
 	}
-	return Saved{ID: hex.EncodeToString(random[:]), Status: "draft", Preview: preview}, nil
-}
-
-func (s *Store) Create(preview Preview) (Saved, error) {
-	saved, err := newDraft(preview)
-	if err != nil {
-		return Saved{}, err
-	}
+	saved := Saved{ID: hex.EncodeToString(random[:]), Status: "draft", Preview: preview}
 	if err := s.write(record{Draft: saved}); err != nil {
 		return Saved{}, err
 	}
@@ -78,35 +71,29 @@ func (s *Store) Get(id string) (Saved, error) {
 }
 
 func (s *Store) Update(id string, preview Preview) (Saved, error) {
-	return s.change(id, updateDraft(preview))
-}
-
-func updateDraft(preview Preview) func(*record) error {
-	return func(data *record) error {
+	return s.change(id, func(data *record) error {
 		data.Draft.Preview = preview
 		if data.Published != nil {
 			data.Draft.Status = "unpublished_changes"
 		}
 		return nil
-	}
+	})
 }
 
 func (s *Store) Publish(id string) (Saved, error) {
-	return s.change(id, publishDraft)
-}
-
-func publishDraft(data *record) error {
-	draft := data.Draft
-	if draft.Schedule == nil || len(draft.Syllabus.AssessmentWeights) == 0 {
-		return ErrNotReady
-	}
-	data.Published = &StudentView{
-		ID: draft.ID, CourseName: draft.Syllabus.CourseName, CourseCode: draft.Syllabus.CourseCode,
-		Grade: draft.Syllabus.Grade, Term: draft.Syllabus.Term,
-		AssessmentWeights: draft.Syllabus.AssessmentWeights, Schedule: *draft.Schedule,
-	}
-	data.Draft.Status = "published"
-	return nil
+	return s.change(id, func(data *record) error {
+		draft := data.Draft
+		if draft.Schedule == nil || len(draft.Syllabus.AssessmentWeights) == 0 {
+			return ErrNotReady
+		}
+		data.Published = &StudentView{
+			ID: draft.ID, CourseName: draft.Syllabus.CourseName, CourseCode: draft.Syllabus.CourseCode,
+			Grade: draft.Syllabus.Grade, Term: draft.Syllabus.Term,
+			AssessmentWeights: draft.Syllabus.AssessmentWeights, Schedule: *draft.Schedule,
+		}
+		data.Draft.Status = "published"
+		return nil
+	})
 }
 
 func (s *Store) StudentView(id string) (StudentView, error) {
@@ -137,7 +124,10 @@ func (s *Store) change(id string, update func(*record) error) (Saved, error) {
 }
 
 func (s *Store) read(id string) (record, error) {
-	if !validID(id) {
+	if len(id) != 32 {
+		return record{}, ErrNotFound
+	}
+	if _, err := hex.DecodeString(id); err != nil {
 		return record{}, ErrNotFound
 	}
 	data, err := os.ReadFile(s.path(id))
@@ -174,12 +164,4 @@ func (s *Store) write(data record) error {
 
 func (s *Store) path(id string) string {
 	return filepath.Join(s.dir, id+".json")
-}
-
-func validID(id string) bool {
-	if len(id) != 32 {
-		return false
-	}
-	_, err := hex.DecodeString(id)
-	return err == nil
 }
