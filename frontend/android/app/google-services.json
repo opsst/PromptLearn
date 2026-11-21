@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "206310749184",
+    "project_id": "promptlearn-caae3",
+    "storage_bucket": "promptlearn-caae3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:206310749184:android:8da466d1837bde6cb0d4e5",
+        "android_client_info": {
+          "package_name": "com.promptlearn.promptlearn"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCvZcXukOQwvzjZlKYh2Sp7iDm90ycqchE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
