@@ -33,6 +33,7 @@ flutter:
     - assets/home/
     - assets/student_home/
     - assets/assessment/
+    - assets/assistant/
     - assets/classroom/
     - assets/syllabus/
   fonts:

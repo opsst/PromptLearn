@@ -75,3 +75,7 @@ flutter run -d emulator-5554 --dart-define=PROMPTLEARN_API_BASE_URL=http://127.0
 เลือกชั้น ม.1–ม.6 เทอม 1 หรือ 2 และแถวหลักสูตรที่ใช้สอน กด **Generate draft** เพื่อดูร่างภาษาอังกฤษ จากนั้นกด **Download HTML** บน Android เพื่อบันทึกไฟล์ลงเครื่องและเปิดพรีวิวใน PromptLearn แพลตฟอร์มอื่นใช้ **Copy HTML** การกด **Save draft** จะบันทึกร่างใน Go และแสดงรหัสร่าง
 
 เดโมใช้คณิตศาสตร์พื้นฐาน 54 คาบ คาบละ 50 นาที และคะแนน Classwork 40%, Unit Quizzes 30%, Final Exam 30% หน้า ม.1 เทอม 1 เลือกหัวข้อตั้งต้นจากตัวอย่างใน repo [API Spec](../backend/api-spec/index.html#generateSyllabusDraft)
+
+## ทดลอง PL AI
+
+ตั้ง `OPENAI_API_KEY` ใน environment ของ Go backend ตาม [คู่มือ backend](../backend/README.md) แล้วรัน Flutter โดยส่ง `PROMPTLEARN_API_BASE_URL` ตามตัวอย่างด้านบน ปุ่ม **Ask Prompt Learn** จะเปิดแชตจากทุกหน้าหลังเลือกบทบาท ในระหว่างการพัฒนา endpoint รับการเชื่อมต่อจากเครื่องที่รัน backend หรือ Android Emulator ผ่าน `10.0.2.2`
