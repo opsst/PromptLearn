@@ -8,6 +8,8 @@ Go HTTP service สำหรับใช้งานจาก Flutter ใช้ 
 
 [OpenAPI 3.0.3 (YAML)](api-spec/openapi.yaml) ระบุ path, parameters, schemas และ HTTP status สำหรับนำเข้า Swagger UI หรือ Postman
 
+[ตัวอย่าง curl สำหรับคลิปย้อนหลัง](api-spec/video-replay-curl.md) ครอบคลุมการอัปโหลด เผยแพร่ ดึง transcript และขอช่วงไบต์ของ MP4
+
 ลำดับการเรียกสำหรับฝั่งครูคือดึงหลักสูตรและคำนวณจำนวนคาบ → สร้างร่าง → แก้หน่วยและคะแนน → ดูตัวอย่างตาราง → บันทึกและเผยแพร่ ฝั่งผู้เรียนเรียก `GET /v1/published-syllabi/{id}` เพื่ออ่านฉบับที่เผยแพร่ล่าสุด
 
 เมื่อแก้ YAML ให้สร้างหน้า HTML ใหม่ด้วย `python3 api-spec/render_html.py` จากโฟลเดอร์ `backend/` โดยใช้ Python ที่ติดตั้ง PyYAML
