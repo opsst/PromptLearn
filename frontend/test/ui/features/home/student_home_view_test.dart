@@ -16,6 +16,7 @@ void main() {
             body: StudentHomeView(
               displayName: 'Alexander P.',
               now: DateTime(2026, 7, 15, 10, 15),
+              onOpenHomework: () {},
             ),
           ),
         ),
@@ -34,7 +35,7 @@ void main() {
       await tester.pump();
       expect(find.text('● Now'), findsNothing);
       expect(tester.takeException(), isNull);
-      final assignment = find.text('Exercise on linear equations');
+      final assignment = find.text('Lab report on force and motion');
       final notifications = find.byTooltip('Notifications');
       final headerPosition = tester.getTopLeft(notifications);
       final taskPosition = tester.getTopLeft(assignment);
@@ -46,7 +47,7 @@ void main() {
       await tester.tap(assignment);
       await tester.pumpAndSettle();
       expect(find.byType(AlertDialog), findsOneWidget);
-      expect(find.textContaining('Due Today · 23:59'), findsOneWidget);
+      expect(find.textContaining('Due Tomorrow · 16:00'), findsOneWidget);
     },
   );
 }

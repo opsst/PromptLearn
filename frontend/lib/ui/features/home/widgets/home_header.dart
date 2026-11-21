@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/notifications_button.dart';
 
 class HomeHeader extends StatelessWidget {
   const HomeHeader({super.key, required this.displayName, required this.now});
@@ -75,32 +76,7 @@ class HomeHeader extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  IconButton(
-                    tooltip: 'Notifications',
-                    style: IconButton.styleFrom(
-                      backgroundColor: AppColors.notificationBackground,
-                      fixedSize: const Size.square(48),
-                    ),
-                    icon: SvgPicture.asset(
-                      'assets/navigation/notifications.svg',
-                      width: 26,
-                      height: 30,
-                      excludeFromSemantics: true,
-                    ),
-                    onPressed: () => showDialog<void>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Notifications'),
-                        content: const Text('Welcome to PromptLearn.'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: const Text('Close'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                  const NotificationsButton(),
                 ],
               ),
             ),

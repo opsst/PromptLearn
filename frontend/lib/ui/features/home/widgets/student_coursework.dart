@@ -8,24 +8,28 @@ const _mint = Color(0xffdfffcc);
 const _green = Color(0xff007932);
 const _homework = [
   (
+    id: 'hw-3.1',
     subject: 'Math 101 : Mathematics',
-    task: 'Exercise on linear equations',
+    task: 'HW 3.1 · Exponent practice',
     days: 0,
     time: '23:59',
   ),
   (
+    id: 'science',
     subject: 'Science',
     task: 'Lab report on force and motion',
     days: 1,
     time: '16:00',
   ),
   (
+    id: 'english',
     subject: 'English',
     task: 'Reading exercise · Unit 5',
     days: 2,
     time: '16:00',
   ),
   (
+    id: 'css101',
     subject: 'CSS101 Basic Programming',
     task: 'Practice with variables and loops',
     days: 4,
@@ -34,9 +38,14 @@ const _homework = [
 ];
 
 class StudentCoursework extends StatelessWidget {
-  const StudentCoursework({super.key, required this.now});
+  const StudentCoursework({
+    super.key,
+    required this.now,
+    required this.onOpenHomework,
+  });
 
   final DateTime now;
+  final VoidCallback onOpenHomework;
 
   @override
   Widget build(BuildContext context) {
@@ -68,6 +77,7 @@ class StudentCoursework extends StatelessWidget {
           _HomeworkCard(
             subject: item.subject,
             task: item.task,
+            onOpen: item.id == 'hw-3.1' ? onOpenHomework : null,
             due: switch (item.days) {
               0 => '• Today',
               1 => '• Tomorrow',
@@ -307,11 +317,13 @@ class _HomeworkCard extends StatelessWidget {
     required this.time,
     required this.accent,
     required this.urgent,
+    this.onOpen,
   });
 
   final String subject, task, due, time;
   final Color accent;
   final bool urgent;
+  final VoidCallback? onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -342,11 +354,13 @@ class _HomeworkCard extends StatelessWidget {
       ],
     );
     return _Surface(
-      onTap: () => _showDetails(
-        context,
-        subject,
-        '$task\n\nDue ${due.replaceFirst('• ', '')} · $time',
-      ),
+      onTap:
+          onOpen ??
+          () => _showDetails(
+            context,
+            subject,
+            '$task\n\nDue ${due.replaceFirst('• ', '')} · $time',
+          ),
       child: Container(
         padding: const EdgeInsets.only(left: 16),
         decoration: BoxDecoration(
