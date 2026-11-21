@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../data/repositories/mock_homework_checker.dart';
+import '../data/services/android_class_recording_service.dart';
 import '../domain/models/user_role.dart';
 import '../domain/repositories/homework_checker.dart';
 import '../domain/repositories/role_repository.dart';
+import '../domain/services/class_recording_service.dart';
 import '../ui/core/layout/app_navigation.dart';
 import '../ui/core/layout/app_page_layout.dart';
 import '../ui/core/theme/app_theme.dart';
@@ -24,10 +26,12 @@ class PromptLearnApp extends StatelessWidget {
     super.key,
     required this.roleRepository,
     this.homeworkChecker = const MockHomeworkChecker(),
+    this.classRecording = const AndroidClassRecordingService(),
   });
 
   final RoleRepository roleRepository;
   final HomeworkChecker homeworkChecker;
+  final ClassRecordingService classRecording;
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +47,7 @@ class PromptLearnApp extends StatelessWidget {
         child: _RoleGate(
           repository: roleRepository,
           homeworkChecker: homeworkChecker,
+          classRecording: classRecording,
         ),
       ),
     );
@@ -50,10 +55,15 @@ class PromptLearnApp extends StatelessWidget {
 }
 
 class _RoleGate extends StatefulWidget {
-  const _RoleGate({required this.repository, required this.homeworkChecker});
+  const _RoleGate({
+    required this.repository,
+    required this.homeworkChecker,
+    required this.classRecording,
+  });
 
   final RoleRepository repository;
   final HomeworkChecker homeworkChecker;
+  final ClassRecordingService classRecording;
 
   @override
   State<_RoleGate> createState() => _RoleGateState();
@@ -122,6 +132,7 @@ class _RoleGateState extends State<_RoleGate> {
     return _PromptLearnShell(
       role: role,
       homeworkChecker: widget.homeworkChecker,
+      classRecording: widget.classRecording,
       onSwitchRole: () => _changeRole(null),
     );
   }
@@ -132,10 +143,12 @@ class _PromptLearnShell extends StatefulWidget {
     required this.role,
     required this.homeworkChecker,
     required this.onSwitchRole,
+    required this.classRecording,
   });
 
   final UserRole role;
   final HomeworkChecker homeworkChecker;
+  final ClassRecordingService classRecording;
   final VoidCallback onSwitchRole;
 
   @override
@@ -145,9 +158,46 @@ class _PromptLearnShell extends StatefulWidget {
 class _PromptLearnShellState extends State<_PromptLearnShell> {
   var _destination = AppDestination.home;
   bool _homeDetailOpen = false;
+  bool _classLocked = false;
   late final _homeworkNotebook = HomeworkNotebook();
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.role == UserRole.teacher && widget.classRecording.isSupported) {
+      _restoreActiveClass();
+    }
+  }
+
+  Future<void> _restoreActiveClass() async {
+    try {
+      final recording = await widget.classRecording.status();
+      if (!mounted || !recording.inProgress) return;
+      setState(() {
+        _destination = AppDestination.home;
+        _homeDetailOpen = true;
+      });
+    } on PlatformException {
+      // Stay on Home when the recording service is unavailable.
+    } on MissingPluginException {
+      // Leave Home usable on platforms that do not register Android capture.
+    }
+  }
+
+  bool _canLeaveClass() {
+    if (!_classLocked) return true;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('End the class before leaving this page.')),
+    );
+    return false;
+  }
+
+  void _switchRole() {
+    if (_canLeaveClass()) widget.onSwitchRole();
+  }
+
   void _selectDestination(AppDestination destination) {
+    if (!_canLeaveClass()) return;
     setState(() {
       _destination = destination;
       _homeDetailOpen = false;
@@ -183,7 +233,7 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
       return PopScope(
         canPop: !_homeDetailOpen,
         onPopInvokedWithResult: (didPop, _) {
-          if (!didPop && _homeDetailOpen) _closeHomeDetail();
+          if (!didPop && _homeDetailOpen && !_classLocked) _closeHomeDetail();
         },
         child: IndexedStack(
           index: _homeDetailOpen ? 1 : 0,
@@ -194,6 +244,8 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
               switch (widget.role) {
                 UserRole.teacher => TeacherClassSetupView(
                   onBack: _closeHomeDetail,
+                  recordingService: widget.classRecording,
+                  onNavigationLockChanged: (locked) => _classLocked = locked,
                 ),
                 UserRole.student => StudentHomeworkView(
                   notebook: _homeworkNotebook,
@@ -239,7 +291,7 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
                   ? AppDestination.courses
                   : _destination,
               vertical: useSidebar,
-              onSwitchRole: widget.onSwitchRole,
+              onSwitchRole: _switchRole,
               onSelected: _selectDestination,
             );
             final double inset = wide ? 25 : 12;

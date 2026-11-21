@@ -84,7 +84,11 @@ Teacher Home จัดคาบถัดไป แผนย่อ และต�
 
 ปุ่ม **Start Class** จาก Teacher Home เปิด `TeacherClassSetupView` ใน `lib/ui/features/classroom/views/` ภายใน shell เดิม คงตำแหน่งการเลื่อนของ Home ไว้เมื่อกดย้อนกลับ Header ตรึงด้านบนด้วย `AppPageLayout` ส่วนข้อมูลคาบและแผนตัวอย่างใน `classroom/models/` ใช้ร่วมกับแผนแบบย่อบน Teacher Home
 
-ตัวเลือกแหล่งบันทึกและตัวสลับต่าง ๆ เก็บสถานะชั่วคราวในหน้าตั้งค่า ปุ่มเริ่มสอนเปิดพรีวิวในเครื่อง ปุ่มทดสอบอุปกรณ์แสดงแหล่งที่เลือก การบันทึก เช็กชื่อด้วยตำแหน่ง ไลฟ์ และติดตามการมีส่วนร่วมยังรอเชื่อมบริการจริง
+**Start teaching & recording** เปิดคำขอสิทธิ์ไมค์และการแชร์หน้าจอของ Android เมื่อเริ่มบันทึกจริง `TeacherTeachingView` แสดง REC และเวลาที่ผ่านไป แหล่ง **Whole screen** ใช้บันทึกต่อขณะสลับแอป หากต้องการแชร์เฉพาะ PromptLearn ให้เลือกรายการแอปในหน้าต่าง Android เมื่อระบบรองรับ การบันทึกใช้เสียงจากไมค์ของอุปกรณ์ [Android MediaProjection](https://developer.android.com/media/grow/media-projection)
+
+`AndroidClassRecordingService` ใน `lib/data/services/` เชื่อม Flutter กับ `ClassRecordingService.kt` ผ่าน MethodChannel และ EventChannel ตัว foreground service ถือ MediaProjection และ MediaRecorder จึงทำงานต่อได้ระหว่างสลับแอป ปุ่ม **Stop & end class** ปิด session และปิดไฟล์ `.partial` เป็น MP4 แบบ H.264/AAC เมื่ออ่านพบทั้งแทร็กภาพและเสียง คลิปอยู่ในพื้นที่ส่วนตัว `noBackupFilesDir/class-recordings/` และ `ClassRecordingService.savedClips()` ส่งคืนพาธ ชื่อ และขนาดไฟล์สำหรับงานอัปโหลด
+
+สไลด์ 14 หน้า โน้ตประจำสไลด์ เช็กชื่อ และคำถามนักเรียนใช้ข้อมูลตัวอย่าง การไลฟ์ อัปโหลด และถอดเสียงพร้อม timestamp รอเชื่อมบริการจริง
 
 ## Header และการเลื่อนหน้าจอ
 

@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptlearn/app/prompt_learn_app.dart';
 import 'package:promptlearn/domain/models/user_role.dart';
 import 'package:promptlearn/domain/repositories/role_repository.dart';
+import 'package:promptlearn/domain/services/class_recording_service.dart';
 import 'package:promptlearn/ui/features/home/views/student_home_view.dart';
 import 'package:promptlearn/ui/features/home/views/teacher_home_view.dart';
 import 'package:promptlearn/ui/features/home/widgets/home_header.dart';
@@ -137,7 +140,7 @@ void main() {
   }
 
   for (final size in [const Size(1366, 1024), const Size(360, 640)]) {
-    testWidgets('Teacher can configure and preview a class at $size', (
+    testWidgets('Teacher can configure and teach without recording at $size', (
       tester,
     ) async {
       await tester.binding.setSurfaceSize(size);
@@ -190,16 +193,99 @@ void main() {
       expect(tester.getTopLeft(title), position);
 
       await tap(find.text('Start teaching'));
-      expect(find.text('Teaching session preview'), findsOneWidget);
-      await tap(find.text('End preview'));
-      expect(find.text('Start teaching'), findsOneWidget);
+      expect(find.text('Teaching · M.1/1'), findsOneWidget);
+      expect(find.text('Recording off'), findsOneWidget);
+      expect(find.textContaining('slide 1 / 14'), findsOneWidget);
+      await tap(find.byTooltip('Next slide'));
+      expect(find.textContaining('slide 2 / 14'), findsOneWidget);
+      expect(
+        find.text('Invite one student to read the expression aloud.'),
+        findsOneWidget,
+      );
+      await tap(find.byTooltip('Previous slide'));
+      expect(find.textContaining('slide 1 / 14'), findsOneWidget);
 
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('End this class?'), findsOneWidget);
+      await tap(find.text('Keep teaching'));
+      await tap(find.text('Stop & end class'));
+      expect(find.text('Start Class').hitTestable(), findsOneWidget);
+      await tap(find.text('Start Class'));
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(find.text('Start Class').hitTestable(), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets(
+    'Recording consent, active state and local clip follow Android state',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1366, 1024));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final recording = _FakeClassRecordingService();
+      addTearDown(recording.dispose);
+      await _openApp(
+        tester,
+        _MemoryRoleRepository(UserRole.teacher),
+        recording: recording,
+      );
+
+      Future<void> tap(Finder finder) async {
+        await tester.ensureVisible(finder);
+        await tester.tap(finder);
+        await tester.pumpAndSettle();
+      }
+
+      await tap(find.text('Start Class'));
+      await tap(find.text('Whole screen'));
+      recording.cancelNextStart = true;
+      await tap(find.text('Start teaching & recording'));
+      expect(find.text('Screen sharing was cancelled.'), findsOneWidget);
+      expect(find.text('Start teaching & recording'), findsOneWidget);
+
+      await tap(find.text('Start teaching & recording'));
+      expect(recording.source, RecordingSource.screen);
+      expect(find.text('Starting recording…'), findsOneWidget);
+      expect(find.text('Teaching · M.1/1'), findsNothing);
+
+      recording.emit(
+        const RecordingStatus(
+          phase: RecordingPhase.recording,
+          source: RecordingSource.screen,
+          elapsed: Duration(seconds: 3),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('REC  00:00:03'), findsOneWidget);
+
+      await tap(find.byTooltip('Home'));
+      expect(find.text('Teaching · M.1/1'), findsOneWidget);
+
+      await tap(find.text('Stop & end class'));
+      expect(recording.stopCount, 1);
+      expect(find.text('Saving recording…'), findsOneWidget);
+
+      recording.emit(
+        const RecordingStatus(
+          phase: RecordingPhase.saved,
+          source: RecordingSource.screen,
+          clip: RecordingClip(
+            path: '/recordings/class.mp4',
+            name: 'class.mp4',
+            sizeBytes: 1024,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Class recording saved'), findsOneWidget);
+      expect(find.textContaining('class.mp4'), findsOneWidget);
+      await tap(find.text('Done'));
+      expect(find.text('Start Class').hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('Teacher Home keeps the lesson summary alongside on a tablet', (
     tester,
@@ -400,8 +486,16 @@ void main() {
   });
 }
 
-Future<void> _openApp(WidgetTester tester, RoleRepository repository) async {
-  await tester.pumpWidget(PromptLearnApp(roleRepository: repository));
+Future<void> _openApp(
+  WidgetTester tester,
+  RoleRepository repository, {
+  ClassRecordingService? recording,
+}) async {
+  await tester.pumpWidget(
+    recording == null
+        ? PromptLearnApp(roleRepository: repository)
+        : PromptLearnApp(roleRepository: repository, classRecording: recording),
+  );
   await tester.pumpAndSettle();
 }
 
@@ -422,4 +516,50 @@ class _MemoryRoleRepository implements RoleRepository {
   Future<void> clear() async {
     role = null;
   }
+}
+
+class _FakeClassRecordingService implements ClassRecordingService {
+  final _updates = StreamController<RecordingStatus>.broadcast();
+  RecordingStatus _status = const RecordingStatus();
+  RecordingSource? source;
+  bool cancelNextStart = false;
+  int stopCount = 0;
+
+  @override
+  bool get isSupported => true;
+
+  @override
+  Stream<RecordingStatus> get updates => _updates.stream;
+
+  void emit(RecordingStatus status) {
+    _status = status;
+    _updates.add(status);
+  }
+
+  @override
+  Future<RecordingStatus> status() async => _status;
+
+  @override
+  Future<void> start(RecordingSource source) async {
+    this.source = source;
+    if (cancelNextStart) {
+      cancelNextStart = false;
+      throw PlatformException(
+        code: 'cancelled',
+        message: 'Screen sharing was cancelled.',
+      );
+    }
+    emit(RecordingStatus(phase: RecordingPhase.starting, source: source));
+  }
+
+  @override
+  Future<void> stop() async {
+    stopCount++;
+    emit(RecordingStatus(phase: RecordingPhase.saving, source: source));
+  }
+
+  @override
+  Future<List<RecordingClip>> savedClips() async => [];
+
+  Future<void> dispose() => _updates.close();
 }

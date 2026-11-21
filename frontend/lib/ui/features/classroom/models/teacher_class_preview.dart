@@ -7,7 +7,8 @@ typedef LessonStep = ({
 });
 
 abstract final class TeacherClassPreview {
-  static const period = 'M.1/1 · Period 25';
+  static const classroom = 'M.1/1';
+  static const period = '$classroom · Period 25';
   static const lessonTitle = '3.2 Multiplying powers with the same base';
   static const date = 'Today · Wed 15 Jul 2569';
   static const schedule = 'P4 · 10:20–11:10 · 50 min';

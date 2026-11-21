@@ -1,9 +1,14 @@
+import 'dart:async';
+
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../domain/services/class_recording_service.dart';
 import '../../../core/layout/app_page_layout.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/teacher_class_preview.dart';
+import 'teacher_teaching_view.dart';
 
 const _text = Color(0xFF202438);
 const _green = Color(0xFF1E6C50);
@@ -16,21 +21,27 @@ const _cardGap = 22.0;
 const _controlsFlex = 57;
 const _planFlex = 43;
 
-enum _RecordingSource {
-  slides('Slides in PromptLearn', TeacherClassPreview.slides, 'slides'),
-  screen('Whole screen', 'Everything on this device', 'screen');
+extension on RecordingSource {
+  String get title => switch (this) {
+    RecordingSource.slides => 'Slides in PromptLearn',
+    RecordingSource.screen => 'Whole screen',
+  };
 
-  const _RecordingSource(this.title, this.description, this.icon);
+  String get description => switch (this) {
+    RecordingSource.slides => TeacherClassPreview.slides,
+    RecordingSource.screen => 'Keep recording as you switch apps',
+  };
 
-  final String title;
-  final String description;
-  final String icon;
+  String get icon => switch (this) {
+    RecordingSource.slides => 'slides',
+    RecordingSource.screen => 'screen',
+  };
 }
 
 enum _ClassOption {
   recording(
     'Record this class',
-    'Get a clip with transcript and timestamps for students to rewatch',
+    'Save the screen and microphone audio as a clip on this device',
     'rec',
   ),
   checkIn(
@@ -57,22 +68,203 @@ enum _ClassOption {
 }
 
 class TeacherClassSetupView extends StatefulWidget {
-  const TeacherClassSetupView({super.key, required this.onBack});
+  const TeacherClassSetupView({
+    super.key,
+    required this.onBack,
+    required this.recordingService,
+    required this.onNavigationLockChanged,
+  });
 
   final VoidCallback onBack;
+  final ClassRecordingService recordingService;
+  final ValueChanged<bool> onNavigationLockChanged;
 
   @override
   State<TeacherClassSetupView> createState() => _TeacherClassSetupViewState();
 }
 
 class _TeacherClassSetupViewState extends State<TeacherClassSetupView> {
-  var _source = _RecordingSource.slides;
+  var _source = RecordingSource.slides;
   final _options = {
     _ClassOption.recording,
     _ClassOption.checkIn,
     _ClassOption.participation,
   };
+  StreamSubscription<RecordingStatus>? _recordingSubscription;
+  RecordingStatus _recording = const RecordingStatus();
   bool _teaching = false;
+  bool _starting = false;
+  bool _ending = false;
+  bool _confirmingEnd = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _recordingSubscription = widget.recordingService.updates.listen(
+      _onRecordingStatus,
+      onError: (Object _) {
+        if (mounted && _starting) {
+          _finishWithError('Screen recording is unavailable. Try again.');
+        }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _recordingSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _startClass() async {
+    if (_starting || _teaching) return;
+    if (!_options.contains(_ClassOption.recording)) {
+      widget.onNavigationLockChanged(true);
+      setState(() => _teaching = true);
+      return;
+    }
+    if (!widget.recordingService.isSupported) {
+      _message(
+        'Screen recording is available on Android. Turn recording off to teach here.',
+      );
+      return;
+    }
+
+    widget.onNavigationLockChanged(true);
+    setState(() => _starting = true);
+    try {
+      await widget.recordingService.start(_source);
+    } on PlatformException catch (error) {
+      if (mounted && _starting) {
+        _finishWithError(error.message ?? 'Screen recording could not start.');
+      }
+    } on MissingPluginException {
+      if (mounted && _starting) {
+        _finishWithError('Screen recording is unavailable.');
+      }
+    }
+  }
+
+  void _onRecordingStatus(RecordingStatus status) {
+    if (!mounted) return;
+    if (status.inProgress) {
+      widget.onNavigationLockChanged(true);
+      setState(() {
+        _recording = status;
+        _source = status.source ?? _source;
+        _starting = status.phase == RecordingPhase.starting;
+        _teaching = !_starting;
+      });
+      return;
+    }
+    if (!_starting && !_recording.inProgress) return;
+
+    if (status.clip case final clip?) {
+      setState(() {
+        _recording = status;
+        _ending = true;
+      });
+      unawaited(_showSavedRecording(clip, status));
+    } else if (status.phase == RecordingPhase.failed) {
+      _finishWithError(status.message ?? 'No recording was saved.');
+    }
+  }
+
+  Future<void> _showSavedRecording(
+    RecordingClip clip,
+    RecordingStatus status,
+  ) async {
+    final size = (clip.sizeBytes / (1024 * 1024)).toStringAsFixed(1);
+    final message =
+        status.message ??
+        (status.interrupted
+            ? 'Android stopped screen sharing. The clip so far was kept.'
+            : 'The MP4 is saved on this device.');
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Class recording saved'),
+        content: Text('$message\n\n${clip.name} · $size MB'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
+    if (mounted) _leaveClass();
+  }
+
+  Future<void> _endClass() async {
+    if (_ending) return;
+    if (!_recording.inProgress) {
+      _leaveClass();
+      return;
+    }
+
+    setState(() => _ending = true);
+    try {
+      await widget.recordingService.stop();
+    } on PlatformException catch (error) {
+      if (!mounted) return;
+      setState(() => _ending = false);
+      _message(error.message ?? 'Could not stop recording. Try again.');
+    } on MissingPluginException {
+      if (!mounted) return;
+      setState(() => _ending = false);
+      _message('Could not reach the recording service.');
+    }
+  }
+
+  Future<void> _confirmEndClass() async {
+    if (_ending || _confirmingEnd) return;
+    _confirmingEnd = true;
+    final end = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('End this class?'),
+        content: Text(
+          _recording.inProgress
+              ? 'The recording will stop and the clip will be saved on this device.'
+              : 'You will return to Teacher Home.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep teaching'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('End class'),
+          ),
+        ],
+      ),
+    );
+    _confirmingEnd = false;
+    if (mounted && end == true) await _endClass();
+  }
+
+  void _leaveClass() {
+    widget.onNavigationLockChanged(false);
+    widget.onBack();
+  }
+
+  void _finishWithError(String message) {
+    widget.onNavigationLockChanged(false);
+    setState(() {
+      _recording = const RecordingStatus();
+      _starting = false;
+      _teaching = false;
+      _ending = false;
+    });
+    _message(message);
+  }
+
+  void _message(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
 
   Future<void> _showLessonPlan() => showDialog<void>(
     context: context,
@@ -96,8 +288,9 @@ class _TeacherClassSetupViewState extends State<TeacherClassSetupView> {
     builder: (context) => AlertDialog(
       title: const Text('Test mic & screen'),
       content: Text(
-        'Selected source: ${_source.title}. Microphone and screen testing '
-        'will be available when device capture is connected.',
+        'Selected source: ${_source.title}. Android asks for access to the '
+        'microphone and screen when recording starts. Choose Whole screen to '
+        'include other apps. For single-app sharing, select PromptLearn if offered.',
       ),
       actions: [
         TextButton(
@@ -120,6 +313,25 @@ class _TeacherClassSetupViewState extends State<TeacherClassSetupView> {
 
   @override
   Widget build(BuildContext context) {
+    if (_teaching) {
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) unawaited(_confirmEndClass());
+        },
+        child: TeacherTeachingView(
+          source: _source,
+          recording: _recording,
+          ending: _ending,
+          checkIn: _options.contains(_ClassOption.checkIn),
+          liveRequested: _options.contains(_ClassOption.live),
+          participation: _options.contains(_ClassOption.participation),
+          onBack: _confirmEndClass,
+          onEnd: _endClass,
+        ),
+      );
+    }
+
     final theme = Theme.of(context);
     return Theme(
       data: theme.copyWith(
@@ -141,7 +353,7 @@ class _TeacherClassSetupViewState extends State<TeacherClassSetupView> {
                     children: [
                       IconButton(
                         tooltip: 'Back to Teacher Home',
-                        onPressed: widget.onBack,
+                        onPressed: _starting ? null : widget.onBack,
                         icon: const Icon(Icons.chevron_left, color: _black),
                       ),
                       Expanded(
@@ -175,12 +387,10 @@ class _TeacherClassSetupViewState extends State<TeacherClassSetupView> {
                               (_controlsFlex + _planFlex)
                         : width;
                     final controls = _ClassCard(
-                      child: _teaching
-                          ? _buildSessionPreview(context)
-                          : _buildControls(
-                              context,
-                              controlsWidth - 2 * _cardPadding,
-                            ),
+                      child: _buildControls(
+                        context,
+                        controlsWidth - 2 * _cardPadding,
+                      ),
                     );
                     const plan = _ClassCard(child: _PeriodPlan());
                     return Column(
@@ -219,7 +429,9 @@ class _TeacherClassSetupViewState extends State<TeacherClassSetupView> {
 
   Widget _buildControls(BuildContext context, double width) {
     final textTheme = Theme.of(context).textTheme;
-    final startLabel = _options.contains(_ClassOption.recording)
+    final startLabel = _starting
+        ? 'Starting recording…'
+        : _options.contains(_ClassOption.recording)
         ? 'Start teaching & recording'
         : 'Start teaching';
 
@@ -237,14 +449,14 @@ class _TeacherClassSetupViewState extends State<TeacherClassSetupView> {
         _AdaptivePair(
           horizontal: width >= 435,
           first: _SourceTile(
-            source: _RecordingSource.slides,
-            selected: _source == _RecordingSource.slides,
-            onTap: () => setState(() => _source = _RecordingSource.slides),
+            source: RecordingSource.slides,
+            selected: _source == RecordingSource.slides,
+            onTap: () => setState(() => _source = RecordingSource.slides),
           ),
           second: _SourceTile(
-            source: _RecordingSource.screen,
-            selected: _source == _RecordingSource.screen,
-            onTap: () => setState(() => _source = _RecordingSource.screen),
+            source: RecordingSource.screen,
+            selected: _source == RecordingSource.screen,
+            onTap: () => setState(() => _source = RecordingSource.screen),
           ),
         ),
         const SizedBox(height: 18),
@@ -261,42 +473,17 @@ class _TeacherClassSetupViewState extends State<TeacherClassSetupView> {
           horizontal: width >= 505,
           gap: 24,
           first: FilledButton.icon(
-            onPressed: () => setState(() => _teaching = true),
+            onPressed: _starting ? null : _startClass,
             style: _buttonStyle(background: _black, foreground: Colors.white),
             icon: const _ClassIcon('start', color: Colors.white),
             label: Text(startLabel),
           ),
           second: FilledButton.icon(
-            onPressed: _showDeviceTest,
+            onPressed: _starting ? null : _showDeviceTest,
             style: _buttonStyle(background: _line, foreground: _text),
             icon: const _ClassIcon('mic', color: _text),
             label: const Text('Test mic & screen'),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSessionPreview(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      spacing: 16,
-      children: [
-        const _SectionTitle('Teaching session preview'),
-        Text(
-          'This is a local preview. Students cannot join and recording, '
-          'live streaming, check-in, and participation tracking are inactive.',
-          style: textTheme.bodyMedium?.copyWith(color: AppColors.mutedText),
-        ),
-        Text(
-          _source.title,
-          style: textTheme.titleMedium?.copyWith(color: _text),
-        ),
-        FilledButton(
-          onPressed: () => setState(() => _teaching = false),
-          style: _buttonStyle(background: _black, foreground: Colors.white),
-          child: const Text('End preview'),
         ),
       ],
     );
@@ -465,7 +652,7 @@ class _SourceTile extends StatelessWidget {
     required this.onTap,
   });
 
-  final _RecordingSource source;
+  final RecordingSource source;
   final bool selected;
   final VoidCallback onTap;
 
