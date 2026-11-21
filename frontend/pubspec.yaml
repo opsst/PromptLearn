@@ -29,6 +29,7 @@ flutter:
     - assets/home/
     - assets/student_home/
     - assets/assessment/
+    - assets/classroom/
   fonts:
     - family: Inter
       fonts:

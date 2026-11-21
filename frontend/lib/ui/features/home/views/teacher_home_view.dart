@@ -2,6 +2,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../classroom/models/teacher_class_preview.dart';
 import '../../syllabus/models/syllabus_preview.dart';
 import '../../syllabus/views/teacher_syllabus_dialog.dart';
 import '../widgets/home_header.dart';
@@ -18,10 +19,12 @@ class TeacherHomeView extends StatelessWidget {
     super.key,
     required this.displayName,
     required this.now,
+    required this.onStartClass,
   });
 
   final String displayName;
   final DateTime now;
+  final VoidCallback onStartClass;
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +85,10 @@ class TeacherHomeView extends StatelessWidget {
                                     horizontal: showTodayAlongside,
                                     flexes: const [791, 302],
                                     children: [
-                                      _NextClass(width: lessonWidth),
+                                      _NextClass(
+                                        width: lessonWidth,
+                                        onStartClass: onStartClass,
+                                      ),
                                       const _Today(),
                                     ],
                                   ),
@@ -244,17 +250,17 @@ void _showDetails(BuildContext context, String title, Widget content) {
   );
 }
 
-const _lessonTitle = '3.2 Multiplying powers with the same base';
-
 class _NextClass extends StatelessWidget {
-  const _NextClass({required this.width});
+  const _NextClass({required this.width, required this.onStartClass});
 
   final double width;
+  final VoidCallback onStartClass;
 
   @override
   Widget build(BuildContext context) {
     final split = width >= 680;
     final overview = _LessonOverview(
+      onStartClass: onStartClass,
       horizontalActions: (split ? width - 280 : width) >= 417,
     );
     const flow = _LessonFlow();
@@ -280,9 +286,13 @@ class _NextClass extends StatelessWidget {
 }
 
 class _LessonOverview extends StatelessWidget {
-  const _LessonOverview({required this.horizontalActions});
+  const _LessonOverview({
+    required this.horizontalActions,
+    required this.onStartClass,
+  });
 
   final bool horizontalActions;
+  final VoidCallback onStartClass;
 
   @override
   Widget build(BuildContext context) {
@@ -291,17 +301,16 @@ class _LessonOverview extends StatelessWidget {
         label: 'Start Class',
         iconAsset: 'assets/home/iconmind_art-class-outline-thin.svg',
         primary: true,
-        onPressed: () => _showDetails(
-          context,
-          'Start Class',
-          const Text('Classroom controls are unavailable in this preview.'),
-        ),
+        onPressed: onStartClass,
       ),
       _LessonButton(
         label: 'Lesson Plan',
         iconAsset: 'assets/home/akar-icons_book-close.svg',
-        onPressed: () =>
-            _showDetails(context, _lessonTitle, const _LessonFlow()),
+        onPressed: () => _showDetails(
+          context,
+          TeacherClassPreview.lessonTitle,
+          const _LessonFlow(),
+        ),
       ),
     ];
     return Padding(
@@ -325,7 +334,7 @@ class _LessonOverview extends StatelessWidget {
                 ],
               ),
               Text(
-                _lessonTitle,
+                TeacherClassPreview.lessonTitle,
                 style: _style(context, 26, weight: FontWeight.w700),
               ),
               Row(
@@ -419,14 +428,6 @@ class _LessonButton extends StatelessWidget {
 class _LessonFlow extends StatelessWidget {
   const _LessonFlow();
 
-  static const _steps = [
-    ('0′', 'Warm-up', 'Guess 2³ × 2² in groups'),
-    ('5′', 'Explore', 'Find the exponent pattern'),
-    ('20′', 'State the rule', 'aᵐ × aⁿ = aᵐ⁺ⁿ'),
-    ('30′', 'Practice', '6 exercises'),
-    ('45′', 'Wrap-up', 'Exit ticket · HW 3.2'),
-  ];
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -447,13 +448,13 @@ class _LessonFlow extends StatelessWidget {
               color: _upcomingGreen,
             ),
           ),
-          for (final (time, title, description) in _steps)
+          for (final step in TeacherClassPreview.steps)
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               spacing: 10,
               children: [
                 Text(
-                  time,
+                  '${step.startMinute}′',
                   style: _style(
                     context,
                     12,
@@ -461,7 +462,9 @@ class _LessonFlow extends StatelessWidget {
                     color: const Color(0xFF286140),
                   ),
                 ),
-                Expanded(child: _EntryText(title, description, titleSize: 13)),
+                Expanded(
+                  child: _EntryText(step.title, step.summary, titleSize: 13),
+                ),
               ],
             ),
         ],

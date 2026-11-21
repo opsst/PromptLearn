@@ -124,6 +124,71 @@ void main() {
     });
   }
 
+  for (final size in [const Size(1366, 1024), const Size(360, 640)]) {
+    testWidgets('Teacher can configure and preview a class at $size', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(size);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await _openApp(tester, _MemoryRoleRepository(UserRole.teacher));
+
+      Future<void> tap(Finder finder) async {
+        await tester.ensureVisible(finder);
+        await tester.tap(finder);
+        await tester.pumpAndSettle();
+      }
+
+      await tap(find.text('Start Class'));
+
+      final title = find.text('M.1/1 · Period 25').hitTestable();
+      final position = tester.getTopLeft(title);
+      final options = find.text('Before you start');
+      final plan = find.text('This period’s plan');
+      expect(find.text('Start teaching & recording'), findsOneWidget);
+      if (size.width == 1366) {
+        expect(tester.getTopLeft(plan).dy, tester.getTopLeft(options).dy);
+        expect(
+          tester.getTopLeft(plan).dx,
+          greaterThan(tester.getTopLeft(options).dx),
+        );
+      } else {
+        expect(
+          tester.getTopLeft(plan).dy,
+          greaterThan(tester.getTopLeft(options).dy),
+        );
+      }
+
+      await tap(find.text('Open lesson plan'));
+      expect(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text('Warm-up'),
+        ),
+        findsOneWidget,
+      );
+      await tap(find.text('Close'));
+      await tap(find.text('Whole screen'));
+      await tap(find.byType(Switch).first);
+      await tap(find.text('Test mic & screen'));
+      expect(
+        find.textContaining('Selected source: Whole screen'),
+        findsOneWidget,
+      );
+      await tap(find.text('Close'));
+      expect(tester.getTopLeft(title), position);
+
+      await tap(find.text('Start teaching'));
+      expect(find.text('Teaching session preview'), findsOneWidget);
+      await tap(find.text('End preview'));
+      expect(find.text('Start teaching'), findsOneWidget);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Start Class').hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   for (final size in [const Size(1366, 768), const Size(360, 640)]) {
     testWidgets('Teacher header stays visible when scrolling at $size', (
       tester,

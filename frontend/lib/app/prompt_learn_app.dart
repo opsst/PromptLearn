@@ -12,6 +12,7 @@ import '../ui/core/theme/app_theme.dart';
 import '../ui/features/assessment/views/student_homework_view.dart';
 import '../ui/features/assessment/widgets/homework_notebook.dart';
 import '../ui/features/auth/views/role_selection_view.dart';
+import '../ui/features/classroom/views/teacher_class_setup_view.dart';
 import '../ui/features/home/views/student_home_view.dart';
 import '../ui/features/home/views/teacher_home_view.dart';
 import '../ui/features/replay/replay_view_stub.dart'
@@ -143,26 +144,34 @@ class _PromptLearnShell extends StatefulWidget {
 
 class _PromptLearnShellState extends State<_PromptLearnShell> {
   var _destination = AppDestination.home;
-  bool _homeworkOpen = false;
+  bool _homeDetailOpen = false;
   late final _homeworkNotebook = HomeworkNotebook();
 
   void _selectDestination(AppDestination destination) {
     setState(() {
       _destination = destination;
-      _homeworkOpen = false;
+      _homeDetailOpen = false;
     });
   }
+
+  void _openHomeDetail() => setState(() => _homeDetailOpen = true);
+
+  void _closeHomeDetail() => _selectDestination(AppDestination.home);
 
   Widget _buildHome() {
     const displayName = 'Alexander P.';
     final now = DateTime.now();
 
     return switch (widget.role) {
-      UserRole.teacher => TeacherHomeView(displayName: displayName, now: now),
+      UserRole.teacher => TeacherHomeView(
+        displayName: displayName,
+        now: now,
+        onStartClass: _openHomeDetail,
+      ),
       UserRole.student => StudentHomeView(
         displayName: displayName,
         now: now,
-        onOpenHomework: () => setState(() => _homeworkOpen = true),
+        onOpenHomework: _openHomeDetail,
       ),
     };
   }
@@ -170,24 +179,28 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
   Widget _buildPage(BuildContext context, {required bool wide}) {
     if (_destination == AppDestination.home) {
       final home = _buildHome();
-      if (widget.role == UserRole.teacher) return home;
 
       return PopScope(
-        canPop: !_homeworkOpen,
+        canPop: !_homeDetailOpen,
         onPopInvokedWithResult: (didPop, _) {
-          if (!didPop && _homeworkOpen) _selectDestination(AppDestination.home);
+          if (!didPop && _homeDetailOpen) _closeHomeDetail();
         },
         child: IndexedStack(
-          index: _homeworkOpen ? 1 : 0,
+          index: _homeDetailOpen ? 1 : 0,
           sizing: StackFit.expand,
           children: [
-            ExcludeFocus(excluding: _homeworkOpen, child: home),
-            if (_homeworkOpen)
-              StudentHomeworkView(
-                notebook: _homeworkNotebook,
-                checker: widget.homeworkChecker,
-                onBack: () => _selectDestination(AppDestination.home),
-              ),
+            ExcludeFocus(excluding: _homeDetailOpen, child: home),
+            if (_homeDetailOpen)
+              switch (widget.role) {
+                UserRole.teacher => TeacherClassSetupView(
+                  onBack: _closeHomeDetail,
+                ),
+                UserRole.student => StudentHomeworkView(
+                  notebook: _homeworkNotebook,
+                  checker: widget.homeworkChecker,
+                  onBack: _closeHomeDetail,
+                ),
+              },
           ],
         ),
       );
@@ -222,7 +235,9 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
                 constraints.maxWidth >= 600 && constraints.maxHeight >= 480;
             final wide = constraints.maxWidth >= 1000;
             final navigation = AppNavigation(
-              destination: _destination,
+              destination: _homeDetailOpen && widget.role == UserRole.teacher
+                  ? AppDestination.courses
+                  : _destination,
               vertical: useSidebar,
               onSwitchRole: widget.onSwitchRole,
               onSelected: _selectDestination,
