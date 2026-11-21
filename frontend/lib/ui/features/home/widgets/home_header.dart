@@ -2,19 +2,12 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../domain/models/user_role.dart';
 import '../../../core/theme/app_theme.dart';
 
 class HomeHeader extends StatelessWidget {
-  const HomeHeader({
-    super.key,
-    required this.displayName,
-    required this.role,
-    required this.now,
-  });
+  const HomeHeader({super.key, required this.displayName, required this.now});
 
   final String displayName;
-  final UserRole role;
   final DateTime now;
 
   @override
