@@ -21,6 +21,7 @@ backend/
 ├── cmd/server/
 │   └── main.go          # ตั้งค่าและประกอบ dependency ก่อนเปิด HTTP server
 ├── internal/
+│   ├── assessmentrubric/ # ร่างเฉลย เกณฑ์ให้คะแนน และข้อผิดพลาดเทียบกับ Lesson Plan
 │   ├── assignmentreview/ # ตรวจวิธีทำทีละข้อและส่งคำถามชี้แนะแบบ Guided Inquiry
 │   ├── httpapi/         # routes, JSON requests/responses และ HTTP status
 │   ├── course/          # ประกอบร่างพร้อมตาราง บันทึก และเผยแพร่ฉบับสำหรับผู้เรียน
@@ -60,6 +61,16 @@ curl -i http://127.0.0.1:8080/healthz
 `GET /healthz` ตอบ HTTP 200 พร้อม JSON `{"status":"ok"}` เมื่อ HTTP service รับคำขอได้
 
 ค่าเริ่มต้นฟังที่ `127.0.0.1:8080` กำหนด `HTTP_ADDR=0.0.0.0:8080` ได้เมื่อต้องทดสอบจากอุปกรณ์ในเครือข่ายเดียวกัน
+
+## เดโมร่างเฉลยและเกณฑ์ให้คะแนน
+
+`POST /v1/assessments/rubric/draft` รับโจทย์หนึ่งข้อพร้อมชื่อและกิจกรรมใน Lesson Plan แล้วขอ OpenAI ร่างเฉลย ประเมินความสอดคล้องกับบท และเสนอข้อผิดพลาดที่เป็นไปได้ สำหรับ Show work จะร่างเกณฑ์ Full, Partial และ None คะแนน Full ทุกแถวต้องรวมเท่าคะแนนของข้อนั้น ตั้ง `OPENAI_API_KEY` ใน environment ของ Go server ระบบรับคำขอเดโมผ่าน loopback และไม่บันทึกร่างบน backend
+
+```sh
+curl --json '{"lesson":{"title":"Multiplying powers with the same base","steps":["Expand both powers and add the exponents."]},"question":{"kind":"showWork","prompt":"Simplify (x²)(x⁵). Show each step.","points":1}}' http://127.0.0.1:8080/v1/assessments/rubric/draft
+```
+
+ทดสอบบน Android Emulator ด้วย `adb -s <emulator-id> reverse tcp:8080 tcp:8080` แล้วรัน Flutter แบบ debug ด้วย `--dart-define=PROMPTLEARN_API_BASE_URL=http://127.0.0.1:8080` แอปรับร่างไปเก็บในเครื่องและให้ครูตรวจหรือแก้ก่อนยืนยันเฉลย
 
 ## รันเดโมคลิปย้อนหลัง
 
@@ -224,6 +235,8 @@ curl -sS http://127.0.0.1:8080/v1/assignments/hw-3-2/items/q4/reviews \
 สำหรับการเก็บใน PostgreSQL ให้รัน [migration และ seed ของเดโม](../db_migration/README.md#ประวัติจาก-check-my-work) แล้วตั้ง `ASSIGNMENT_REVIEW_DATABASE_URL` กับ loopback `HTTP_ADDR` ระบบจะใช้โจทย์ เกณฑ์ตรวจ และนักเรียนเดโมจากฐานข้อมูล ทุกผลตรวจที่สำเร็จบันทึกพร้อม revision, feedback และพิกัด OCR ที่เกี่ยวข้องก่อนตอบ `200` หากเขียน feedback ไม่สำเร็จ API ตอบ `503` และยกเลิก transaction รูป Base64 ใช้ตอนตรวจ ส่วนประวัติเก็บข้อความ OCR พิกัด และข้อมูลว่ามีการแนบรูป
 
 โหมดเดโมเรียกได้จากเครื่องเดียวกับ server และใช้เฉพาะนักเรียนตัวอย่างที่ backend กำหนดไว้ การใช้งานกับ assignment จริงต้องผูกตัวตนจาก session ที่ยืนยันแล้ว
+
+**Submit HW 3.1** ส่ง `review_ids` ของทั้ง 4 ข้อไปที่ `POST /v1/assignments/hw-3-1/submissions` ระบบบันทึกผลพร้อมคะแนนระหว่างเรียน ข้อที่อ่านไม่ชัดมี `awarded_points: null` ส่วน `mistakes` เก็บข้อความและพิกัดเฉพาะขั้นที่ผิด การส่งรหัสชุดเดิมคืนรายงานเดิม [API Spec สำหรับ Submit](api-spec/index.html#submitReviewedHomework)
 
 ## การไหลของคำขอ
 

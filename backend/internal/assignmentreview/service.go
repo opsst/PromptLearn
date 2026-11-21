@@ -43,6 +43,8 @@ type Question struct {
 type Repository interface {
 	FindQuestion(ctx context.Context, assignmentID, itemID string) (Question, error)
 	SaveReview(context.Context, Submission, Result) (string, error)
+	LoadSubmissionReviews(context.Context, string, []string) ([]submissionReview, error)
+	SaveSubmissionReport(context.Context, SubmissionReport) (SubmissionReport, error)
 }
 
 type Reviewer interface {

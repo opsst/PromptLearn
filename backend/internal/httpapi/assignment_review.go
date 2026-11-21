@@ -17,18 +17,7 @@ const maxReviewRequestBytes = 5 << 20
 func WithAssignmentReview(service *assignmentreview.Service) RouterOption {
 	return func(mux *http.ServeMux) {
 		mux.HandleFunc("POST /v1/assignments/{assignment_id}/items/{item_id}/reviews", func(w http.ResponseWriter, r *http.Request) {
-			host, _, err := net.SplitHostPort(r.Host)
-			if err != nil {
-				host = r.Host
-			}
-			peer, _, err := net.SplitHostPort(r.RemoteAddr)
-			if err != nil || !net.ParseIP(peer).IsLoopback() || !IsLoopbackHost(host) {
-				writeAPIError(w, http.StatusForbidden, "forbidden", "the review demo is available on this machine only")
-				return
-			}
-			mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
-			if err != nil || mediaType != "application/json" {
-				writeAPIError(w, http.StatusUnsupportedMediaType, "unsupported_media_type", "send application/json")
+			if !allowAssignmentRequest(w, r) {
 				return
 			}
 			var work assignmentreview.Submission
@@ -44,7 +33,42 @@ func WithAssignmentReview(service *assignmentreview.Service) RouterOption {
 			}
 			writeJSON(w, http.StatusOK, result)
 		})
+		mux.HandleFunc("POST /v1/assignments/{assignment_id}/submissions", func(w http.ResponseWriter, r *http.Request) {
+			if !allowAssignmentRequest(w, r) {
+				return
+			}
+			var request struct {
+				ReviewIDs []string `json:"review_ids"`
+			}
+			if !readJSONWithLimit(w, r, &request, 8<<10) {
+				return
+			}
+			report, err := service.Submit(r.Context(), r.PathValue("assignment_id"), request.ReviewIDs)
+			if err != nil {
+				writeReviewError(w, err)
+				return
+			}
+			writeJSON(w, http.StatusCreated, report)
+		})
 	}
+}
+
+func allowAssignmentRequest(w http.ResponseWriter, r *http.Request) bool {
+	host, _, err := net.SplitHostPort(r.Host)
+	if err != nil {
+		host = r.Host
+	}
+	peer, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil || !net.ParseIP(peer).IsLoopback() || !IsLoopbackHost(host) {
+		writeAPIError(w, http.StatusForbidden, "forbidden", "the review demo is available on this machine only")
+		return false
+	}
+	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || mediaType != "application/json" {
+		writeAPIError(w, http.StatusUnsupportedMediaType, "unsupported_media_type", "send application/json")
+		return false
+	}
+	return true
 }
 
 func writeReviewError(w http.ResponseWriter, err error) {

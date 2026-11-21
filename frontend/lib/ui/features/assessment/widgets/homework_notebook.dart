@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import '../../../../domain/models/homework_check.dart';
+import '../../../../domain/models/homework_submission.dart';
 
 enum PaperTool { pen, highlighter, eraser }
 
@@ -119,17 +120,14 @@ class HomeworkNotebook {
     HomeworkQuestion('q1', 'Simplify x² · x³.'),
     HomeworkQuestion('q2', 'Simplify (a³)².'),
     HomeworkQuestion('q3', 'Simplify y⁶ ÷ y², where y ≠ 0.'),
-    HomeworkQuestion('q4', 'Simplify (x²)(x⁵).'),
     HomeworkQuestion('q5', 'Solve for x: x + 7 = 22.'),
-    HomeworkQuestion('q6', 'Simplify (2x²)(3x³).'),
-    HomeworkQuestion('q7', 'Simplify (p²)⁴.'),
-    HomeworkQuestion('q8', 'Simplify (x³)² ÷ x⁴, where x ≠ 0.'),
   ];
 
   int activeIndex = 0;
   bool automatic = false;
   final _drafts = <int, HomeworkDraft>{};
   List<PaperContent>? _submittedWork;
+  HomeworkSubmissionReport? _report;
 
   HomeworkDraft get draft =>
       _drafts.putIfAbsent(activeIndex, HomeworkDraft.new);
@@ -148,12 +146,24 @@ class HomeworkNotebook {
   bool get canSubmit =>
       !submitted && Iterable<int>.generate(questions.length).every(hasWorkAt);
 
+  List<PaperContent> get answerPapers => [
+    for (var index = 0; index < questions.length; index++)
+      _drafts[index]!.content,
+  ];
+
+  HomeworkSubmissionReport? get submittedReport => submitted ? _report : null;
+
+  void recordSubmission(
+    List<PaperContent> papers,
+    HomeworkSubmissionReport? report,
+  ) {
+    _submittedWork = papers;
+    _report = report;
+  }
+
   bool submit() {
     if (!canSubmit) return false;
-    _submittedWork = [
-      for (var index = 0; index < questions.length; index++)
-        _drafts[index]!.content,
-    ];
+    recordSubmission(answerPapers, null);
     return true;
   }
 }

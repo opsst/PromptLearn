@@ -2,9 +2,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../data/repositories/local_assessment_draft_repository.dart';
 import '../data/repositories/mock_homework_checker.dart';
 import '../data/services/android_class_recording_service.dart';
 import '../domain/models/user_role.dart';
+import '../domain/repositories/assessment_draft_repository.dart';
+import '../domain/repositories/assessment_rubric_generator.dart';
+import '../domain/repositories/course_syllabus_repository.dart';
 import '../domain/repositories/homework_checker.dart';
 import '../domain/repositories/role_repository.dart';
 import '../domain/services/class_recording_service.dart';
@@ -12,12 +16,18 @@ import '../domain/services/class_replay_service.dart';
 import '../ui/core/layout/app_navigation.dart';
 import '../ui/core/layout/app_page_layout.dart';
 import '../ui/core/theme/app_theme.dart';
+import '../ui/features/assessment/view_models/assessment_draft_controller.dart';
+import '../ui/features/assessment/view_models/assessment_rubric_controller.dart';
 import '../ui/features/assessment/views/student_homework_view.dart';
+import '../ui/features/assessment/views/teacher_assessment_builder_view.dart';
+import '../ui/features/assessment/views/teacher_scoring_rubric_view.dart';
 import '../ui/features/assessment/widgets/homework_notebook.dart';
 import '../ui/features/auth/views/role_selection_view.dart';
+import '../ui/features/classroom/models/teacher_class_preview.dart';
 import '../ui/features/classroom/views/teacher_class_setup_view.dart';
 import '../ui/features/home/views/student_home_view.dart';
 import '../ui/features/home/views/teacher_home_view.dart';
+import '../ui/features/profile/views/syllabus_integration_dialog.dart';
 import '../ui/features/replay/replay_view_stub.dart'
     if (dart.library.js_interop) '../ui/features/replay/replay_view_web.dart';
 import 'http_inspector.dart';
@@ -29,12 +39,18 @@ class PromptLearnApp extends StatelessWidget {
     this.homeworkChecker = const MockHomeworkChecker(),
     this.classRecording = const AndroidClassRecordingService(),
     this.classReplay,
+    this.assessmentDraftRepository = const LocalAssessmentDraftRepository(),
+    this.assessmentRubricGenerator,
+    this.syllabusRepository,
   });
 
   final RoleRepository roleRepository;
   final HomeworkChecker homeworkChecker;
   final ClassRecordingService classRecording;
   final ClassReplayService? classReplay;
+  final AssessmentDraftRepository assessmentDraftRepository;
+  final AssessmentRubricGenerator? assessmentRubricGenerator;
+  final CourseSyllabusRepository? syllabusRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +68,9 @@ class PromptLearnApp extends StatelessWidget {
           homeworkChecker: homeworkChecker,
           classRecording: classRecording,
           classReplay: classReplay,
+          assessmentDraftRepository: assessmentDraftRepository,
+          assessmentRubricGenerator: assessmentRubricGenerator,
+          syllabusRepository: syllabusRepository,
         ),
       ),
     );
@@ -64,12 +83,18 @@ class _RoleGate extends StatefulWidget {
     required this.homeworkChecker,
     required this.classRecording,
     required this.classReplay,
+    required this.assessmentDraftRepository,
+    required this.assessmentRubricGenerator,
+    required this.syllabusRepository,
   });
 
   final RoleRepository repository;
   final HomeworkChecker homeworkChecker;
   final ClassRecordingService classRecording;
   final ClassReplayService? classReplay;
+  final AssessmentDraftRepository assessmentDraftRepository;
+  final AssessmentRubricGenerator? assessmentRubricGenerator;
+  final CourseSyllabusRepository? syllabusRepository;
 
   @override
   State<_RoleGate> createState() => _RoleGateState();
@@ -140,6 +165,9 @@ class _RoleGateState extends State<_RoleGate> {
       homeworkChecker: widget.homeworkChecker,
       classRecording: widget.classRecording,
       classReplay: widget.classReplay,
+      assessmentDraftRepository: widget.assessmentDraftRepository,
+      assessmentRubricGenerator: widget.assessmentRubricGenerator,
+      syllabusRepository: widget.syllabusRepository,
       onSwitchRole: () => _changeRole(null),
     );
   }
@@ -149,24 +177,34 @@ class _PromptLearnShell extends StatefulWidget {
   const _PromptLearnShell({
     required this.role,
     required this.homeworkChecker,
-    required this.onSwitchRole,
     required this.classRecording,
     required this.classReplay,
+    required this.assessmentDraftRepository,
+    required this.assessmentRubricGenerator,
+    required this.syllabusRepository,
+    required this.onSwitchRole,
   });
 
   final UserRole role;
   final HomeworkChecker homeworkChecker;
   final ClassRecordingService classRecording;
   final ClassReplayService? classReplay;
+  final AssessmentDraftRepository assessmentDraftRepository;
+  final AssessmentRubricGenerator? assessmentRubricGenerator;
+  final CourseSyllabusRepository? syllabusRepository;
   final VoidCallback onSwitchRole;
 
   @override
   State<_PromptLearnShell> createState() => _PromptLearnShellState();
 }
 
+enum _HomeDetail { homework, classSetup, assessment, rubric }
+
 class _PromptLearnShellState extends State<_PromptLearnShell> {
   var _destination = AppDestination.home;
-  bool _homeDetailOpen = false;
+  _HomeDetail? _homeDetail;
+  AssessmentDraftController? _assessment;
+  AssessmentRubricController? _rubrics;
   bool _classLocked = false;
   final _pageKey = GlobalKey();
   late final _homeworkNotebook = HomeworkNotebook();
@@ -179,13 +217,20 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
     }
   }
 
+  @override
+  void dispose() {
+    _rubrics?.dispose();
+    _assessment?.dispose();
+    super.dispose();
+  }
+
   Future<void> _restoreActiveClass() async {
     try {
       final recording = await widget.classRecording.status();
       if (!mounted || !recording.inProgress) return;
       setState(() {
         _destination = AppDestination.home;
-        _homeDetailOpen = true;
+        _homeDetail = _HomeDetail.classSetup;
       });
     } on PlatformException {
       // Stay on Home when the recording service is unavailable.
@@ -210,11 +255,33 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
     if (!_canLeaveClass()) return;
     setState(() {
       _destination = destination;
-      _homeDetailOpen = false;
+      _homeDetail = null;
     });
   }
 
-  void _openHomeDetail() => setState(() => _homeDetailOpen = true);
+  void _openHomeDetail(_HomeDetail detail) {
+    if (detail == _HomeDetail.assessment) {
+      _assessment ??= AssessmentDraftController(
+        widget.assessmentDraftRepository,
+      );
+    }
+    setState(() => _homeDetail = detail);
+  }
+
+  void _openRubric() {
+    final rubrics = _rubrics ??= AssessmentRubricController(
+      draft: _assessment!,
+      generator: widget.assessmentRubricGenerator,
+      lessonTitle: TeacherClassPreview.lessonTitle,
+      lessonSteps: [
+        for (final step in TeacherClassPreview.steps) step.instructions,
+      ],
+    );
+    rubrics.prepareMissing();
+    _openHomeDetail(_HomeDetail.rubric);
+  }
+
+  void _backToQuestions() => _openHomeDetail(_HomeDetail.assessment);
 
   void _closeHomeDetail() => _selectDestination(AppDestination.home);
 
@@ -226,12 +293,27 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
       UserRole.teacher => TeacherHomeView(
         displayName: displayName,
         now: now,
-        onStartClass: _openHomeDetail,
+        onStartClass: () => _openHomeDetail(_HomeDetail.classSetup),
+        onOpenAssessment: () => _openHomeDetail(_HomeDetail.assessment),
+        reviewNavigation: AppNavigation(
+          destination: AppDestination.courses,
+          vertical: true,
+          reviewStyle: true,
+          onSelected: (destination) {
+            if (destination == AppDestination.courses) return;
+            Navigator.of(context).popUntil((route) => route.isFirst);
+            _selectDestination(destination);
+          },
+          onSwitchRole: () {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+            widget.onSwitchRole();
+          },
+        ),
       ),
       UserRole.student => StudentHomeView(
         displayName: displayName,
         now: now,
-        onOpenHomework: _openHomeDetail,
+        onOpenHomework: () => _openHomeDetail(_HomeDetail.homework),
       ),
     };
   }
@@ -239,26 +321,42 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
   Widget _buildPage(BuildContext context, {required bool wide}) {
     if (_destination == AppDestination.home) {
       final home = _buildHome();
+      final detail = _homeDetail;
 
       return PopScope(
-        canPop: !_homeDetailOpen,
+        canPop: detail == null,
         onPopInvokedWithResult: (didPop, _) {
-          if (!didPop && _homeDetailOpen && !_classLocked) _closeHomeDetail();
+          if (!didPop && _homeDetail != null && !_classLocked) {
+            if (_homeDetail == _HomeDetail.rubric) {
+              _backToQuestions();
+            } else {
+              _closeHomeDetail();
+            }
+          }
         },
         child: IndexedStack(
-          index: _homeDetailOpen ? 1 : 0,
+          index: detail == null ? 0 : 1,
           sizing: StackFit.expand,
           children: [
-            ExcludeFocus(excluding: _homeDetailOpen, child: home),
-            if (_homeDetailOpen)
-              switch (widget.role) {
-                UserRole.teacher => TeacherClassSetupView(
+            ExcludeFocus(excluding: detail != null, child: home),
+            if (detail != null)
+              switch (detail) {
+                _HomeDetail.classSetup => TeacherClassSetupView(
                   onBack: _closeHomeDetail,
                   recordingService: widget.classRecording,
                   replayService: widget.classReplay,
                   onNavigationLockChanged: (locked) => _classLocked = locked,
                 ),
-                UserRole.student => StudentHomeworkView(
+                _HomeDetail.assessment => TeacherAssessmentBuilderView(
+                  controller: _assessment!,
+                  onBack: _closeHomeDetail,
+                  onNext: _openRubric,
+                ),
+                _HomeDetail.rubric => TeacherScoringRubricView(
+                  controller: _rubrics!,
+                  onBack: _backToQuestions,
+                ),
+                _HomeDetail.homework => StudentHomeworkView(
                   notebook: _homeworkNotebook,
                   checker: widget.homeworkChecker,
                   onBack: _closeHomeDetail,
@@ -273,6 +371,9 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
       return SingleChildScrollView(child: ReplayView(role: widget.role));
     }
 
+    final showSyllabusTest =
+        _destination == AppDestination.profile &&
+        widget.role == UserRole.teacher;
     return AppPageLayout(
       header: ColoredBox(
         color: AppColors.header,
@@ -284,6 +385,24 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
           ),
         ),
       ),
+      body: showSyllabusTest
+          ? Padding(
+              padding: const EdgeInsets.all(24),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: FilledButton.icon(
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (context) => SyllabusIntegrationDialog(
+                      repository: widget.syllabusRepository,
+                    ),
+                  ),
+                  icon: const Icon(Icons.menu_book_outlined),
+                  label: const Text('Test syllabus integration'),
+                ),
+              ),
+            )
+          : null,
     );
   }
 
@@ -298,7 +417,8 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
                 constraints.maxWidth >= 600 && constraints.maxHeight >= 480;
             final wide = constraints.maxWidth >= 1000;
             final navigation = AppNavigation(
-              destination: _homeDetailOpen && widget.role == UserRole.teacher
+              destination:
+                  _homeDetail != null && widget.role == UserRole.teacher
                   ? AppDestination.courses
                   : _destination,
               vertical: useSidebar,

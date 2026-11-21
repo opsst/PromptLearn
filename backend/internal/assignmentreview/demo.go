@@ -2,7 +2,6 @@ package assignmentreview
 
 import (
 	"context"
-	"strconv"
 	"strings"
 )
 
@@ -14,42 +13,44 @@ const (
 )
 
 const exponentRubric = "Show valid intermediate reasoning using properties of exponents, then give the simplified expression."
+const equationPrompt = "Solve for x: x + 7 = 22."
 
-var homeworkQuestions = [...]Question{
+var originalDemoQuestion = Question{
+	Prompt: "Simplify (x^2)(x^5). Show how you combine the powers.",
+	Rubric: exponentRubric, AnswerKey: "x^7; expand both factors or show x^(2+5).",
+}
+
+// Item IDs stay tied to their original prompts even when their order changes.
+var homeworkItemIDs = [...]string{"q1", "q2", "q3", "q5"}
+
+var homeworkQuestions = [len(homeworkItemIDs)]Question{
 	{Prompt: "Simplify x² · x³.", Rubric: exponentRubric, AnswerKey: "x^5; expand both factors or show x^(2+3)."},
 	{Prompt: "Simplify (a³)².", Rubric: exponentRubric, AnswerKey: "a^6; expand as a^3*a^3 or show a^(3*2)."},
 	{Prompt: "Simplify y⁶ ÷ y², where y ≠ 0.", Rubric: exponentRubric, AnswerKey: "y^4; cancel two factors, or show y^(6-2)."},
-	{Prompt: "Simplify (x²)(x⁵).", Rubric: exponentRubric, AnswerKey: "x^7; expand both factors or show x^(2+5)."},
 	{
-		Prompt:    "Solve for x: x + 7 = 22.",
+		Prompt:    equationPrompt,
 		Rubric:    "Show how x was isolated by keeping both sides of the equation equal, or justify the value by substitution.",
 		AnswerKey: "x = 15; subtract 7 from both sides and simplify, or verify that 15 + 7 = 22.",
 	},
-	{Prompt: "Simplify (2x²)(3x³).", Rubric: exponentRubric, AnswerKey: "6x^5; multiply the coefficients and show x^(2+3) or equivalent reasoning."},
-	{Prompt: "Simplify (p²)⁴.", Rubric: exponentRubric, AnswerKey: "p^8; show p^(2*4) or expand four groups of p^2."},
-	{Prompt: "Simplify (x³)² ÷ x⁴, where x ≠ 0.", Rubric: exponentRubric, AnswerKey: "x^2; simplify the numerator to x^6, then cancel four factors or show x^(6-4)."},
 }
 
 func demoPosition(assignmentID, itemID string) int {
 	if assignmentID == DemoAssignmentID && itemID == DemoItemID {
 		return 4
 	}
-	if assignmentID != HomeworkAssignmentID || len(itemID) != 2 || itemID[0] != 'q' {
-		return 0
+	if assignmentID == HomeworkAssignmentID {
+		for index, id := range homeworkItemIDs {
+			if id == itemID {
+				return index + 1
+			}
+		}
 	}
-	position, _ := strconv.Atoi(itemID[1:])
-	if position < 1 || position > len(homeworkQuestions) {
-		return 0
-	}
-	return position
+	return 0
 }
 
 func (*DemoRepository) FindQuestion(_ context.Context, assignmentID, itemID string) (Question, error) {
 	if assignmentID == DemoAssignmentID && itemID == DemoItemID {
-		return Question{
-			Prompt: "Simplify (x^2)(x^5). Show how you combine the powers.",
-			Rubric: exponentRubric, AnswerKey: homeworkQuestions[3].AnswerKey,
-		}, nil
+		return originalDemoQuestion, nil
 	}
 	position := demoPosition(assignmentID, itemID)
 	if position == 0 {
@@ -58,7 +59,7 @@ func (*DemoRepository) FindQuestion(_ context.Context, assignmentID, itemID stri
 	return homeworkQuestions[position-1], nil
 }
 
-// DemoReviewer recognizes synthetic transcripts for the two example products.
+// DemoReviewer recognizes synthetic transcripts for the supported examples.
 type DemoReviewer struct{}
 
 func (DemoReviewer) Review(_ context.Context, question Question, work Submission) (Decision, error) {
@@ -66,8 +67,10 @@ func (DemoReviewer) Review(_ context.Context, question Question, work Submission
 	switch question.Prompt {
 	case homeworkQuestions[0].Prompt:
 		second, product, sum = "3", "6", "5"
-	case homeworkQuestions[3].Prompt, "Simplify (x^2)(x^5). Show how you combine the powers.":
+	case originalDemoQuestion.Prompt:
 		second, product, sum = "5", "10", "7"
+	case equationPrompt:
+		return reviewDemoEquation(work), nil
 	default:
 		return Decision{Status: Unreadable}, nil
 	}
@@ -99,6 +102,37 @@ func (DemoReviewer) Review(_ context.Context, question Question, work Submission
 		}
 	}
 	return Decision{Status: Unreadable}, nil
+}
+
+func reviewDemoEquation(work Submission) Decision {
+	var isolated bool
+	for index, block := range work.Blocks {
+		step := strings.ReplaceAll(plainMath(block.Text), "−", "-")
+		last := index == len(work.Blocks)-1
+		switch step {
+		case "x+7=22", "x+7=22=?":
+			continue
+		case "x+7-7=22-7", "x=22-7":
+			isolated = true
+		case "x=22-7=15", "15+7=22":
+			if last {
+				return Decision{Status: Correct}
+			}
+			isolated = true
+		case "x=15":
+			if last && isolated {
+				return Decision{Status: Correct}
+			}
+			if last {
+				return Decision{Status: NeedsRevision, Findings: []Finding{{BlockID: block.ID, Kind: MissingStep}}}
+			}
+		case "x=22+7", "x=22+7=29", "x=29":
+			return Decision{Status: NeedsRevision, Findings: []Finding{{BlockID: block.ID, Kind: Equivalence}}}
+		default:
+			return Decision{Status: Unreadable}
+		}
+	}
+	return Decision{Status: Unreadable}
 }
 
 func plainMath(text string) string {
