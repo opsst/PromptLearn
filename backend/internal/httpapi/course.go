@@ -32,13 +32,13 @@ func coursePreview(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func registerCourseStoreRoutes(mux *http.ServeMux, store *course.Store) {
+func registerCourseStoreRoutes(mux *http.ServeMux, store course.Repository) {
 	mux.HandleFunc("POST /v1/syllabi", func(w http.ResponseWriter, r *http.Request) {
 		preview, ok := buildPreview(w, r)
 		if !ok {
 			return
 		}
-		saved, err := store.Create(preview)
+		saved, err := store.Create(r.Context(), preview)
 		if err != nil {
 			writeCourseError(w, err)
 			return
@@ -47,7 +47,7 @@ func registerCourseStoreRoutes(mux *http.ServeMux, store *course.Store) {
 		writeJSON(w, http.StatusCreated, saved)
 	})
 	mux.HandleFunc("GET /v1/syllabi/{id}", func(w http.ResponseWriter, r *http.Request) {
-		saved, err := store.Get(r.PathValue("id"))
+		saved, err := store.Get(r.Context(), r.PathValue("id"))
 		if err != nil {
 			writeCourseError(w, err)
 			return
@@ -59,7 +59,7 @@ func registerCourseStoreRoutes(mux *http.ServeMux, store *course.Store) {
 		if !ok {
 			return
 		}
-		saved, err := store.Update(r.PathValue("id"), preview)
+		saved, err := store.Update(r.Context(), r.PathValue("id"), preview)
 		if err != nil {
 			writeCourseError(w, err)
 			return
@@ -67,7 +67,7 @@ func registerCourseStoreRoutes(mux *http.ServeMux, store *course.Store) {
 		writeJSON(w, http.StatusOK, saved)
 	})
 	mux.HandleFunc("POST /v1/syllabi/{id}/publish", func(w http.ResponseWriter, r *http.Request) {
-		saved, err := store.Publish(r.PathValue("id"))
+		saved, err := store.Publish(r.Context(), r.PathValue("id"))
 		if err != nil {
 			writeCourseError(w, err)
 			return
@@ -75,7 +75,7 @@ func registerCourseStoreRoutes(mux *http.ServeMux, store *course.Store) {
 		writeJSON(w, http.StatusOK, saved)
 	})
 	mux.HandleFunc("GET /v1/published-syllabi/{id}", func(w http.ResponseWriter, r *http.Request) {
-		view, err := store.StudentView(r.PathValue("id"))
+		view, err := store.StudentView(r.Context(), r.PathValue("id"))
 		if err != nil {
 			writeCourseError(w, err)
 			return
@@ -106,6 +106,8 @@ func writeCourseError(w http.ResponseWriter, err error) {
 		writeAPIError(w, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, course.ErrNotReady):
 		writeAPIError(w, http.StatusConflict, "not_ready", err.Error())
+	case errors.Is(err, course.ErrTeachingStarted):
+		writeAPIError(w, http.StatusConflict, "teaching_started", err.Error())
 	default:
 		log.Printf("process course: %v", err)
 		writeAPIError(w, http.StatusInternalServerError, "course_failed", "course operation failed")

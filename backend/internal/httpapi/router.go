@@ -10,11 +10,11 @@ import (
 type RouterOption func(*http.ServeMux)
 
 // NewHandler registers the backend's HTTP routes.
-func NewHandler(syllabi *syllabus.Service, store *course.Store, options ...RouterOption) http.Handler {
+func NewHandler(syllabi *syllabus.Service, store course.Repository, options ...RouterOption) http.Handler {
 	return newRouter(syllabi, store, options...)
 }
 
-func newRouter(syllabi *syllabus.Service, store *course.Store, options ...RouterOption) *http.ServeMux {
+func newRouter(syllabi *syllabus.Service, store course.Repository, options ...RouterOption) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthCheck)
 	mux.HandleFunc("GET /v1/curriculum/math", mathCurriculum)

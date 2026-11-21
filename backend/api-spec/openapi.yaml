@@ -319,10 +319,19 @@ paths:
               examples:
                 published:
                   $ref: '#/components/examples/PublishedDraft'
+        '400':
+          description: Teaching dates fall outside the configured academic term in PostgreSQL mode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+              example:
+                code: invalid_input
+                message: 'invalid timetable: teaching dates are outside the configured academic term'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: The draft is missing a complete schedule or scored assessments
+          description: The draft is missing a complete schedule or a prior teaching session has started
           content:
             application/json:
               schema:
@@ -330,6 +339,10 @@ paths:
               examples:
                 notReady:
                   $ref: '#/components/examples/NotReady'
+                teachingStarted:
+                  value:
+                    code: teaching_started
+                    message: an earlier syllabus version already has a started teaching session
         '500':
           $ref: '#/components/responses/CourseFailed'
 
@@ -870,7 +883,7 @@ components:
       properties:
         code:
           type: string
-          enum: [invalid_json, invalid_input, request_too_large, syllabus_unavailable, model_timeout, invalid_plan, generation_failed, not_found, not_ready, course_failed, forbidden, item_not_found, attempt_closed, unsupported_media_type, invalid_review, review_failed, feedback_unavailable, review_timeout]
+          enum: [invalid_json, invalid_input, request_too_large, syllabus_unavailable, model_timeout, invalid_plan, generation_failed, not_found, not_ready, teaching_started, course_failed, forbidden, item_not_found, attempt_closed, unsupported_media_type, invalid_review, review_failed, feedback_unavailable, review_timeout]
         message:
           type: string
     CurriculumSource:

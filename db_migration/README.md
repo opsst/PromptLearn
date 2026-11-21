@@ -9,10 +9,26 @@
 ```sh
 createdb promptlearn_dev
 psql -X -v ON_ERROR_STOP=1 -d promptlearn_dev -f db_migration/schema.sql
+psql -X -v ON_ERROR_STOP=1 -d promptlearn_dev -f db_migration/course_syllabus.sql
 psql -X -v ON_ERROR_STOP=1 -d promptlearn_dev -f db_migration/assignment_review.sql
 ```
 
 Migration ทำงานใน transaction เดียว ตัวอย่าง query ใช้ชื่อแบบ `promptlearn.course_offerings` ตั้งค่าการเชื่อมต่อของ backend ให้เข้าถึง schema นี้ตามสิทธิ์ของบริการ
+
+## การบันทึก Course Syllabus
+
+[Course Syllabus migration](course_syllabus.sql) เพิ่ม `syllabus_unit_outcomes` สำหรับการเลือกตัวชี้วัดรายหน่วย และ `syllabus_versions.api_preview` สำหรับเก็บ snapshot ที่ API อ่านกลับ รายการโครงสร้างด้านล่างและ snapshot บันทึกใน transaction เดียวกัน
+
+| ขั้น | ข้อมูลที่บันทึก |
+|---|---|
+| บันทึกร่าง | `courses`, `syllabus_versions`, `learning_outcomes`, `syllabus_units`, `syllabus_lessons`, `planned_periods` และ `grading_plan_items` |
+| เผยแพร่รายห้อง | จับคู่ภาคเรียนและห้องผ่าน `academic_terms`, `class_sections` และ `course_offerings` จากนั้นบันทึก `weekly_timetable_slots`, `lesson_sessions`, `assessment_events` และ `offering_syllabus_publications` |
+
+ระบบแก้ไขร่างเดิมจนเผยแพร่ หลังเผยแพร่ การแก้ไขจะเปิดร่างฉบับใหม่ และผู้เรียนยังเห็นฉบับที่เผยแพร่ล่าสุด การเผยแพร่ฉบับใหม่เปลี่ยน publication พร้อมกับตารางรายห้องใน transaction เดียว เมื่อการสอนของฉบับก่อนเริ่มแล้ว API ตอบ `409 teaching_started` เพื่อรักษาคาบเดิมและข้อมูลที่อ้างถึงคาบนั้น
+
+สำหรับเดโม ให้รัน `db_migration/demo_seed.sql` แล้วตั้ง `COURSE_SYLLABUS_DATABASE_URL` ให้ backend ใช้ฐาน dev ระบบใช้โรงเรียนและครูตัวอย่างจาก seed เทอมที่โรงเรียนกำหนดต้องครอบคลุมช่วงวันสอน ระบบสร้างเทอมเดโมตามปีการศึกษา พ.ศ. เมื่อยังไม่มีเทอมนั้น และขยายช่วงวันได้เมื่อเผยแพร่วิชาเพิ่มเติม ค่าเครดิตตั้งต้นเป็น 0 เพราะ request ปัจจุบันยังไม่มีฟิลด์เครดิต หมวดคะแนนที่มีคำว่า `final` ใช้กลุ่มปลายภาค
+
+HTML สร้างจากข้อมูลที่บันทึกเมื่อตอบ API การเก็บไฟล์ส่งออกใน S3 จะเป็นส่วนของการเชื่อม storage ภายหลัง
 
 ## ประวัติจาก Check my work
 

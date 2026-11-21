@@ -17,7 +17,7 @@ import (
 )
 
 // NewDemoHandler adds opt-in, local replay routes alongside the regular API.
-func NewDemoHandler(syllabi *syllabus.Service, courses *course.Store, store *replay.Store, mediaDir, webDir string, options ...RouterOption) http.Handler {
+func NewDemoHandler(syllabi *syllabus.Service, courses course.Repository, store *replay.Store, mediaDir, webDir string, options ...RouterOption) http.Handler {
 	mux := newRouter(syllabi, courses, options...)
 	demo := replayDemo{store: store, mediaDir: mediaDir}
 	mux.HandleFunc("POST /api/demo/recordings", demo.upload)

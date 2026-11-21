@@ -181,7 +181,9 @@ Preview, Create และ Update รับ JSON รูปแบบเดีย�
 - `plan` มี `description` และ `units` แต่ละหน่วยมี `title`, `reference_ids`, `session_titles` และ `assessments` ค่าของ `session` ในแต่ละการประเมินนับจาก 1 ภายในหน่วย เมื่อส่งผลกลับจะเป็นเลขคาบของทั้งเทอม
 - `timetable` ใช้รูปแบบเดียวกับตัวอย่าง และเว้นได้เมื่อยังอยู่ในขั้นวางหน่วยหรือกำหนดคะแนน
 
-ข้อมูลเดโมเก็บใน `PROMPTLEARN_DATA_DIR` ค่าเริ่มต้นคือ `.promptlearn-data/` การเผยแพร่ต้องมีตารางครบและคะแนนรวม 100 คะแนน ผู้เรียนเห็นฉบับที่เผยแพร่ล่าสุดและฉบับร่างถัดไปเก็บแยกในไฟล์เดิม API ชุดนี้ใช้สำหรับเดโมในเครื่องและยังไม่มีบัญชีผู้ใช้หรือสิทธิ์รายห้อง
+ถ้าเว้น `COURSE_SYLLABUS_DATABASE_URL` ข้อมูลเดโมยังบันทึกใน `PROMPTLEARN_DATA_DIR` ค่าเริ่มต้นคือ `.promptlearn-data/` การเผยแพร่ต้องมีตารางครบและคะแนนรวม 100 คะแนน ผู้เรียนอ่านฉบับที่เผยแพร่ล่าสุด ส่วนครูแก้ร่างถัดไปได้
+
+สำหรับ PostgreSQL ให้รัน [migration ของ Course Syllabus](../db_migration/README.md#การบันทึก-course-syllabus) และ `demo_seed.sql` แล้วตั้ง `COURSE_SYLLABUS_DATABASE_URL` คู่กับ loopback `HTTP_ADDR` ใช้ API เดิมสำหรับสร้างร่าง บันทึก และเผยแพร่ PostgreSQL เก็บโครงสร้างรายวิชาและฉบับที่เผยแพร่ ส่วน HTML จะสร้างตอนตอบ API
 
 ตัวอย่างเดโม [Matthayom 1 · Semester 1](examples/m1-semester-1.json) มี 54 คาบต่อห้องสำหรับสามห้อง วันหยุดและกิจกรรมโรงเรียนในตัวอย่างเป็นข้อมูลเดโม เรียก `POST /v1/syllabi/preview` ด้วย JSON นี้เพื่อดูผลพร้อมตารางโดยไม่เรียก OpenAI
 
