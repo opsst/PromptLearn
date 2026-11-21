@@ -69,10 +69,12 @@ void main() {
       ),
     );
 
-    Finder button(String label) => find.ancestor(
-      of: find.text(label),
-      matching: find.byWidgetPredicate((widget) => widget is TextButton),
+    IconButton arrow(String label) => tester.widget<IconButton>(
+      find.byWidgetPredicate(
+        (widget) => widget is IconButton && widget.tooltip == label,
+      ),
     );
+
     ColorFilter? toolColor(String label) => tester
         .widget<SvgPicture>(
           find.descendant(
@@ -86,7 +88,7 @@ void main() {
 
     expect(notebook.activeIndex, 0);
     expect(notebook.draft.content.hasWork, isFalse);
-    expect(tester.widget<TextButton>(button('Previous')).onPressed, isNull);
+    expect(arrow('Previous question').onPressed, isNull);
     expect(toolColor('Pen'), selectedColor);
     expect(toolColor('Eraser'), unselectedColor);
 
@@ -97,21 +99,75 @@ void main() {
 
     final firstDraft = notebook.draft;
     firstDraft.addInk(PaperTool.pen, const [Offset(0.5, 0.5)]);
-    await tester.tap(button('Next'));
+    await tester.tap(find.byTooltip('Next question'));
     await tester.pump();
     expect(notebook.activeIndex, 1);
     expect(notebook.draft.content.hasWork, isFalse);
     expect(find.text('Question 2'), findsOneWidget);
-    await tester.tap(button('Previous'));
+    await tester.tap(find.byTooltip('Previous question'));
     await tester.pump();
     expect(notebook.draft, same(firstDraft));
     expect(notebook.draft.content.hasWork, isTrue);
 
     await tester.tap(find.byTooltip('Question 8'));
     await tester.pump();
-    expect(tester.widget<TextButton>(button('Next')).onPressed, isNull);
+    expect(arrow('Next question').onPressed, isNull);
     expect(notebook.draft.content.hasWork, isFalse);
   });
+
+  testWidgets(
+    'Submit requires ink in every question and records the current drafts',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1200, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final notebook = HomeworkNotebook();
+      final lastQuestion = HomeworkNotebook.questions.length - 1;
+      for (var index = 0; index < lastQuestion; index++) {
+        notebook.activeIndex = index;
+        notebook.draft.addInk(PaperTool.pen, const [Offset(0.5, 0.5)]);
+      }
+      notebook.activeIndex = lastQuestion;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StudentHomeworkView(
+              notebook: notebook,
+              checker: _UnusedChecker(),
+              onBack: () {},
+            ),
+          ),
+        ),
+      );
+
+      final submit = find.widgetWithText(FilledButton, 'Submit');
+      expect(tester.widget<FilledButton>(submit).onPressed, isNull);
+      expect(notebook.submit(), isFalse);
+      final pen = await tester.startGesture(
+        tester.getCenter(find.byKey(const ValueKey('homework-paper'))),
+        kind: PointerDeviceKind.stylus,
+      );
+      await pen.up();
+      await tester.pump();
+      expect(tester.widget<FilledButton>(submit).onPressed, isNotNull);
+
+      await tester.tap(submit);
+      await tester.pump();
+      expect(notebook.submitted, isTrue);
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Submitted'),
+            )
+            .onPressed,
+        isNull,
+      );
+
+      await tester.tap(find.byTooltip('Undo'));
+      await tester.pump();
+      expect(notebook.submitted, isFalse);
+      expect(tester.widget<FilledButton>(submit).onPressed, isNull);
+    },
+  );
 
   testWidgets(
     'Eraser hides whole strokes while down and undo groups the drag',

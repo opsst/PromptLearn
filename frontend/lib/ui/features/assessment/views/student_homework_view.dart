@@ -141,6 +141,14 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
     _scheduleCheck();
   }
 
+  void _submitHomework() {
+    if (_pointer != null || !_notebook.canSubmit) return;
+    setState(_notebook.submit);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Homework submitted for this session.')),
+    );
+  }
+
   Future<void> _check() async {
     if (_checking || _pointer != null || !_draft.content.hasWork) return;
     _stopTimer();
@@ -234,7 +242,13 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _ProgressCard(notebook: _notebook, onSelect: _selectQuestion),
+                  _ProgressCard(
+                    notebook: _notebook,
+                    onSelect: _selectQuestion,
+                    onSubmit: _pointer == null && _notebook.canSubmit
+                        ? _submitHomework
+                        : null,
+                  ),
                   const SizedBox(height: 16),
                   _HomeworkCard(
                     padding: const EdgeInsets.all(18),
@@ -509,81 +523,99 @@ class _HomeworkHeader extends StatelessWidget {
 }
 
 class _ProgressCard extends StatelessWidget {
-  const _ProgressCard({required this.notebook, required this.onSelect});
+  const _ProgressCard({
+    required this.notebook,
+    required this.onSelect,
+    required this.onSubmit,
+  });
 
   final HomeworkNotebook notebook;
   final ValueChanged<int> onSelect;
+  final VoidCallback? onSubmit;
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
+    final activeIndex = notebook.activeIndex;
+    final questions = Wrap(
+      spacing: 3,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text(
+          'HW 3.1',
+          style: text.labelSmall?.copyWith(color: AppColors.mutedText),
+        ),
+        for (var index = 0; index < HomeworkNotebook.questions.length; index++)
+          IconButton(
+            tooltip: 'Question ${index + 1}',
+            isSelected: index == activeIndex,
+            style: IconButton.styleFrom(
+              backgroundColor: index == activeIndex
+                  ? _greenInk
+                  : notebook.hasWorkAt(index)
+                  ? const Color(0xFFE3F1E8)
+                  : AppColors.canvas,
+              minimumSize: const Size.square(36),
+              padding: EdgeInsets.zero,
+            ),
+            onPressed: () => onSelect(index),
+            icon: Text(
+              '${index + 1}',
+              style: text.labelSmall?.copyWith(
+                color: index == activeIndex
+                    ? Colors.white
+                    : AppColors.mutedText,
+              ),
+            ),
+          ),
+      ],
+    );
+    final actions = Wrap(
+      spacing: 4,
+      alignment: WrapAlignment.end,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        IconButton(
+          tooltip: 'Previous question',
+          onPressed: activeIndex > 0 ? () => onSelect(activeIndex - 1) : null,
+          icon: const Icon(Icons.chevron_left_rounded),
+        ),
+        IconButton(
+          tooltip: 'Next question',
+          onPressed: activeIndex < HomeworkNotebook.questions.length - 1
+              ? () => onSelect(activeIndex + 1)
+              : null,
+          icon: const Icon(Icons.chevron_right_rounded),
+        ),
+        FilledButton(
+          onPressed: onSubmit,
+          style: FilledButton.styleFrom(
+            backgroundColor: Colors.black,
+            foregroundColor: Colors.white,
+          ),
+          child: Text(notebook.submitted ? 'Submitted' : 'Submit'),
+        ),
+      ],
+    );
+
     return _HomeworkCard(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 6,
-        alignment: WrapAlignment.spaceBetween,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          Wrap(
-            spacing: 3,
-            crossAxisAlignment: WrapCrossAlignment.center,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < 660) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [questions, actions],
+            );
+          }
+          return Row(
             children: [
-              Text(
-                'HW 3.1',
-                style: text.labelSmall?.copyWith(color: AppColors.mutedText),
-              ),
-              for (
-                var index = 0;
-                index < HomeworkNotebook.questions.length;
-                index++
-              )
-                IconButton(
-                  tooltip: 'Question ${index + 1}',
-                  isSelected: index == notebook.activeIndex,
-                  style: IconButton.styleFrom(
-                    backgroundColor: index == notebook.activeIndex
-                        ? _greenInk
-                        : notebook.hasWorkAt(index)
-                        ? const Color(0xFFE3F1E8)
-                        : AppColors.canvas,
-                    minimumSize: const Size.square(36),
-                    padding: EdgeInsets.zero,
-                  ),
-                  onPressed: () => onSelect(index),
-                  icon: Text(
-                    '${index + 1}',
-                    style: text.labelSmall?.copyWith(
-                      color: index == notebook.activeIndex
-                          ? Colors.white
-                          : AppColors.mutedText,
-                    ),
-                  ),
-                ),
+              Expanded(child: questions),
+              const SizedBox(width: 12),
+              actions,
             ],
-          ),
-          Wrap(
-            spacing: 4,
-            children: [
-              TextButton.icon(
-                onPressed: notebook.activeIndex > 0
-                    ? () => onSelect(notebook.activeIndex - 1)
-                    : null,
-                icon: const Icon(Icons.chevron_left_rounded, size: 20),
-                label: const Text('Previous'),
-              ),
-              TextButton.icon(
-                onPressed:
-                    notebook.activeIndex < HomeworkNotebook.questions.length - 1
-                    ? () => onSelect(notebook.activeIndex + 1)
-                    : null,
-                iconAlignment: IconAlignment.end,
-                icon: const Icon(Icons.chevron_right_rounded, size: 20),
-                label: const Text('Next'),
-              ),
-            ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }

@@ -128,9 +128,31 @@ class HomeworkNotebook {
   int activeIndex = 0;
   bool automatic = false;
   final _drafts = <int, HomeworkDraft>{};
+  List<PaperContent>? _submittedWork;
 
   HomeworkDraft get draft =>
       _drafts.putIfAbsent(activeIndex, HomeworkDraft.new);
 
   bool hasWorkAt(int index) => _drafts[index]?.content.hasWork ?? false;
+
+  bool get submitted {
+    final submitted = _submittedWork;
+    if (submitted == null) return false;
+    for (var index = 0; index < questions.length; index++) {
+      if (_drafts[index]?.content != submitted[index]) return false;
+    }
+    return true;
+  }
+
+  bool get canSubmit =>
+      !submitted && Iterable<int>.generate(questions.length).every(hasWorkAt);
+
+  bool submit() {
+    if (!canSubmit) return false;
+    _submittedWork = [
+      for (var index = 0; index < questions.length; index++)
+        _drafts[index]!.content,
+    ];
+    return true;
+  }
 }
