@@ -12,6 +12,7 @@ import 'package:promptlearn/domain/repositories/assessment_rubric_generator.dart
 import 'package:promptlearn/domain/repositories/role_repository.dart';
 import 'package:promptlearn/domain/services/class_recording_service.dart';
 import 'package:promptlearn/domain/services/class_replay_service.dart';
+import 'package:promptlearn/ui/core/layout/app_navigation.dart';
 import 'package:promptlearn/ui/features/home/views/student_home_view.dart';
 import 'package:promptlearn/ui/features/home/views/teacher_home_view.dart';
 import 'package:promptlearn/ui/features/home/widgets/home_header.dart';
@@ -902,10 +903,19 @@ void main() {
         addTearDown(() => tester.binding.setSurfaceSize(null));
         await _openApp(tester, _MemoryRoleRepository(UserRole.teacher));
 
+        final homeHeaderHeight = tester.getSize(find.byType(HomeHeader)).height;
         final create = find.text('Create syllabus');
         await tester.ensureVisible(create);
         await tester.tap(create);
         await tester.pumpAndSettle();
+        final syllabusHeader = find.byKey(
+          const ValueKey('syllabus-editor-header'),
+        );
+        final syllabusHeaderHeight = tester.getSize(syllabusHeader).height;
+        expect(syllabusHeaderHeight, 100);
+        if (size.width >= 1000) {
+          expect(syllabusHeaderHeight, homeHeaderHeight);
+        }
         for (var step = 0; step < 3; step++) {
           await tester.tap(find.text('Continue'));
           await tester.pumpAndSettle();
@@ -1027,7 +1037,8 @@ void main() {
       for (var index = 1; index < cards.length; index++) {
         expect(cards[index].dx, greaterThan(cards[index - 1].dx));
       }
-      expect(find.byTooltip('Courses'), findsOneWidget);
+      expect(find.byType(AppNavigation), findsNothing);
+      expect(find.widgetWithText(FilledButton, 'Publish'), findsOneWidget);
 
       final inquiry = find.widgetWithText(
         CheckboxListTile,
@@ -1080,10 +1091,22 @@ void main() {
       addTearDown(() => tester.binding.setSurfaceSize(null));
       await _openApp(tester, _MemoryRoleRepository(UserRole.teacher));
 
+      final homeHeaderHeight = tester.getSize(find.byType(HomeHeader)).height;
       final math101 = find.text('Math 101').last;
       await tester.ensureVisible(math101);
       await tester.tap(math101);
       await tester.pumpAndSettle();
+      final courseHeader = find.byKey(const ValueKey('course-detail-header'));
+      expect(tester.getSize(courseHeader).height, 100);
+      if (size.width >= 1000) {
+        expect(tester.getSize(courseHeader).height, homeHeaderHeight);
+      }
+      final headerPosition = tester.getTopLeft(courseHeader);
+      final status = find.descendant(
+        of: find.byType(Table),
+        matching: find.text('Rescheduled'),
+      );
+      expect(tester.widget<Text>(status).style?.fontSize, 11);
       expect(find.text('Teaching Schedule'), findsOneWidget);
       expect(find.text('24 / 54 periods'), findsOneWidget);
       expect(find.text('3.3 Dividing powers'), findsOneWidget);
@@ -1092,6 +1115,7 @@ void main() {
       await tester.tap(next);
       await tester.pumpAndSettle();
       expect(find.text('4.1 Decimals and fractions'), findsOneWidget);
+      expect(tester.getTopLeft(courseHeader), headerPosition);
 
       final search = find.byType(TextField);
       await tester.ensureVisible(search);

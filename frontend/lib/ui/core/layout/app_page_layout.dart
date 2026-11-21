@@ -4,6 +4,8 @@ import 'package:flutter/widgets.dart';
 class AppPageLayout extends StatelessWidget {
   const AppPageLayout({super.key, required this.header, this.body});
 
+  static const headerMinHeight = 100.0;
+
   final Widget header;
   final Widget? body;
 
