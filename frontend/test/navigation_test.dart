@@ -88,6 +88,14 @@ void main() {
       expect(find.text('My syllabus'), findsOneWidget);
 
       if (size.width == 1366) {
+        expect(tester.getSize(find.byType(HomeHeader)).height, 100);
+        expect(
+          tester.getSize(find.byTooltip('Notifications')),
+          const Size.square(48),
+        );
+        expect(tester.widget<Text>(today).style?.fontSize, 16);
+        expect(tester.widget<Text>(startClass).style?.fontSize, 14);
+
         final dashboard = find.descendant(
           of: find.byType(TeacherHomeView),
           matching: find.byType(Scrollable),

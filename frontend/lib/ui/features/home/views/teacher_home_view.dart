@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -13,6 +15,7 @@ const _highlight = Color(0xFFDFFFCC);
 const _lavender = Color(0xFFF2F3FF);
 const _line = Color(0xFFE6ECE8);
 const _upcomingGreen = Color(0xFF4ABE7A);
+const _actionLabelStyle = TextStyle(fontSize: 14);
 
 class TeacherHomeView extends StatelessWidget {
   const TeacherHomeView({
@@ -32,7 +35,7 @@ class TeacherHomeView extends StatelessWidget {
       color: const Color(0xFFF8F8F8),
       child: Column(
         children: [
-          HomeHeader(displayName: displayName, now: now, teacherLayout: true),
+          HomeHeader(displayName: displayName, now: now),
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -180,7 +183,7 @@ TextStyle _style(
   Color color = _text,
 }) {
   return Theme.of(context).textTheme.bodyMedium!.copyWith(
-    fontSize: size,
+    fontSize: math.max(10.0, (size * 0.9).roundToDouble()),
     fontWeight: weight,
     fontVariations: [FontVariation('wght', weight.value.toDouble())],
     height: 1.35,
@@ -324,13 +327,16 @@ class _LessonOverview extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 12,
             children: [
-              const Wrap(
+              Wrap(
                 spacing: 10,
                 runSpacing: 8,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  _Pill('Next · in 15 min', icon: Icons.schedule),
-                  Text('P4 · 10:20–11:10 · Room 204'),
+                  const _Pill('Next · in 15 min', icon: Icons.schedule),
+                  Text(
+                    'P4 · 10:20–11:10 · Room 204',
+                    style: _style(context, 15),
+                  ),
                 ],
               ),
               Text(
@@ -420,7 +426,7 @@ class _LessonButton extends StatelessWidget {
         height: 24,
         excludeFromSemantics: true,
       ),
-      label: Text(label),
+      label: Text(label, style: _actionLabelStyle),
     );
   }
 }
@@ -778,7 +784,7 @@ class _Syllabi extends StatelessWidget {
                   onCreateSyllabus: () => _showCreateSyllabus(context),
                 ),
               ),
-              child: const Text('See all'),
+              child: const Text('See all', style: _actionLabelStyle),
             ),
           ),
           _courseList(),
@@ -793,7 +799,7 @@ class _Syllabi extends StatelessWidget {
             ),
             onPressed: () => _showCreateSyllabus(context),
             icon: const Icon(Icons.add),
-            label: const Text('Create syllabus'),
+            label: const Text('Create syllabus', style: _actionLabelStyle),
           ),
         ],
       ),
