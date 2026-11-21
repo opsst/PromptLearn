@@ -50,9 +50,14 @@ func TestGenerateOneTermWithExactSource(t *testing.T) {
 	if got := draft.Units[0].Sessions[1]; got.Number != 2 || got.Title != "Difference of Squares" {
 		t.Fatalf("wrong second session: %+v", got)
 	}
-	for _, want := range []string{"Semester 2", "Perfect Squares", "distributive", "ค 1.2 ม.2/2"} {
+	for _, want := range []string{"Semester 2", "Learning Outcomes", "Perfect Squares", "distributive"} {
 		if !strings.Contains(strings.ToLower(draft.DocumentHTML), strings.ToLower(want)) {
 			t.Errorf("document missing %q", want)
+		}
+	}
+	for _, hidden := range []string{"Draft Course Syllabus", "Curriculum References", "PDF p.", "p. 15", "ค 1.2 ม.2/2", factoringID} {
+		if strings.Contains(draft.DocumentHTML, hidden) {
+			t.Errorf("document shows internal reference %q", hidden)
 		}
 	}
 }

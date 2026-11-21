@@ -21,10 +21,8 @@
   th { background: #f2f6f4; color: #214a3e; }
   details { margin: 0.75rem 0; }
   summary { color: #215646; cursor: pointer; font-weight: 600; padding: 0.4rem 0; }
-  .source-text { white-space: pre-line; }
-  .source-item { margin-block-start: 0.4rem; }
-  .source-subitem { margin-inline-start: 1.4rem; }
-  .source-continuation { margin-inline-start: 0.8rem; }
+  .description { white-space: pre-line; }
+  .unit-topics { margin-block: 0.55rem 1.1rem; }
   .metadata { color: #425563; }
   @media print { body { max-width: none; padding: 0; } h2, h3 { break-after: avoid; } tr { break-inside: avoid; } }
 </style>
@@ -32,28 +30,39 @@
 <body>
 <main>
   <header>
-    <p class="metadata">Draft Course Syllabus</p>
+    <p class="metadata">Course Syllabus</p>
     <h1>{{.CourseName}}</h1>
     <p>Matthayom {{.Grade}} · Semester {{.Term}}{{if .CourseCode}} · {{.CourseCode}}{{end}}</p>
     <p>{{.CourseTypeLabel}} · {{.TotalSessions}} periods · {{.MinutesPerSession}} minutes per period</p>
     <nav aria-label="Syllabus sections">
+      <a href="#learning-outcomes">Learning Outcomes</a>
       <a href="#learning-units">Learning Units</a>
       {{if .AssessmentWeights}}<a href="#assessment-weights">Assessment Weights</a>{{end}}
       {{if .Calendars}}<a href="#teaching-schedule">Teaching Schedule</a>{{end}}
-      <a href="#curriculum">Curriculum References</a>
     </nav>
   </header>
 
   <section>
     <h2>Course Description</h2>
-    <p class="source-text">{{.Description}}</p>
+    <p class="description">{{.Description}}</p>
+  </section>
+
+  <section id="learning-outcomes">
+    <h2>Learning Outcomes</h2>
+    <p>By the end of the semester, students will be able to:</p>
+    <ul>{{range .LearningOutcomes}}<li>{{.}}</li>{{end}}</ul>
   </section>
 
   <section id="learning-units">
     <h2>Learning Units and Periods</h2>
-    {{range .Units}}
+    {{range .LearningUnits}}
     <article>
       <h3>{{.Title}}</h3>
+      {{if .Topics}}
+      <ul class="unit-topics">
+        {{range .Topics}}<li>{{.Title}}{{if .Subtopics}}<ul>{{range .Subtopics}}<li>{{.}}</li>{{end}}</ul>{{end}}</li>{{end}}
+      </ul>
+      {{end}}
       <table>
         <thead><tr><th>Period</th><th>Topic</th></tr></thead>
         <tbody>{{range .Sessions}}<tr><td>{{.Number}}</td><td>{{.Title}}</td></tr>{{end}}</tbody>
@@ -62,7 +71,6 @@
       <p><strong>Unit Assessment</strong></p>
       <ul>{{range .Assessments}}<li>Period {{.Session}} · {{.Title}} · {{.Category}} · {{.Points}} points</li>{{end}}</ul>
       {{end}}
-      <p class="metadata">Curriculum References {{range $i, $id := .ReferenceIDs}}{{if $i}} · {{end}}<a href="#{{$id}}">{{index $.ReferenceTitles $id}}</a>{{end}}</p>
     </article>
     {{end}}
   </section>
@@ -98,19 +106,6 @@
   </section>
   {{end}}
 
-  <section id="curriculum">
-    <h2>Curriculum Standards and Learning Content</h2>
-    <p class="metadata">{{.Source.Title}}</p>
-    {{range .References}}
-    <article id="{{.Row.ID}}">
-      <h3 class="source-text">{{.Row.Title}}</h3>
-      <p class="metadata">{{.Strand}} · p. {{.Row.PrintedPage}} (PDF p. {{.Row.PDFPage}})</p>
-      <p>{{if .StandardCode}}<strong>{{.StandardCode}}</strong> · {{else}}<strong>Objective {{.ObjectiveNumber}}</strong> · {{end}}{{.Statement}}</p>
-      <ol>{{range .Row.Outcomes}}<li class="source-text" value="{{.Number}}">{{if .Code}}<strong>{{.Code}}</strong> · {{end}}{{.Text}}</li>{{end}}</ol>
-      <div>{{range .Row.Content}}<div class="{{contentClass .}}">{{.}}</div>{{end}}</div>
-    </article>
-    {{end}}
-  </section>
 </main>
 </body>
 </html>

@@ -1,0 +1,1421 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PromptLearn Course Syllabus API</title>
+<style>
+:root {
+  color-scheme: light;
+  --paper: #f9fbfa; --ink: #162720; --muted: #4e635a; --line: #d3ddd7;
+  --accent: #176247; --wash: #e9f3ed; --white: #fff;
+  --mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 1.25rem; }
+body { margin: 0; color: var(--ink); background: var(--paper); font: 1rem/1.6 system-ui, sans-serif; }
+a { color: var(--accent); text-underline-offset: .2em; }
+a:focus-visible, summary:focus-visible { outline: 2px solid #177353; outline-offset: 3px; }
+h1, h2, h3, p { margin: 0; }
+code { font-family: var(--mono); font-size: .88em; }
+.layout { display: grid; grid-template-columns: minmax(15rem, 18rem) minmax(0, 1fr); max-width: 100rem; margin: 0 auto; }
+.sidebar {
+  padding: 1.5rem 1rem; border-right: 1px solid var(--line);
+  position: sticky; top: 0; align-self: start; max-height: 100vh; overflow: auto;
+}
+.brand { display: block; font-weight: 750; font-size: 1.1rem; margin-bottom: 1.3rem; text-decoration: none; }
+.sidebar .navigation { background: transparent; border: 0; padding: 0; }
+.sidebar .navigation > summary { display: none; }
+.sidebar h2 { color: var(--muted); font-size: .78rem; margin: 1rem .3rem .3rem; letter-spacing: .025em; }
+.sidebar ul { list-style: none; margin: 0; padding: 0; }
+.sidebar li a { display: grid; grid-template-columns: 2.65rem minmax(0, 1fr); gap: .38rem; align-items: start; padding: .38rem .3rem; color: var(--ink); text-decoration: none; font: .74rem/1.5 var(--mono); }
+.sidebar li span:last-child { overflow-wrap: anywhere; }
+.sidebar li a:hover { background: var(--wash); }
+.model-link { margin: 1.3rem .3rem; font-size: .9rem; }
+main { min-width: 0; padding: clamp(1.1rem, 4vw, 3.1rem); }
+.intro { border-top: .27rem solid var(--accent); background: var(--wash); padding: clamp(1.2rem, 4vw, 2.4rem); }
+.intro h1 { max-width: 22ch; font-size: clamp(1.9rem, 4vw, 3.25rem); letter-spacing: -.035em; line-height: 1.08; }
+.intro p { max-width: 66ch; margin-top: .9rem; color: var(--muted); }
+.intro code { color: var(--ink); }
+.spec-link { display: inline-block; margin-top: .9rem; font-weight: 650; }
+.quickstart { margin: 2rem 0; max-width: 75ch; }
+.quickstart h2 { font-size: 1.2rem; }
+.quickstart ol { padding-left: 1.4rem; }
+.quickstart li { margin-block: .4rem; }
+.endpoint, .models { border-top: 1px solid var(--line); padding: 1.8rem 0; }
+.endpoint h2, .models h2 { font-size: 1.32rem; line-height: 1.3; letter-spacing: -.015em; }
+.route { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin-top: .7rem; overflow-wrap: anywhere; }
+.method, .status { font: 700 .73rem/1.4 var(--mono); padding: .16rem .48rem; border-radius: .2rem; display: inline-block; text-align: center; }
+.method.get, .status.success { color: #0e543a; background: #dcefe4; }
+.method.post { color: #154874; background: #e3eef8; }
+.method.put { color: #67441c; background: #f5ead6; }
+.status.error { color: #872d25; background: #f6e7e4; }
+.description { margin: .6rem 0; color: var(--muted); }
+.contract { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr); gap: 1.2rem; margin-top: 1rem; }
+.contract h3 { font-size: .95rem; margin-bottom: .45rem; }
+.example-label, .schema { font-size: .79rem; color: var(--muted); margin: .48rem 0 .32rem; }
+pre { margin: .35rem 0 .75rem; padding: .85rem; overflow: auto; max-height: 26rem; background: #f0f4f1; border: 1px solid var(--line); border-radius: .25rem; }
+pre code { font-size: .78rem; }
+details { padding: .52rem .72rem; margin-bottom: .5rem; background: var(--white); border: 1px solid var(--line); border-radius: .25rem; }
+summary { cursor: pointer; font-size: .86rem; }
+summary .status { margin-right: .5rem; }
+details[open] > summary { font-weight: 650; }
+.response-body { margin-top: .6rem; min-width: 0; }
+.response-body .description code { overflow-wrap: anywhere; }
+.table-wrap { overflow-x: auto; margin: .6rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: .82rem; }
+th, td { text-align: left; vertical-align: top; padding: .4rem .55rem; border-bottom: 1px solid var(--line); }
+thead th { background: var(--wash); color: #204735; }
+td small { display: block; color: var(--muted); }
+.models h2 { margin-bottom: .85rem; }
+.model:target { outline: 2px solid var(--accent); }
+@media(max-width: 1050px) {
+  .contract { grid-template-columns: minmax(0, 1fr); }
+}
+@media(max-width: 700px) {
+  .layout { display: block; }
+  .sidebar { position: static; max-height: none; border-right: 0; border-bottom: 1px solid var(--line); }
+  .sidebar .navigation > summary { display: list-item; }
+  .brand { margin-bottom: .65rem; }
+}
+</style>
+<script>
+function revealTarget() {
+  const id = location.hash.slice(1);
+  const item = document.getElementById(id);
+  if (item && item.matches("details")) item.open = true;
+}
+addEventListener("hashchange", revealTarget);
+addEventListener("DOMContentLoaded", () => {
+  const compact = matchMedia("(max-width: 700px)");
+  const navigation = document.querySelector(".navigation");
+  const updateNavigation = () => { navigation.open = !compact.matches; };
+  compact.addEventListener("change", updateNavigation);
+  updateNavigation();
+  revealTarget();
+});
+</script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" aria-label="API endpoints">
+  <a class="brand" href="#overview">PromptLearn API</a>
+  <details class="navigation" open>
+    <summary>Browse endpoints</summary>
+    <h2>Service</h2><ul><li><a href="#getHealth"><span class="method get">GET</span><span>/healthz</span></a></li></ul><h2>Curriculum</h2><ul><li><a href="#getMathCurriculum"><span class="method get">GET</span><span>/v1/curriculum/math</span></a></li></ul><h2>Syllabus</h2><ul><li><a href="#generateSyllabusDraft"><span class="method post">POST</span><span>/v1/syllabi/draft</span></a></li><li><a href="#previewSyllabus"><span class="method post">POST</span><span>/v1/syllabi/preview</span></a></li><li><a href="#createSyllabus"><span class="method post">POST</span><span>/v1/syllabi</span></a></li><li><a href="#getSyllabus"><span class="method get">GET</span><span>/v1/syllabi/{id}</span></a></li><li><a href="#replaceSyllabus"><span class="method put">PUT</span><span>/v1/syllabi/{id}</span></a></li><li><a href="#publishSyllabus"><span class="method post">POST</span><span>/v1/syllabi/{id}/publish</span></a></li></ul><h2>Timetable</h2><ul><li><a href="#countTeachingPeriods"><span class="method post">POST</span><span>/v1/timetable/availability</span></a></li></ul><h2>Student View</h2><ul><li><a href="#getPublishedSyllabus"><span class="method get">GET</span><span>/v1/published-syllabi/{id}</span></a></li></ul><p class="model-link"><a href="#models">Data models</a></p>
+  </details>
+</nav>
+<main>
+<div class="intro" id="overview">
+  <h1>PromptLearn Course Syllabus API</h1>
+  <p>Build an English mathematics syllabus for one semester, place periods on the timetable, and publish a student view.</p>
+  <p>Local base URL <code>http://127.0.0.1:8080</code></p>
+  <a class="spec-link" href="openapi.yaml" download>Download OpenAPI 3.0.3</a>
+</div>
+<section class="quickstart" aria-labelledby="workflow">
+  <h2 id="workflow">How the endpoints fit together</h2>
+  <ol>
+    <li>Choose row IDs from <a href="#getMathCurriculum">the curriculum</a> and check class capacity with <a href="#countTeachingPeriods">timetable availability</a>.</li>
+    <li>Send the selected rows and period count to <a href="#generateSyllabusDraft">draft generation</a>.</li>
+    <li>Edit the plan and use <a href="#previewSyllabus">preview</a> to verify periods, assessment points, and dates.</li>
+    <li><a href="#createSyllabus">Save the draft</a>, then <a href="#publishSyllabus">publish it</a>. Students read the latest <a href="#getPublishedSyllabus">published view</a>.</li>
+  </ol>
+  <p class="description">In an edited plan, assessment period numbers start at 1 within each unit. Responses number periods across the entire semester. HTML strings in examples are shortened.</p>
+</section>
+<section class="endpoint" id="getHealth"><h2>Check that the HTTP service is running</h2><p class="route"><span class="method get">GET</span><code>/healthz</code></p><div class="contract"><div><h3>Request</h3><p class="example-label">Example URL</p><pre><code>http://127.0.0.1:8080/healthz</code></pre><p class="description">Request body is empty.</p></div><div><h3>Responses</h3><details class="response" open><summary><code class="status success">200</code>Service is reachable</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema object</div><p class="example-label">Service is reachable</p><pre><code>{
+  &quot;status&quot;: &quot;ok&quot;
+}</code></pre></div></details></div></div></section><section class="endpoint" id="getMathCurriculum"><h2>List the OBEC mathematics curriculum by grade and course type</h2><p class="route"><span class="method get">GET</span><code>/v1/curriculum/math</code></p><p class="description">Returns the original Thai curriculum text. Select row IDs from groups[].rows[].id. A row can contain multiple indicators or outcomes that share one topic.</p><div class="contract"><div><h3>Request</h3><p class="example-label">Example URL</p><pre><code>http://127.0.0.1:8080/v1/curriculum/math?grade=6&amp;course_type=core</code></pre><div class="table-wrap"><table><thead><tr><th>Parameter</th><th>Location</th><th>Type</th><th>Example</th></tr></thead><tbody><tr><th scope="row"><code>grade</code></th><td>query · required</td><td><a href="#schema-Grade">Grade</a><small>Matthayom grade. Core supports 1–6 and additional supports 4–6.</small></td><td><code>6</code></td></tr><tr><th scope="row"><code>course_type</code></th><td>query · required</td><td><a href="#schema-CourseType">CourseType</a><small>Values: core, additional</small></td><td><code>core</code></td></tr></tbody></table></div><p class="description">Request body is empty.</p></div><div><h3>Responses</h3><details class="response" open><summary><code class="status success">200</code>Curriculum groups and their source rows</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-CurriculumSelection">CurriculumSelection</a></div><p class="example-label">Core mathematics curriculum for Matthayom 6</p><pre><code>{
+  &quot;source&quot;: {
+    &quot;title&quot;: &quot;ตัวชี้วัดและสาระการเรียนรู้แกนกลาง กลุ่มสาระการเรียนรู้คณิตศาสตร์ (ฉบับปรับปรุง พ.ศ. 2560) ตามหลักสูตรแกนกลางการศึกษาขั้นพื้นฐาน พุทธศักราช 2551&quot;,
+    &quot;file&quot;: &quot;1580786328_d_1.pdf&quot;,
+    &quot;sha256&quot;: &quot;4724c966b6b56cc9b33fad9b1e3163376b8c0608d1ae2ce02e65fb7b6e7e0f1d&quot;
+  },
+  &quot;grade&quot;: 6,
+  &quot;course_type&quot;: &quot;core&quot;,
+  &quot;groups&quot;: [
+    {
+      &quot;strand&quot;: &quot;สถิติและความน่าจะเป็น&quot;,
+      &quot;standard_code&quot;: &quot;ค 3.1&quot;,
+      &quot;statement&quot;: &quot;เข้าใจกระบวนการทางสถิติ และใช้ความรู้ทางสถิติในการแก้ปัญหา&quot;,
+      &quot;rows&quot;: [
+        {
+          &quot;id&quot;: &quot;core/6/3.1/1&quot;,
+          &quot;grade&quot;: 6,
+          &quot;pdf_page&quot;: 37,
+          &quot;printed_page&quot;: 29,
+          &quot;title&quot;: &quot;สถิติ&quot;,
+          &quot;outcomes&quot;: [
+            {
+              &quot;number&quot;: 1,
+              &quot;text&quot;: &quot;เข้าใจและใช้ความรู้ทางสถิติในการนำเสนอ\nข้อมูล และแปลความหมายของค่าสถิติ\nเพื่อประกอบการตัดสินใจ&quot;,
+              &quot;code&quot;: &quot;ค 3.1 ม.6/1&quot;
+            }
+          ],
+          &quot;content&quot;: [
+            &quot;- ข้อมูล&quot;,
+            &quot;- ตำแหน่งที่ของข้อมูล&quot;,
+            &quot;- ค่ากลาง (ฐานนิยม มัธยฐาน ค่าเฉลี่ยเลขคณิต)&quot;,
+            &quot;- ค่าการกระจาย (พิสัย ส่วนเบี่ยงเบนมาตรฐาน&quot;,
+            &quot;ความแปรปรวน)&quot;,
+            &quot;- การนำเสนอข้อมูลเชิงคุณภาพและเชิงปริมาณ&quot;,
+            &quot;- การแปลความหมายของค่าสถิติ&quot;
+          ]
+        }
+      ]
+    }
+  ]
+}</code></pre></div></details><details class="response"><summary><code class="status error">400</code>Invalid grade or unsupported grade and course-type combination</summary><div class="response-body"><p class="example-label">text/plain</p><div class="schema">Schema string</div><p class="example-label">Grade is not an integer</p><pre><code>grade must be an integer from 1 to 6</code></pre><details><summary>Additional mathematics requested for Matthayom 1</summary><pre><code>core supports grades 1–6 and additional supports grades 4–6</code></pre></details></div></details><details class="response"><summary><code class="status error">500</code>Curriculum could not be loaded</summary><div class="response-body"><p class="example-label">text/plain</p><div class="schema">Schema string</div><p class="example-label">Example</p><pre><code>curriculum unavailable</code></pre></div></details></div></div></section><section class="endpoint" id="generateSyllabusDraft"><h2>Generate a one-semester syllabus draft</h2><p class="route"><span class="method post">POST</span><code>/v1/syllabi/draft</code></p><p class="description">Uses the server&#x27;s OpenAI or local curriculum planner. Omit assessment_weights or send an empty list to plan units and periods before assigning scores. This operation does not save the draft. Maximum request body size is 64 KiB.</p><div class="contract"><div><h3>Request</h3><p class="example-label">Example URL</p><pre><code>http://127.0.0.1:8080/v1/syllabi/draft</code></pre><p class="example-label">Content-Type <code>application/json</code></p><div class="schema">Schema <a href="#schema-SyllabusInput">SyllabusInput</a></div><p class="example-label">Generate two statistics periods before defining scores</p><pre><code>{
+  &quot;course_name&quot;: &quot;Mathematics 6 (Core)&quot;,
+  &quot;course_code&quot;: &quot;ค33101&quot;,
+  &quot;grade&quot;: 6,
+  &quot;course_type&quot;: &quot;core&quot;,
+  &quot;term&quot;: 1,
+  &quot;total_sessions&quot;: 2,
+  &quot;minutes_per_session&quot;: 50,
+  &quot;reference_ids&quot;: [
+    &quot;core/6/3.1/1&quot;
+  ],
+  &quot;assessment_weights&quot;: []
+}</code></pre></div><div><h3>Responses</h3><details class="response" open><summary><code class="status success">200</code>Generated syllabus with English references and student-facing HTML</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-SyllabusDraft">SyllabusDraft</a></div><p class="example-label">Two-period draft from the local curriculum planner</p><pre><code>{
+  &quot;course_name&quot;: &quot;Mathematics 6 (Core)&quot;,
+  &quot;course_code&quot;: &quot;ค33101&quot;,
+  &quot;grade&quot;: 6,
+  &quot;course_type&quot;: &quot;core&quot;,
+  &quot;term&quot;: 1,
+  &quot;total_sessions&quot;: 2,
+  &quot;minutes_per_session&quot;: 50,
+  &quot;reference_ids&quot;: [
+    &quot;core/6/3.1/1&quot;
+  ],
+  &quot;assessment_weights&quot;: [],
+  &quot;planning_mode&quot;: &quot;curriculum&quot;,
+  &quot;source&quot;: {
+    &quot;title&quot;: &quot;Indicators and Core Learning Content for Mathematics (2017 Revision), Basic Education Core Curriculum B.E. 2551 (2008), Thailand&quot;,
+    &quot;file&quot;: &quot;1580786328_d_1.pdf&quot;,
+    &quot;sha256&quot;: &quot;4724c966b6b56cc9b33fad9b1e3163376b8c0608d1ae2ce02e65fb7b6e7e0f1d&quot;
+  },
+  &quot;references&quot;: [
+    {
+      &quot;strand&quot;: &quot;Statistics and Probability&quot;,
+      &quot;standard_code&quot;: &quot;ค 3.1&quot;,
+      &quot;statement&quot;: &quot;Understand statistical processes and use statistical knowledge to solve problems.&quot;,
+      &quot;row&quot;: {
+        &quot;id&quot;: &quot;core/6/3.1/1&quot;,
+        &quot;grade&quot;: 6,
+        &quot;pdf_page&quot;: 37,
+        &quot;printed_page&quot;: 29,
+        &quot;title&quot;: &quot;Statistics&quot;,
+        &quot;outcomes&quot;: [
+          {
+            &quot;number&quot;: 1,
+            &quot;text&quot;: &quot;Understand and use statistical knowledge to present data and interpret statistical measures to inform decisions.&quot;,
+            &quot;code&quot;: &quot;ค 3.1 ม.6/1&quot;
+          }
+        ],
+        &quot;content&quot;: [
+          &quot;- Data&quot;,
+          &quot;- Position of data values&quot;,
+          &quot;- Measures of central tendency (mode, median, arithmetic mean)&quot;,
+          &quot;- Measures of dispersion (range, standard deviation, variance)&quot;,
+          &quot;- Presenting qualitative and quantitative data&quot;,
+          &quot;- Interpreting statistical measures&quot;
+        ]
+      }
+    }
+  ],
+  &quot;description&quot;: &quot;Study and apply the mathematics topics selected for this semester.&quot;,
+  &quot;units&quot;: [
+    {
+      &quot;title&quot;: &quot;Statistics&quot;,
+      &quot;reference_ids&quot;: [
+        &quot;core/6/3.1/1&quot;
+      ],
+      &quot;sessions&quot;: [
+        {
+          &quot;number&quot;: 1,
+          &quot;title&quot;: &quot;Data · Position of data values · Measures of central tendency (mode, median, arithmetic mean) · Measures of dispersion (range, standard deviation, variance)&quot;
+        },
+        {
+          &quot;number&quot;: 2,
+          &quot;title&quot;: &quot;Presenting qualitative and quantitative data · Interpreting statistical measures · Understand and use statistical knowledge to present data and interpret statistical measures to inform decisions.&quot;
+        }
+      ],
+      &quot;assessments&quot;: []
+    }
+  ],
+  &quot;document_html&quot;: &quot;&lt;!doctype html&gt;&lt;html lang=\&quot;en\&quot;&gt;&lt;body&gt;&lt;h1&gt;Mathematics 6 (Core)&lt;/h1&gt;&lt;h2&gt;Learning Outcomes&lt;/h2&gt;&lt;/body&gt;&lt;/html&gt;&quot;
+}</code></pre></div></details><details class="response"><summary><code class="status error">400</code>Malformed JSON, an unknown request field, or failed domain validation</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">invalidJson</p><pre><code>{
+  &quot;code&quot;: &quot;invalid_json&quot;,
+  &quot;message&quot;: &quot;expected one JSON object with known fields&quot;
+}</code></pre><details><summary>Reference belongs to a different grade</summary><pre><code>{
+  &quot;code&quot;: &quot;invalid_input&quot;,
+  &quot;message&quot;: &quot;invalid syllabus input: unknown or repeated reference \&quot;core/3/3.1/1\&quot; for this grade and course type&quot;
+}</code></pre></details></div></details><details class="response"><summary><code class="status error">413</code>The request body exceeds the endpoint size limit</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">Example</p><pre><code>{
+  &quot;code&quot;: &quot;request_too_large&quot;,
+  &quot;message&quot;: &quot;request body is too large&quot;
+}</code></pre></div></details><details class="response"><summary><code class="status error">502</code>Planner failed or returned a plan that violates the input constraints</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">rejectedPlan</p><pre><code>{
+  &quot;code&quot;: &quot;invalid_plan&quot;,
+  &quot;message&quot;: &quot;the generated plan did not match the curriculum, sessions or scoring requirements&quot;
+}</code></pre><details><summary>plannerFailure</summary><pre><code>{
+  &quot;code&quot;: &quot;generation_failed&quot;,
+  &quot;message&quot;: &quot;syllabus generation failed&quot;
+}</code></pre></details></div></details><details class="response"><summary><code class="status error">503</code>The generator is unavailable</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">Example</p><pre><code>{
+  &quot;code&quot;: &quot;syllabus_unavailable&quot;,
+  &quot;message&quot;: &quot;syllabus generation is not configured&quot;
+}</code></pre></div></details><details class="response"><summary><code class="status error">504</code>The model request timed out</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">Example</p><pre><code>{
+  &quot;code&quot;: &quot;model_timeout&quot;,
+  &quot;message&quot;: &quot;syllabus generation timed out&quot;
+}</code></pre></div></details></div></div></section><section class="endpoint" id="previewSyllabus"><h2>Validate an edited plan and preview the syllabus</h2><p class="route"><span class="method post">POST</span><code>/v1/syllabi/preview</code></p><p class="description">When timetable is included, the server assigns periods to the classes&#x27; available slots. Use the same request body to save the preview. This operation does not call the model or save a draft.</p><div class="contract"><div><h3>Request</h3><p class="example-label">Example URL</p><pre><code>http://127.0.0.1:8080/v1/syllabi/preview</code></pre><p class="description">Complete teacher-edited syllabus. Maximum request body size is 512 KiB.</p><p class="example-label">Content-Type <code>application/json</code></p><div class="schema">Schema <a href="#schema-SyllabusEdit">SyllabusEdit</a></div><p class="example-label">Edited statistics syllabus with two periods and 100 points</p><pre><code>{
+  &quot;course&quot;: {
+    &quot;course_name&quot;: &quot;Mathematics 6 (Core)&quot;,
+    &quot;course_code&quot;: &quot;ค33101&quot;,
+    &quot;grade&quot;: 6,
+    &quot;course_type&quot;: &quot;core&quot;,
+    &quot;term&quot;: 1,
+    &quot;total_sessions&quot;: 2,
+    &quot;minutes_per_session&quot;: 50,
+    &quot;reference_ids&quot;: [
+      &quot;core/6/3.1/1&quot;
+    ],
+    &quot;assessment_weights&quot;: [
+      {
+        &quot;category&quot;: &quot;Classwork&quot;,
+        &quot;points&quot;: 60
+      },
+      {
+        &quot;category&quot;: &quot;Quiz&quot;,
+        &quot;points&quot;: 40
+      }
+    ]
+  },
+  &quot;plan&quot;: {
+    &quot;description&quot;: &quot;Students present statistical data and use statistical measures to inform decisions.&quot;,
+    &quot;units&quot;: [
+      {
+        &quot;title&quot;: &quot;Statistics&quot;,
+        &quot;reference_ids&quot;: [
+          &quot;core/6/3.1/1&quot;
+        ],
+        &quot;session_titles&quot;: [
+          &quot;Presenting Data&quot;,
+          &quot;Interpreting Statistical Measures&quot;
+        ],
+        &quot;assessments&quot;: [
+          {
+            &quot;title&quot;: &quot;Data Presentation Exercise&quot;,
+            &quot;category&quot;: &quot;Classwork&quot;,
+            &quot;session&quot;: 1,
+            &quot;points&quot;: 60
+          },
+          {
+            &quot;title&quot;: &quot;Statistics Quiz&quot;,
+            &quot;category&quot;: &quot;Quiz&quot;,
+            &quot;session&quot;: 2,
+            &quot;points&quot;: 40
+          }
+        ]
+      }
+    ]
+  },
+  &quot;timetable&quot;: {
+    &quot;start_date&quot;: &quot;2026-05-18&quot;,
+    &quot;end_date&quot;: &quot;2026-06-01&quot;,
+    &quot;excluded_dates&quot;: [
+      &quot;2026-05-25&quot;
+    ],
+    &quot;classes&quot;: [
+      {
+        &quot;id&quot;: &quot;M.6/1&quot;,
+        &quot;slots&quot;: [
+          {
+            &quot;weekday&quot;: 1,
+            &quot;start_time&quot;: &quot;09:00&quot;
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre></div><div><h3>Responses</h3><details class="response" open><summary><code class="status success">200</code>Validated syllabus and optional schedule</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-SyllabusPreview">SyllabusPreview</a></div><p class="example-label">English syllabus and dated meeting schedule</p><pre><code>{
+  &quot;syllabus&quot;: {
+    &quot;course_name&quot;: &quot;Mathematics 6 (Core)&quot;,
+    &quot;course_code&quot;: &quot;ค33101&quot;,
+    &quot;grade&quot;: 6,
+    &quot;course_type&quot;: &quot;core&quot;,
+    &quot;term&quot;: 1,
+    &quot;total_sessions&quot;: 2,
+    &quot;minutes_per_session&quot;: 50,
+    &quot;reference_ids&quot;: [
+      &quot;core/6/3.1/1&quot;
+    ],
+    &quot;assessment_weights&quot;: [
+      {
+        &quot;category&quot;: &quot;Classwork&quot;,
+        &quot;points&quot;: 60
+      },
+      {
+        &quot;category&quot;: &quot;Quiz&quot;,
+        &quot;points&quot;: 40
+      }
+    ],
+    &quot;planning_mode&quot;: &quot;manual&quot;,
+    &quot;source&quot;: {
+      &quot;title&quot;: &quot;Indicators and Core Learning Content for Mathematics (2017 Revision), Basic Education Core Curriculum B.E. 2551 (2008), Thailand&quot;,
+      &quot;file&quot;: &quot;1580786328_d_1.pdf&quot;,
+      &quot;sha256&quot;: &quot;4724c966b6b56cc9b33fad9b1e3163376b8c0608d1ae2ce02e65fb7b6e7e0f1d&quot;
+    },
+    &quot;references&quot;: [
+      {
+        &quot;strand&quot;: &quot;Statistics and Probability&quot;,
+        &quot;standard_code&quot;: &quot;ค 3.1&quot;,
+        &quot;statement&quot;: &quot;Understand statistical processes and use statistical knowledge to solve problems.&quot;,
+        &quot;row&quot;: {
+          &quot;id&quot;: &quot;core/6/3.1/1&quot;,
+          &quot;grade&quot;: 6,
+          &quot;pdf_page&quot;: 37,
+          &quot;printed_page&quot;: 29,
+          &quot;title&quot;: &quot;Statistics&quot;,
+          &quot;outcomes&quot;: [
+            {
+              &quot;number&quot;: 1,
+              &quot;text&quot;: &quot;Understand and use statistical knowledge to present data and interpret statistical measures to inform decisions.&quot;,
+              &quot;code&quot;: &quot;ค 3.1 ม.6/1&quot;
+            }
+          ],
+          &quot;content&quot;: [
+            &quot;- Data&quot;,
+            &quot;- Position of data values&quot;,
+            &quot;- Measures of central tendency (mode, median, arithmetic mean)&quot;,
+            &quot;- Measures of dispersion (range, standard deviation, variance)&quot;,
+            &quot;- Presenting qualitative and quantitative data&quot;,
+            &quot;- Interpreting statistical measures&quot;
+          ]
+        }
+      }
+    ],
+    &quot;description&quot;: &quot;Students present statistical data and use statistical measures to inform decisions.&quot;,
+    &quot;units&quot;: [
+      {
+        &quot;title&quot;: &quot;Statistics&quot;,
+        &quot;reference_ids&quot;: [
+          &quot;core/6/3.1/1&quot;
+        ],
+        &quot;sessions&quot;: [
+          {
+            &quot;number&quot;: 1,
+            &quot;title&quot;: &quot;Presenting Data&quot;
+          },
+          {
+            &quot;number&quot;: 2,
+            &quot;title&quot;: &quot;Interpreting Statistical Measures&quot;
+          }
+        ],
+        &quot;assessments&quot;: [
+          {
+            &quot;title&quot;: &quot;Data Presentation Exercise&quot;,
+            &quot;category&quot;: &quot;Classwork&quot;,
+            &quot;session&quot;: 1,
+            &quot;points&quot;: 60
+          },
+          {
+            &quot;title&quot;: &quot;Statistics Quiz&quot;,
+            &quot;category&quot;: &quot;Quiz&quot;,
+            &quot;session&quot;: 2,
+            &quot;points&quot;: 40
+          }
+        ]
+      }
+    ],
+    &quot;document_html&quot;: &quot;&lt;!doctype html&gt;&lt;html lang=\&quot;en\&quot;&gt;&lt;body&gt;&lt;h1&gt;Mathematics 6 (Core)&lt;/h1&gt;&lt;h2&gt;Learning Outcomes&lt;/h2&gt;&lt;/body&gt;&lt;/html&gt;&quot;
+  },
+  &quot;timetable&quot;: {
+    &quot;start_date&quot;: &quot;2026-05-18&quot;,
+    &quot;end_date&quot;: &quot;2026-06-01&quot;,
+    &quot;excluded_dates&quot;: [
+      &quot;2026-05-25&quot;
+    ],
+    &quot;classes&quot;: [
+      {
+        &quot;id&quot;: &quot;M.6/1&quot;,
+        &quot;slots&quot;: [
+          {
+            &quot;weekday&quot;: 1,
+            &quot;start_time&quot;: &quot;09:00&quot;
+          }
+        ]
+      }
+    ]
+  },
+  &quot;schedule&quot;: {
+    &quot;timezone&quot;: &quot;Asia/Bangkok&quot;,
+    &quot;available_sessions&quot;: 2,
+    &quot;classes&quot;: [
+      {
+        &quot;class_id&quot;: &quot;M.6/1&quot;,
+        &quot;available_sessions&quot;: 2,
+        &quot;meetings&quot;: [
+          {
+            &quot;session&quot;: 1,
+            &quot;unit&quot;: &quot;Statistics&quot;,
+            &quot;title&quot;: &quot;Presenting Data&quot;,
+            &quot;date&quot;: &quot;2026-05-18&quot;,
+            &quot;start_time&quot;: &quot;09:00&quot;,
+            &quot;end_time&quot;: &quot;09:50&quot;,
+            &quot;assessments&quot;: [
+              {
+                &quot;title&quot;: &quot;Data Presentation Exercise&quot;,
+                &quot;category&quot;: &quot;Classwork&quot;,
+                &quot;session&quot;: 1,
+                &quot;points&quot;: 60
+              }
+            ]
+          },
+          {
+            &quot;session&quot;: 2,
+            &quot;unit&quot;: &quot;Statistics&quot;,
+            &quot;title&quot;: &quot;Interpreting Statistical Measures&quot;,
+            &quot;date&quot;: &quot;2026-06-01&quot;,
+            &quot;start_time&quot;: &quot;09:00&quot;,
+            &quot;end_time&quot;: &quot;09:50&quot;,
+            &quot;assessments&quot;: [
+              {
+                &quot;title&quot;: &quot;Statistics Quiz&quot;,
+                &quot;category&quot;: &quot;Quiz&quot;,
+                &quot;session&quot;: 2,
+                &quot;points&quot;: 40
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre></div></details><details class="response"><summary><code class="status error">400</code>Malformed JSON, an unknown request field, or failed domain validation</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">invalidJson</p><pre><code>{
+  &quot;code&quot;: &quot;invalid_json&quot;,
+  &quot;message&quot;: &quot;expected one JSON object with known fields&quot;
+}</code></pre><details><summary>Reference belongs to a different grade</summary><pre><code>{
+  &quot;code&quot;: &quot;invalid_input&quot;,
+  &quot;message&quot;: &quot;invalid syllabus input: unknown or repeated reference \&quot;core/3/3.1/1\&quot; for this grade and course type&quot;
+}</code></pre></details></div></details><details class="response"><summary><code class="status error">413</code>The request body exceeds the endpoint size limit</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">Example</p><pre><code>{
+  &quot;code&quot;: &quot;request_too_large&quot;,
+  &quot;message&quot;: &quot;request body is too large&quot;
+}</code></pre></div></details><details class="response"><summary><code class="status error">500</code>The service could not complete the course operation</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">Example</p><pre><code>{
+  &quot;code&quot;: &quot;course_failed&quot;,
+  &quot;message&quot;: &quot;course operation failed&quot;
+}</code></pre></div></details></div></div></section><section class="endpoint" id="createSyllabus"><h2>Save a new syllabus draft</h2><p class="route"><span class="method post">POST</span><code>/v1/syllabi</code></p><div class="contract"><div><h3>Request</h3><p class="example-label">Example URL</p><pre><code>http://127.0.0.1:8080/v1/syllabi</code></pre><p class="description">Complete teacher-edited syllabus. Maximum request body size is 512 KiB.</p><p class="example-label">Content-Type <code>application/json</code></p><div class="schema">Schema <a href="#schema-SyllabusEdit">SyllabusEdit</a></div><p class="example-label">Edited statistics syllabus with two periods and 100 points</p><pre><code>{
+  &quot;course&quot;: {
+    &quot;course_name&quot;: &quot;Mathematics 6 (Core)&quot;,
+    &quot;course_code&quot;: &quot;ค33101&quot;,
+    &quot;grade&quot;: 6,
+    &quot;course_type&quot;: &quot;core&quot;,
+    &quot;term&quot;: 1,
+    &quot;total_sessions&quot;: 2,
+    &quot;minutes_per_session&quot;: 50,
+    &quot;reference_ids&quot;: [
+      &quot;core/6/3.1/1&quot;
+    ],
+    &quot;assessment_weights&quot;: [
+      {
+        &quot;category&quot;: &quot;Classwork&quot;,
+        &quot;points&quot;: 60
+      },
+      {
+        &quot;category&quot;: &quot;Quiz&quot;,
+        &quot;points&quot;: 40
+      }
+    ]
+  },
+  &quot;plan&quot;: {
+    &quot;description&quot;: &quot;Students present statistical data and use statistical measures to inform decisions.&quot;,
+    &quot;units&quot;: [
+      {
+        &quot;title&quot;: &quot;Statistics&quot;,
+        &quot;reference_ids&quot;: [
+          &quot;core/6/3.1/1&quot;
+        ],
+        &quot;session_titles&quot;: [
+          &quot;Presenting Data&quot;,
+          &quot;Interpreting Statistical Measures&quot;
+        ],
+        &quot;assessments&quot;: [
+          {
+            &quot;title&quot;: &quot;Data Presentation Exercise&quot;,
+            &quot;category&quot;: &quot;Classwork&quot;,
+            &quot;session&quot;: 1,
+            &quot;points&quot;: 60
+          },
+          {
+            &quot;title&quot;: &quot;Statistics Quiz&quot;,
+            &quot;category&quot;: &quot;Quiz&quot;,
+            &quot;session&quot;: 2,
+            &quot;points&quot;: 40
+          }
+        ]
+      }
+    ]
+  },
+  &quot;timetable&quot;: {
+    &quot;start_date&quot;: &quot;2026-05-18&quot;,
+    &quot;end_date&quot;: &quot;2026-06-01&quot;,
+    &quot;excluded_dates&quot;: [
+      &quot;2026-05-25&quot;
+    ],
+    &quot;classes&quot;: [
+      {
+        &quot;id&quot;: &quot;M.6/1&quot;,
+        &quot;slots&quot;: [
+          {
+            &quot;weekday&quot;: 1,
+            &quot;start_time&quot;: &quot;09:00&quot;
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre></div><div><h3>Responses</h3><details class="response" open><summary><code class="status success">201</code>Draft created</summary><div class="response-body"><p class="description">Header <code>Location</code> · Relative URL of the saved draft <code>/v1/syllabi/11112222333344445555666677778888</code></p><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-SavedSyllabus">SavedSyllabus</a></div><p class="example-label">Saved syllabus ready to publish</p><pre><code>{
+  &quot;id&quot;: &quot;11112222333344445555666677778888&quot;,
+  &quot;status&quot;: &quot;draft&quot;,
+  &quot;syllabus&quot;: {
+    &quot;course_name&quot;: &quot;Mathematics 6 (Core)&quot;,
+    &quot;course_code&quot;: &quot;ค33101&quot;,
+    &quot;grade&quot;: 6,
+    &quot;course_type&quot;: &quot;core&quot;,
+    &quot;term&quot;: 1,
+    &quot;total_sessions&quot;: 2,
+    &quot;minutes_per_session&quot;: 50,
+    &quot;reference_ids&quot;: [
+      &quot;core/6/3.1/1&quot;
+    ],
+    &quot;assessment_weights&quot;: [
+      {
+        &quot;category&quot;: &quot;Classwork&quot;,
+        &quot;points&quot;: 60
+      },
+      {
+        &quot;category&quot;: &quot;Quiz&quot;,
+        &quot;points&quot;: 40
+      }
+    ],
+    &quot;planning_mode&quot;: &quot;manual&quot;,
+    &quot;source&quot;: {
+      &quot;title&quot;: &quot;Indicators and Core Learning Content for Mathematics (2017 Revision), Basic Education Core Curriculum B.E. 2551 (2008), Thailand&quot;,
+      &quot;file&quot;: &quot;1580786328_d_1.pdf&quot;,
+      &quot;sha256&quot;: &quot;4724c966b6b56cc9b33fad9b1e3163376b8c0608d1ae2ce02e65fb7b6e7e0f1d&quot;
+    },
+    &quot;references&quot;: [
+      {
+        &quot;strand&quot;: &quot;Statistics and Probability&quot;,
+        &quot;standard_code&quot;: &quot;ค 3.1&quot;,
+        &quot;statement&quot;: &quot;Understand statistical processes and use statistical knowledge to solve problems.&quot;,
+        &quot;row&quot;: {
+          &quot;id&quot;: &quot;core/6/3.1/1&quot;,
+          &quot;grade&quot;: 6,
+          &quot;pdf_page&quot;: 37,
+          &quot;printed_page&quot;: 29,
+          &quot;title&quot;: &quot;Statistics&quot;,
+          &quot;outcomes&quot;: [
+            {
+              &quot;number&quot;: 1,
+              &quot;text&quot;: &quot;Understand and use statistical knowledge to present data and interpret statistical measures to inform decisions.&quot;,
+              &quot;code&quot;: &quot;ค 3.1 ม.6/1&quot;
+            }
+          ],
+          &quot;content&quot;: [
+            &quot;- Data&quot;,
+            &quot;- Position of data values&quot;,
+            &quot;- Measures of central tendency (mode, median, arithmetic mean)&quot;,
+            &quot;- Measures of dispersion (range, standard deviation, variance)&quot;,
+            &quot;- Presenting qualitative and quantitative data&quot;,
+            &quot;- Interpreting statistical measures&quot;
+          ]
+        }
+      }
+    ],
+    &quot;description&quot;: &quot;Students present statistical data and use statistical measures to inform decisions.&quot;,
+    &quot;units&quot;: [
+      {
+        &quot;title&quot;: &quot;Statistics&quot;,
+        &quot;reference_ids&quot;: [
+          &quot;core/6/3.1/1&quot;
+        ],
+        &quot;sessions&quot;: [
+          {
+            &quot;number&quot;: 1,
+            &quot;title&quot;: &quot;Presenting Data&quot;
+          },
+          {
+            &quot;number&quot;: 2,
+            &quot;title&quot;: &quot;Interpreting Statistical Measures&quot;
+          }
+        ],
+        &quot;assessments&quot;: [
+          {
+            &quot;title&quot;: &quot;Data Presentation Exercise&quot;,
+            &quot;category&quot;: &quot;Classwork&quot;,
+            &quot;session&quot;: 1,
+            &quot;points&quot;: 60
+          },
+          {
+            &quot;title&quot;: &quot;Statistics Quiz&quot;,
+            &quot;category&quot;: &quot;Quiz&quot;,
+            &quot;session&quot;: 2,
+            &quot;points&quot;: 40
+          }
+        ]
+      }
+    ],
+    &quot;document_html&quot;: &quot;&lt;!doctype html&gt;&lt;html lang=\&quot;en\&quot;&gt;&lt;body&gt;&lt;h1&gt;Mathematics 6 (Core)&lt;/h1&gt;&lt;h2&gt;Learning Outcomes&lt;/h2&gt;&lt;/body&gt;&lt;/html&gt;&quot;
+  },
+  &quot;timetable&quot;: {
+    &quot;start_date&quot;: &quot;2026-05-18&quot;,
+    &quot;end_date&quot;: &quot;2026-06-01&quot;,
+    &quot;excluded_dates&quot;: [
+      &quot;2026-05-25&quot;
+    ],
+    &quot;classes&quot;: [
+      {
+        &quot;id&quot;: &quot;M.6/1&quot;,
+        &quot;slots&quot;: [
+          {
+            &quot;weekday&quot;: 1,
+            &quot;start_time&quot;: &quot;09:00&quot;
+          }
+        ]
+      }
+    ]
+  },
+  &quot;schedule&quot;: {
+    &quot;timezone&quot;: &quot;Asia/Bangkok&quot;,
+    &quot;available_sessions&quot;: 2,
+    &quot;classes&quot;: [
+      {
+        &quot;class_id&quot;: &quot;M.6/1&quot;,
+        &quot;available_sessions&quot;: 2,
+        &quot;meetings&quot;: [
+          {
+            &quot;session&quot;: 1,
+            &quot;unit&quot;: &quot;Statistics&quot;,
+            &quot;title&quot;: &quot;Presenting Data&quot;,
+            &quot;date&quot;: &quot;2026-05-18&quot;,
+            &quot;start_time&quot;: &quot;09:00&quot;,
+            &quot;end_time&quot;: &quot;09:50&quot;,
+            &quot;assessments&quot;: [
+              {
+                &quot;title&quot;: &quot;Data Presentation Exercise&quot;,
+                &quot;category&quot;: &quot;Classwork&quot;,
+                &quot;session&quot;: 1,
+                &quot;points&quot;: 60
+              }
+            ]
+          },
+          {
+            &quot;session&quot;: 2,
+            &quot;unit&quot;: &quot;Statistics&quot;,
+            &quot;title&quot;: &quot;Interpreting Statistical Measures&quot;,
+            &quot;date&quot;: &quot;2026-06-01&quot;,
+            &quot;start_time&quot;: &quot;09:00&quot;,
+            &quot;end_time&quot;: &quot;09:50&quot;,
+            &quot;assessments&quot;: [
+              {
+                &quot;title&quot;: &quot;Statistics Quiz&quot;,
+                &quot;category&quot;: &quot;Quiz&quot;,
+                &quot;session&quot;: 2,
+                &quot;points&quot;: 40
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre></div></details><details class="response"><summary><code class="status error">400</code>Malformed JSON, an unknown request field, or failed domain validation</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">invalidJson</p><pre><code>{
+  &quot;code&quot;: &quot;invalid_json&quot;,
+  &quot;message&quot;: &quot;expected one JSON object with known fields&quot;
+}</code></pre><details><summary>Reference belongs to a different grade</summary><pre><code>{
+  &quot;code&quot;: &quot;invalid_input&quot;,
+  &quot;message&quot;: &quot;invalid syllabus input: unknown or repeated reference \&quot;core/3/3.1/1\&quot; for this grade and course type&quot;
+}</code></pre></details></div></details><details class="response"><summary><code class="status error">413</code>The request body exceeds the endpoint size limit</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">Example</p><pre><code>{
+  &quot;code&quot;: &quot;request_too_large&quot;,
+  &quot;message&quot;: &quot;request body is too large&quot;
+}</code></pre></div></details><details class="response"><summary><code class="status error">500</code>The service could not complete the course operation</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">Example</p><pre><code>{
+  &quot;code&quot;: &quot;course_failed&quot;,
+  &quot;message&quot;: &quot;course operation failed&quot;
+}</code></pre></div></details></div></div></section><section class="endpoint" id="getSyllabus"><h2>Read the latest saved teacher draft</h2><p class="route"><span class="method get">GET</span><code>/v1/syllabi/{id}</code></p><div class="contract"><div><h3>Request</h3><p class="example-label">Example URL</p><pre><code>http://127.0.0.1:8080/v1/syllabi/11112222333344445555666677778888</code></pre><div class="table-wrap"><table><thead><tr><th>Parameter</th><th>Location</th><th>Type</th><th>Example</th></tr></thead><tbody><tr><th scope="row"><code>id</code></th><td>path · required</td><td><a href="#schema-SyllabusId">SyllabusId</a><small>ID from the saved syllabus response</small></td><td><code>11112222333344445555666677778888</code></td></tr></tbody></table></div><p class="description">Request body is empty.</p></div><div><h3>Responses</h3><details class="response" open><summary><code class="status success">200</code>Current saved draft, including any edits since publication</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-SavedSyllabus">SavedSyllabus</a></div><p class="example-label">Saved syllabus ready to publish</p><pre><code>{
+  &quot;id&quot;: &quot;11112222333344445555666677778888&quot;,
+  &quot;status&quot;: &quot;draft&quot;,
+  &quot;syllabus&quot;: {
+    &quot;course_name&quot;: &quot;Mathematics 6 (Core)&quot;,
+    &quot;course_code&quot;: &quot;ค33101&quot;,
+    &quot;grade&quot;: 6,
+    &quot;course_type&quot;: &quot;core&quot;,
+    &quot;term&quot;: 1,
+    &quot;total_sessions&quot;: 2,
+    &quot;minutes_per_session&quot;: 50,
+    &quot;reference_ids&quot;: [
+      &quot;core/6/3.1/1&quot;
+    ],
+    &quot;assessment_weights&quot;: [
+      {
+        &quot;category&quot;: &quot;Classwork&quot;,
+        &quot;points&quot;: 60
+      },
+      {
+        &quot;category&quot;: &quot;Quiz&quot;,
+        &quot;points&quot;: 40
+      }
+    ],
+    &quot;planning_mode&quot;: &quot;manual&quot;,
+    &quot;source&quot;: {
+      &quot;title&quot;: &quot;Indicators and Core Learning Content for Mathematics (2017 Revision), Basic Education Core Curriculum B.E. 2551 (2008), Thailand&quot;,
+      &quot;file&quot;: &quot;1580786328_d_1.pdf&quot;,
+      &quot;sha256&quot;: &quot;4724c966b6b56cc9b33fad9b1e3163376b8c0608d1ae2ce02e65fb7b6e7e0f1d&quot;
+    },
+    &quot;references&quot;: [
+      {
+        &quot;strand&quot;: &quot;Statistics and Probability&quot;,
+        &quot;standard_code&quot;: &quot;ค 3.1&quot;,
+        &quot;statement&quot;: &quot;Understand statistical processes and use statistical knowledge to solve problems.&quot;,
+        &quot;row&quot;: {
+          &quot;id&quot;: &quot;core/6/3.1/1&quot;,
+          &quot;grade&quot;: 6,
+          &quot;pdf_page&quot;: 37,
+          &quot;printed_page&quot;: 29,
+          &quot;title&quot;: &quot;Statistics&quot;,
+          &quot;outcomes&quot;: [
+            {
+              &quot;number&quot;: 1,
+              &quot;text&quot;: &quot;Understand and use statistical knowledge to present data and interpret statistical measures to inform decisions.&quot;,
+              &quot;code&quot;: &quot;ค 3.1 ม.6/1&quot;
+            }
+          ],
+          &quot;content&quot;: [
+            &quot;- Data&quot;,
+            &quot;- Position of data values&quot;,
+            &quot;- Measures of central tendency (mode, median, arithmetic mean)&quot;,
+            &quot;- Measures of dispersion (range, standard deviation, variance)&quot;,
+            &quot;- Presenting qualitative and quantitative data&quot;,
+            &quot;- Interpreting statistical measures&quot;
+          ]
+        }
+      }
+    ],
+    &quot;description&quot;: &quot;Students present statistical data and use statistical measures to inform decisions.&quot;,
+    &quot;units&quot;: [
+      {
+        &quot;title&quot;: &quot;Statistics&quot;,
+        &quot;reference_ids&quot;: [
+          &quot;core/6/3.1/1&quot;
+        ],
+        &quot;sessions&quot;: [
+          {
+            &quot;number&quot;: 1,
+            &quot;title&quot;: &quot;Presenting Data&quot;
+          },
+          {
+            &quot;number&quot;: 2,
+            &quot;title&quot;: &quot;Interpreting Statistical Measures&quot;
+          }
+        ],
+        &quot;assessments&quot;: [
+          {
+            &quot;title&quot;: &quot;Data Presentation Exercise&quot;,
+            &quot;category&quot;: &quot;Classwork&quot;,
+            &quot;session&quot;: 1,
+            &quot;points&quot;: 60
+          },
+          {
+            &quot;title&quot;: &quot;Statistics Quiz&quot;,
+            &quot;category&quot;: &quot;Quiz&quot;,
+            &quot;session&quot;: 2,
+            &quot;points&quot;: 40
+          }
+        ]
+      }
+    ],
+    &quot;document_html&quot;: &quot;&lt;!doctype html&gt;&lt;html lang=\&quot;en\&quot;&gt;&lt;body&gt;&lt;h1&gt;Mathematics 6 (Core)&lt;/h1&gt;&lt;h2&gt;Learning Outcomes&lt;/h2&gt;&lt;/body&gt;&lt;/html&gt;&quot;
+  },
+  &quot;timetable&quot;: {
+    &quot;start_date&quot;: &quot;2026-05-18&quot;,
+    &quot;end_date&quot;: &quot;2026-06-01&quot;,
+    &quot;excluded_dates&quot;: [
+      &quot;2026-05-25&quot;
+    ],
+    &quot;classes&quot;: [
+      {
+        &quot;id&quot;: &quot;M.6/1&quot;,
+        &quot;slots&quot;: [
+          {
+            &quot;weekday&quot;: 1,
+            &quot;start_time&quot;: &quot;09:00&quot;
+          }
+        ]
+      }
+    ]
+  },
+  &quot;schedule&quot;: {
+    &quot;timezone&quot;: &quot;Asia/Bangkok&quot;,
+    &quot;available_sessions&quot;: 2,
+    &quot;classes&quot;: [
+      {
+        &quot;class_id&quot;: &quot;M.6/1&quot;,
+        &quot;available_sessions&quot;: 2,
+        &quot;meetings&quot;: [
+          {
+            &quot;session&quot;: 1,
+            &quot;unit&quot;: &quot;Statistics&quot;,
+            &quot;title&quot;: &quot;Presenting Data&quot;,
+            &quot;date&quot;: &quot;2026-05-18&quot;,
+            &quot;start_time&quot;: &quot;09:00&quot;,
+            &quot;end_time&quot;: &quot;09:50&quot;,
+            &quot;assessments&quot;: [
+              {
+                &quot;title&quot;: &quot;Data Presentation Exercise&quot;,
+                &quot;category&quot;: &quot;Classwork&quot;,
+                &quot;session&quot;: 1,
+                &quot;points&quot;: 60
+              }
+            ]
+          },
+          {
+            &quot;session&quot;: 2,
+            &quot;unit&quot;: &quot;Statistics&quot;,
+            &quot;title&quot;: &quot;Interpreting Statistical Measures&quot;,
+            &quot;date&quot;: &quot;2026-06-01&quot;,
+            &quot;start_time&quot;: &quot;09:00&quot;,
+            &quot;end_time&quot;: &quot;09:50&quot;,
+            &quot;assessments&quot;: [
+              {
+                &quot;title&quot;: &quot;Statistics Quiz&quot;,
+                &quot;category&quot;: &quot;Quiz&quot;,
+                &quot;session&quot;: 2,
+                &quot;points&quot;: 40
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre></div></details><details class="response"><summary><code class="status error">404</code>The requested draft or published snapshot does not exist</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">Student view does not exist yet</p><pre><code>{
+  &quot;code&quot;: &quot;not_found&quot;,
+  &quot;message&quot;: &quot;course not found&quot;
+}</code></pre></div></details><details class="response"><summary><code class="status error">500</code>The service could not complete the course operation</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">Example</p><pre><code>{
+  &quot;code&quot;: &quot;course_failed&quot;,
+  &quot;message&quot;: &quot;course operation failed&quot;
+}</code></pre></div></details></div></div></section><section class="endpoint" id="replaceSyllabus"><h2>Replace the saved draft</h2><p class="route"><span class="method put">PUT</span><code>/v1/syllabi/{id}</code></p><p class="description">Send the complete edited plan. For a previously published syllabus, the status becomes unpublished_changes and the student view continues to serve the last published snapshot.</p><div class="contract"><div><h3>Request</h3><p class="example-label">Example URL</p><pre><code>http://127.0.0.1:8080/v1/syllabi/11112222333344445555666677778888</code></pre><div class="table-wrap"><table><thead><tr><th>Parameter</th><th>Location</th><th>Type</th><th>Example</th></tr></thead><tbody><tr><th scope="row"><code>id</code></th><td>path · required</td><td><a href="#schema-SyllabusId">SyllabusId</a><small>ID from the saved syllabus response</small></td><td><code>11112222333344445555666677778888</code></td></tr></tbody></table></div><p class="description">Complete teacher-edited syllabus. Maximum request body size is 512 KiB.</p><p class="example-label">Content-Type <code>application/json</code></p><div class="schema">Schema <a href="#schema-SyllabusEdit">SyllabusEdit</a></div><p class="example-label">Edited statistics syllabus with two periods and 100 points</p><pre><code>{
+  &quot;course&quot;: {
+    &quot;course_name&quot;: &quot;Mathematics 6 (Core)&quot;,
+    &quot;course_code&quot;: &quot;ค33101&quot;,
+    &quot;grade&quot;: 6,
+    &quot;course_type&quot;: &quot;core&quot;,
+    &quot;term&quot;: 1,
+    &quot;total_sessions&quot;: 2,
+    &quot;minutes_per_session&quot;: 50,
+    &quot;reference_ids&quot;: [
+      &quot;core/6/3.1/1&quot;
+    ],
+    &quot;assessment_weights&quot;: [
+      {
+        &quot;category&quot;: &quot;Classwork&quot;,
+        &quot;points&quot;: 60
+      },
+      {
+        &quot;category&quot;: &quot;Quiz&quot;,
+        &quot;points&quot;: 40
+      }
+    ]
+  },
+  &quot;plan&quot;: {
+    &quot;description&quot;: &quot;Students present statistical data and use statistical measures to inform decisions.&quot;,
+    &quot;units&quot;: [
+      {
+        &quot;title&quot;: &quot;Statistics&quot;,
+        &quot;reference_ids&quot;: [
+          &quot;core/6/3.1/1&quot;
+        ],
+        &quot;session_titles&quot;: [
+          &quot;Presenting Data&quot;,
+          &quot;Interpreting Statistical Measures&quot;
+        ],
+        &quot;assessments&quot;: [
+          {
+            &quot;title&quot;: &quot;Data Presentation Exercise&quot;,
+            &quot;category&quot;: &quot;Classwork&quot;,
+            &quot;session&quot;: 1,
+            &quot;points&quot;: 60
+          },
+          {
+            &quot;title&quot;: &quot;Statistics Quiz&quot;,
+            &quot;category&quot;: &quot;Quiz&quot;,
+            &quot;session&quot;: 2,
+            &quot;points&quot;: 40
+          }
+        ]
+      }
+    ]
+  },
+  &quot;timetable&quot;: {
+    &quot;start_date&quot;: &quot;2026-05-18&quot;,
+    &quot;end_date&quot;: &quot;2026-06-01&quot;,
+    &quot;excluded_dates&quot;: [
+      &quot;2026-05-25&quot;
+    ],
+    &quot;classes&quot;: [
+      {
+        &quot;id&quot;: &quot;M.6/1&quot;,
+        &quot;slots&quot;: [
+          {
+            &quot;weekday&quot;: 1,
+            &quot;start_time&quot;: &quot;09:00&quot;
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre></div><div><h3>Responses</h3><details class="response" open><summary><code class="status success">200</code>Updated draft</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-SavedSyllabus">SavedSyllabus</a></div><p class="example-label">Draft edited after publication</p><pre><code>{
+  &quot;id&quot;: &quot;11112222333344445555666677778888&quot;,
+  &quot;status&quot;: &quot;unpublished_changes&quot;,
+  &quot;syllabus&quot;: {
+    &quot;course_name&quot;: &quot;Mathematics 6 (Core)&quot;,
+    &quot;course_code&quot;: &quot;ค33101&quot;,
+    &quot;grade&quot;: 6,
+    &quot;course_type&quot;: &quot;core&quot;,
+    &quot;term&quot;: 1,
+    &quot;total_sessions&quot;: 2,
+    &quot;minutes_per_session&quot;: 50,
+    &quot;reference_ids&quot;: [
+      &quot;core/6/3.1/1&quot;
+    ],
+    &quot;assessment_weights&quot;: [
+      {
+        &quot;category&quot;: &quot;Classwork&quot;,
+        &quot;points&quot;: 60
+      },
+      {
+        &quot;category&quot;: &quot;Quiz&quot;,
+        &quot;points&quot;: 40
+      }
+    ],
+    &quot;planning_mode&quot;: &quot;manual&quot;,
+    &quot;source&quot;: {
+      &quot;title&quot;: &quot;Indicators and Core Learning Content for Mathematics (2017 Revision), Basic Education Core Curriculum B.E. 2551 (2008), Thailand&quot;,
+      &quot;file&quot;: &quot;1580786328_d_1.pdf&quot;,
+      &quot;sha256&quot;: &quot;4724c966b6b56cc9b33fad9b1e3163376b8c0608d1ae2ce02e65fb7b6e7e0f1d&quot;
+    },
+    &quot;references&quot;: [
+      {
+        &quot;strand&quot;: &quot;Statistics and Probability&quot;,
+        &quot;standard_code&quot;: &quot;ค 3.1&quot;,
+        &quot;statement&quot;: &quot;Understand statistical processes and use statistical knowledge to solve problems.&quot;,
+        &quot;row&quot;: {
+          &quot;id&quot;: &quot;core/6/3.1/1&quot;,
+          &quot;grade&quot;: 6,
+          &quot;pdf_page&quot;: 37,
+          &quot;printed_page&quot;: 29,
+          &quot;title&quot;: &quot;Statistics&quot;,
+          &quot;outcomes&quot;: [
+            {
+              &quot;number&quot;: 1,
+              &quot;text&quot;: &quot;Understand and use statistical knowledge to present data and interpret statistical measures to inform decisions.&quot;,
+              &quot;code&quot;: &quot;ค 3.1 ม.6/1&quot;
+            }
+          ],
+          &quot;content&quot;: [
+            &quot;- Data&quot;,
+            &quot;- Position of data values&quot;,
+            &quot;- Measures of central tendency (mode, median, arithmetic mean)&quot;,
+            &quot;- Measures of dispersion (range, standard deviation, variance)&quot;,
+            &quot;- Presenting qualitative and quantitative data&quot;,
+            &quot;- Interpreting statistical measures&quot;
+          ]
+        }
+      }
+    ],
+    &quot;description&quot;: &quot;Students present statistical data and use statistical measures to inform decisions.&quot;,
+    &quot;units&quot;: [
+      {
+        &quot;title&quot;: &quot;Statistics&quot;,
+        &quot;reference_ids&quot;: [
+          &quot;core/6/3.1/1&quot;
+        ],
+        &quot;sessions&quot;: [
+          {
+            &quot;number&quot;: 1,
+            &quot;title&quot;: &quot;Presenting Data&quot;
+          },
+          {
+            &quot;number&quot;: 2,
+            &quot;title&quot;: &quot;Interpreting Statistical Measures&quot;
+          }
+        ],
+        &quot;assessments&quot;: [
+          {
+            &quot;title&quot;: &quot;Data Presentation Exercise&quot;,
+            &quot;category&quot;: &quot;Classwork&quot;,
+            &quot;session&quot;: 1,
+            &quot;points&quot;: 60
+          },
+          {
+            &quot;title&quot;: &quot;Statistics Quiz&quot;,
+            &quot;category&quot;: &quot;Quiz&quot;,
+            &quot;session&quot;: 2,
+            &quot;points&quot;: 40
+          }
+        ]
+      }
+    ],
+    &quot;document_html&quot;: &quot;&lt;!doctype html&gt;&lt;html lang=\&quot;en\&quot;&gt;&lt;body&gt;&lt;h1&gt;Mathematics 6 (Core)&lt;/h1&gt;&lt;h2&gt;Learning Outcomes&lt;/h2&gt;&lt;/body&gt;&lt;/html&gt;&quot;
+  },
+  &quot;timetable&quot;: {
+    &quot;start_date&quot;: &quot;2026-05-18&quot;,
+    &quot;end_date&quot;: &quot;2026-06-01&quot;,
+    &quot;excluded_dates&quot;: [
+      &quot;2026-05-25&quot;
+    ],
+    &quot;classes&quot;: [
+      {
+        &quot;id&quot;: &quot;M.6/1&quot;,
+        &quot;slots&quot;: [
+          {
+            &quot;weekday&quot;: 1,
+            &quot;start_time&quot;: &quot;09:00&quot;
+          }
+        ]
+      }
+    ]
+  },
+  &quot;schedule&quot;: {
+    &quot;timezone&quot;: &quot;Asia/Bangkok&quot;,
+    &quot;available_sessions&quot;: 2,
+    &quot;classes&quot;: [
+      {
+        &quot;class_id&quot;: &quot;M.6/1&quot;,
+        &quot;available_sessions&quot;: 2,
+        &quot;meetings&quot;: [
+          {
+            &quot;session&quot;: 1,
+            &quot;unit&quot;: &quot;Statistics&quot;,
+            &quot;title&quot;: &quot;Presenting Data&quot;,
+            &quot;date&quot;: &quot;2026-05-18&quot;,
+            &quot;start_time&quot;: &quot;09:00&quot;,
+            &quot;end_time&quot;: &quot;09:50&quot;,
+            &quot;assessments&quot;: [
+              {
+                &quot;title&quot;: &quot;Data Presentation Exercise&quot;,
+                &quot;category&quot;: &quot;Classwork&quot;,
+                &quot;session&quot;: 1,
+                &quot;points&quot;: 60
+              }
+            ]
+          },
+          {
+            &quot;session&quot;: 2,
+            &quot;unit&quot;: &quot;Statistics&quot;,
+            &quot;title&quot;: &quot;Interpreting Statistical Measures&quot;,
+            &quot;date&quot;: &quot;2026-06-01&quot;,
+            &quot;start_time&quot;: &quot;09:00&quot;,
+            &quot;end_time&quot;: &quot;09:50&quot;,
+            &quot;assessments&quot;: [
+              {
+                &quot;title&quot;: &quot;Statistics Quiz&quot;,
+                &quot;category&quot;: &quot;Quiz&quot;,
+                &quot;session&quot;: 2,
+                &quot;points&quot;: 40
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre></div></details><details class="response"><summary><code class="status error">400</code>Malformed JSON, an unknown request field, or failed domain validation</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">invalidJson</p><pre><code>{
+  &quot;code&quot;: &quot;invalid_json&quot;,
+  &quot;message&quot;: &quot;expected one JSON object with known fields&quot;
+}</code></pre><details><summary>Reference belongs to a different grade</summary><pre><code>{
+  &quot;code&quot;: &quot;invalid_input&quot;,
+  &quot;message&quot;: &quot;invalid syllabus input: unknown or repeated reference \&quot;core/3/3.1/1\&quot; for this grade and course type&quot;
+}</code></pre></details></div></details><details class="response"><summary><code class="status error">404</code>The requested draft or published snapshot does not exist</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">Student view does not exist yet</p><pre><code>{
+  &quot;code&quot;: &quot;not_found&quot;,
+  &quot;message&quot;: &quot;course not found&quot;
+}</code></pre></div></details><details class="response"><summary><code class="status error">413</code>The request body exceeds the endpoint size limit</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">Example</p><pre><code>{
+  &quot;code&quot;: &quot;request_too_large&quot;,
+  &quot;message&quot;: &quot;request body is too large&quot;
+}</code></pre></div></details><details class="response"><summary><code class="status error">500</code>The service could not complete the course operation</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">Example</p><pre><code>{
+  &quot;code&quot;: &quot;course_failed&quot;,
+  &quot;message&quot;: &quot;course operation failed&quot;
+}</code></pre></div></details></div></div></section><section class="endpoint" id="publishSyllabus"><h2>Publish the saved draft for students</h2><p class="route"><span class="method post">POST</span><code>/v1/syllabi/{id}/publish</code></p><p class="description">Publishes the current saved draft. Send an empty request body. Publication requires a complete schedule and 100 assessment points.</p><div class="contract"><div><h3>Request</h3><p class="example-label">Example URL</p><pre><code>http://127.0.0.1:8080/v1/syllabi/11112222333344445555666677778888/publish</code></pre><div class="table-wrap"><table><thead><tr><th>Parameter</th><th>Location</th><th>Type</th><th>Example</th></tr></thead><tbody><tr><th scope="row"><code>id</code></th><td>path · required</td><td><a href="#schema-SyllabusId">SyllabusId</a><small>ID from the saved syllabus response</small></td><td><code>11112222333344445555666677778888</code></td></tr></tbody></table></div><p class="description">Request body is empty.</p></div><div><h3>Responses</h3><details class="response" open><summary><code class="status success">200</code>Draft published</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-SavedSyllabus">SavedSyllabus</a></div><p class="example-label">Saved draft after publication</p><pre><code>{
+  &quot;id&quot;: &quot;11112222333344445555666677778888&quot;,
+  &quot;status&quot;: &quot;published&quot;,
+  &quot;syllabus&quot;: {
+    &quot;course_name&quot;: &quot;Mathematics 6 (Core)&quot;,
+    &quot;course_code&quot;: &quot;ค33101&quot;,
+    &quot;grade&quot;: 6,
+    &quot;course_type&quot;: &quot;core&quot;,
+    &quot;term&quot;: 1,
+    &quot;total_sessions&quot;: 2,
+    &quot;minutes_per_session&quot;: 50,
+    &quot;reference_ids&quot;: [
+      &quot;core/6/3.1/1&quot;
+    ],
+    &quot;assessment_weights&quot;: [
+      {
+        &quot;category&quot;: &quot;Classwork&quot;,
+        &quot;points&quot;: 60
+      },
+      {
+        &quot;category&quot;: &quot;Quiz&quot;,
+        &quot;points&quot;: 40
+      }
+    ],
+    &quot;planning_mode&quot;: &quot;manual&quot;,
+    &quot;source&quot;: {
+      &quot;title&quot;: &quot;Indicators and Core Learning Content for Mathematics (2017 Revision), Basic Education Core Curriculum B.E. 2551 (2008), Thailand&quot;,
+      &quot;file&quot;: &quot;1580786328_d_1.pdf&quot;,
+      &quot;sha256&quot;: &quot;4724c966b6b56cc9b33fad9b1e3163376b8c0608d1ae2ce02e65fb7b6e7e0f1d&quot;
+    },
+    &quot;references&quot;: [
+      {
+        &quot;strand&quot;: &quot;Statistics and Probability&quot;,
+        &quot;standard_code&quot;: &quot;ค 3.1&quot;,
+        &quot;statement&quot;: &quot;Understand statistical processes and use statistical knowledge to solve problems.&quot;,
+        &quot;row&quot;: {
+          &quot;id&quot;: &quot;core/6/3.1/1&quot;,
+          &quot;grade&quot;: 6,
+          &quot;pdf_page&quot;: 37,
+          &quot;printed_page&quot;: 29,
+          &quot;title&quot;: &quot;Statistics&quot;,
+          &quot;outcomes&quot;: [
+            {
+              &quot;number&quot;: 1,
+              &quot;text&quot;: &quot;Understand and use statistical knowledge to present data and interpret statistical measures to inform decisions.&quot;,
+              &quot;code&quot;: &quot;ค 3.1 ม.6/1&quot;
+            }
+          ],
+          &quot;content&quot;: [
+            &quot;- Data&quot;,
+            &quot;- Position of data values&quot;,
+            &quot;- Measures of central tendency (mode, median, arithmetic mean)&quot;,
+            &quot;- Measures of dispersion (range, standard deviation, variance)&quot;,
+            &quot;- Presenting qualitative and quantitative data&quot;,
+            &quot;- Interpreting statistical measures&quot;
+          ]
+        }
+      }
+    ],
+    &quot;description&quot;: &quot;Students present statistical data and use statistical measures to inform decisions.&quot;,
+    &quot;units&quot;: [
+      {
+        &quot;title&quot;: &quot;Statistics&quot;,
+        &quot;reference_ids&quot;: [
+          &quot;core/6/3.1/1&quot;
+        ],
+        &quot;sessions&quot;: [
+          {
+            &quot;number&quot;: 1,
+            &quot;title&quot;: &quot;Presenting Data&quot;
+          },
+          {
+            &quot;number&quot;: 2,
+            &quot;title&quot;: &quot;Interpreting Statistical Measures&quot;
+          }
+        ],
+        &quot;assessments&quot;: [
+          {
+            &quot;title&quot;: &quot;Data Presentation Exercise&quot;,
+            &quot;category&quot;: &quot;Classwork&quot;,
+            &quot;session&quot;: 1,
+            &quot;points&quot;: 60
+          },
+          {
+            &quot;title&quot;: &quot;Statistics Quiz&quot;,
+            &quot;category&quot;: &quot;Quiz&quot;,
+            &quot;session&quot;: 2,
+            &quot;points&quot;: 40
+          }
+        ]
+      }
+    ],
+    &quot;document_html&quot;: &quot;&lt;!doctype html&gt;&lt;html lang=\&quot;en\&quot;&gt;&lt;body&gt;&lt;h1&gt;Mathematics 6 (Core)&lt;/h1&gt;&lt;h2&gt;Learning Outcomes&lt;/h2&gt;&lt;/body&gt;&lt;/html&gt;&quot;
+  },
+  &quot;timetable&quot;: {
+    &quot;start_date&quot;: &quot;2026-05-18&quot;,
+    &quot;end_date&quot;: &quot;2026-06-01&quot;,
+    &quot;excluded_dates&quot;: [
+      &quot;2026-05-25&quot;
+    ],
+    &quot;classes&quot;: [
+      {
+        &quot;id&quot;: &quot;M.6/1&quot;,
+        &quot;slots&quot;: [
+          {
+            &quot;weekday&quot;: 1,
+            &quot;start_time&quot;: &quot;09:00&quot;
+          }
+        ]
+      }
+    ]
+  },
+  &quot;schedule&quot;: {
+    &quot;timezone&quot;: &quot;Asia/Bangkok&quot;,
+    &quot;available_sessions&quot;: 2,
+    &quot;classes&quot;: [
+      {
+        &quot;class_id&quot;: &quot;M.6/1&quot;,
+        &quot;available_sessions&quot;: 2,
+        &quot;meetings&quot;: [
+          {
+            &quot;session&quot;: 1,
+            &quot;unit&quot;: &quot;Statistics&quot;,
+            &quot;title&quot;: &quot;Presenting Data&quot;,
+            &quot;date&quot;: &quot;2026-05-18&quot;,
+            &quot;start_time&quot;: &quot;09:00&quot;,
+            &quot;end_time&quot;: &quot;09:50&quot;,
+            &quot;assessments&quot;: [
+              {
+                &quot;title&quot;: &quot;Data Presentation Exercise&quot;,
+                &quot;category&quot;: &quot;Classwork&quot;,
+                &quot;session&quot;: 1,
+                &quot;points&quot;: 60
+              }
+            ]
+          },
+          {
+            &quot;session&quot;: 2,
+            &quot;unit&quot;: &quot;Statistics&quot;,
+            &quot;title&quot;: &quot;Interpreting Statistical Measures&quot;,
+            &quot;date&quot;: &quot;2026-06-01&quot;,
+            &quot;start_time&quot;: &quot;09:00&quot;,
+            &quot;end_time&quot;: &quot;09:50&quot;,
+            &quot;assessments&quot;: [
+              {
+                &quot;title&quot;: &quot;Statistics Quiz&quot;,
+                &quot;category&quot;: &quot;Quiz&quot;,
+                &quot;session&quot;: 2,
+                &quot;points&quot;: 40
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre></div></details><details class="response"><summary><code class="status error">404</code>The requested draft or published snapshot does not exist</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">Student view does not exist yet</p><pre><code>{
+  &quot;code&quot;: &quot;not_found&quot;,
+  &quot;message&quot;: &quot;course not found&quot;
+}</code></pre></div></details><details class="response"><summary><code class="status error">409</code>The draft is missing a complete schedule or scored assessments</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">Attempt to publish a draft without a timetable</p><pre><code>{
+  &quot;code&quot;: &quot;not_ready&quot;,
+  &quot;message&quot;: &quot;publishing requires a complete teaching schedule and 100 assessment points&quot;
+}</code></pre></div></details><details class="response"><summary><code class="status error">500</code>The service could not complete the course operation</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">Example</p><pre><code>{
+  &quot;code&quot;: &quot;course_failed&quot;,
+  &quot;message&quot;: &quot;course operation failed&quot;
+}</code></pre></div></details></div></div></section><section class="endpoint" id="countTeachingPeriods"><h2>Count available teaching periods for each class</h2><p class="route"><span class="method post">POST</span><code>/v1/timetable/availability</code></p><p class="description">The course-wide count is the lowest available-period count across its classes.</p><div class="contract"><div><h3>Request</h3><p class="example-label">Example URL</p><pre><code>http://127.0.0.1:8080/v1/timetable/availability</code></pre><p class="example-label">Content-Type <code>application/json</code></p><div class="schema">Schema <a href="#schema-AvailabilityInput">AvailabilityInput</a></div><p class="example-label">A weekly Monday period with one excluded date</p><pre><code>{
+  &quot;minutes_per_session&quot;: 50,
+  &quot;timetable&quot;: {
+    &quot;start_date&quot;: &quot;2026-05-18&quot;,
+    &quot;end_date&quot;: &quot;2026-06-01&quot;,
+    &quot;excluded_dates&quot;: [
+      &quot;2026-05-25&quot;
+    ],
+    &quot;classes&quot;: [
+      {
+        &quot;id&quot;: &quot;M.6/1&quot;,
+        &quot;slots&quot;: [
+          {
+            &quot;weekday&quot;: 1,
+            &quot;start_time&quot;: &quot;09:00&quot;
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre></div><div><h3>Responses</h3><details class="response" open><summary><code class="status success">200</code>Course-wide and per-class period counts</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-Availability">Availability</a></div><p class="example-label">Two available Monday periods</p><pre><code>{
+  &quot;available_sessions&quot;: 2,
+  &quot;classes&quot;: [
+    {
+      &quot;class_id&quot;: &quot;M.6/1&quot;,
+      &quot;available_sessions&quot;: 2
+    }
+  ]
+}</code></pre></div></details><details class="response"><summary><code class="status error">400</code>Malformed JSON or an invalid timetable</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">invalidJson</p><pre><code>{
+  &quot;code&quot;: &quot;invalid_json&quot;,
+  &quot;message&quot;: &quot;expected one JSON object with known fields&quot;
+}</code></pre><details><summary>invalidDateRange</summary><pre><code>{
+  &quot;code&quot;: &quot;invalid_input&quot;,
+  &quot;message&quot;: &quot;invalid timetable: use a date range shorter than one year&quot;
+}</code></pre></details></div></details><details class="response"><summary><code class="status error">413</code>The request body exceeds the endpoint size limit</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">Example</p><pre><code>{
+  &quot;code&quot;: &quot;request_too_large&quot;,
+  &quot;message&quot;: &quot;request body is too large&quot;
+}</code></pre></div></details><details class="response"><summary><code class="status error">500</code>The service could not complete the course operation</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">Example</p><pre><code>{
+  &quot;code&quot;: &quot;course_failed&quot;,
+  &quot;message&quot;: &quot;course operation failed&quot;
+}</code></pre></div></details></div></div></section><section class="endpoint" id="getPublishedSyllabus"><h2>Read the published student view</h2><p class="route"><span class="method get">GET</span><code>/v1/published-syllabi/{id}</code></p><div class="contract"><div><h3>Request</h3><p class="example-label">Example URL</p><pre><code>http://127.0.0.1:8080/v1/published-syllabi/11112222333344445555666677778888</code></pre><div class="table-wrap"><table><thead><tr><th>Parameter</th><th>Location</th><th>Type</th><th>Example</th></tr></thead><tbody><tr><th scope="row"><code>id</code></th><td>path · required</td><td><a href="#schema-SyllabusId">SyllabusId</a><small>ID from the saved syllabus response</small></td><td><code>11112222333344445555666677778888</code></td></tr></tbody></table></div><p class="description">Request body is empty.</p></div><div><h3>Responses</h3><details class="response" open><summary><code class="status success">200</code>Course details, assessment weights, and teaching schedule from the latest publication</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-StudentSyllabus">StudentSyllabus</a></div><p class="example-label">Latest published classroom schedule and assessment weights</p><pre><code>{
+  &quot;id&quot;: &quot;11112222333344445555666677778888&quot;,
+  &quot;course_name&quot;: &quot;Mathematics 6 (Core)&quot;,
+  &quot;course_code&quot;: &quot;ค33101&quot;,
+  &quot;grade&quot;: 6,
+  &quot;term&quot;: 1,
+  &quot;assessment_weights&quot;: [
+    {
+      &quot;category&quot;: &quot;Classwork&quot;,
+      &quot;points&quot;: 60
+    },
+    {
+      &quot;category&quot;: &quot;Quiz&quot;,
+      &quot;points&quot;: 40
+    }
+  ],
+  &quot;schedule&quot;: {
+    &quot;timezone&quot;: &quot;Asia/Bangkok&quot;,
+    &quot;available_sessions&quot;: 2,
+    &quot;classes&quot;: [
+      {
+        &quot;class_id&quot;: &quot;M.6/1&quot;,
+        &quot;available_sessions&quot;: 2,
+        &quot;meetings&quot;: [
+          {
+            &quot;session&quot;: 1,
+            &quot;unit&quot;: &quot;Statistics&quot;,
+            &quot;title&quot;: &quot;Presenting Data&quot;,
+            &quot;date&quot;: &quot;2026-05-18&quot;,
+            &quot;start_time&quot;: &quot;09:00&quot;,
+            &quot;end_time&quot;: &quot;09:50&quot;,
+            &quot;assessments&quot;: [
+              {
+                &quot;title&quot;: &quot;Data Presentation Exercise&quot;,
+                &quot;category&quot;: &quot;Classwork&quot;,
+                &quot;session&quot;: 1,
+                &quot;points&quot;: 60
+              }
+            ]
+          },
+          {
+            &quot;session&quot;: 2,
+            &quot;unit&quot;: &quot;Statistics&quot;,
+            &quot;title&quot;: &quot;Interpreting Statistical Measures&quot;,
+            &quot;date&quot;: &quot;2026-06-01&quot;,
+            &quot;start_time&quot;: &quot;09:00&quot;,
+            &quot;end_time&quot;: &quot;09:50&quot;,
+            &quot;assessments&quot;: [
+              {
+                &quot;title&quot;: &quot;Statistics Quiz&quot;,
+                &quot;category&quot;: &quot;Quiz&quot;,
+                &quot;session&quot;: 2,
+                &quot;points&quot;: 40
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre></div></details><details class="response"><summary><code class="status error">404</code>The requested draft or published snapshot does not exist</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">Student view does not exist yet</p><pre><code>{
+  &quot;code&quot;: &quot;not_found&quot;,
+  &quot;message&quot;: &quot;course not found&quot;
+}</code></pre></div></details><details class="response"><summary><code class="status error">500</code>The service could not complete the course operation</summary><div class="response-body"><p class="example-label">application/json</p><div class="schema">Schema <a href="#schema-APIError">APIError</a></div><p class="example-label">Example</p><pre><code>{
+  &quot;code&quot;: &quot;course_failed&quot;,
+  &quot;message&quot;: &quot;course operation failed&quot;
+}</code></pre></div></details></div></div></section>
+<section class="models" id="models"><h2>Data models</h2><details class="model" id="schema-Grade"><summary>Grade</summary><p>integer · min 1, max 6</p></details><details class="model" id="schema-CourseType"><summary>CourseType</summary><p>string · Values: core, additional</p></details><details class="model" id="schema-SyllabusId"><summary>SyllabusId</summary><p>string · </p></details><details class="model" id="schema-Term"><summary>Term</summary><p>integer · Values: 1, 2</p></details><details class="model" id="schema-APIError"><summary>APIError</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>code</code></th><td>string<small>Values: invalid_json, invalid_input, request_too_large, syllabus_unavailable, model_timeout, invalid_plan, generation_failed, not_found, not_ready, course_failed</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>message</code></th><td>string<small></small></td><td>Required</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-CurriculumSource"><summary>CurriculumSource</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>title</code></th><td>string<small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>file</code></th><td>string<small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>sha256</code></th><td>string<small></small></td><td>Required</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-LearningOutcome"><summary>LearningOutcome</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>number</code></th><td>integer<small>min 1</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>text</code></th><td>string<small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>code</code></th><td>string<small></small></td><td>Optional</td><td>Official indicator code for a core course.</td></tr></tbody></table></div></details><details class="model" id="schema-CurriculumRow"><summary>CurriculumRow</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>id</code></th><td>string<small></small></td><td>Required</td><td>Curriculum row ID accepted in reference_ids.</td></tr><tr><th scope="row"><code>grade</code></th><td><a href="#schema-Grade">Grade</a><small>min 1, max 6</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>pdf_page</code></th><td>integer<small>min 1</small></td><td>Required</td><td>Page position in the PDF.</td></tr><tr><th scope="row"><code>printed_page</code></th><td>integer<small>min 1</small></td><td>Required</td><td>Number printed on the source page.</td></tr><tr><th scope="row"><code>title</code></th><td>string<small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>outcomes</code></th><td>array of <a href="#schema-LearningOutcome">LearningOutcome</a><small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>content</code></th><td>array of string<small></small></td><td>Required</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-CurriculumStandard"><summary>CurriculumStandard</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>strand</code></th><td>string<small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>standard_code</code></th><td>string<small></small></td><td>Optional</td><td>Standard code for a core course.</td></tr><tr><th scope="row"><code>objective_number</code></th><td>integer<small>min 1</small></td><td>Optional</td><td>Objective number for an additional course.</td></tr><tr><th scope="row"><code>statement</code></th><td>string<small></small></td><td>Required</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-CurriculumGroup"><summary>CurriculumGroup</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>strand</code></th><td>string<small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>standard_code</code></th><td>string<small></small></td><td>Optional</td><td>Standard code for a core course.</td></tr><tr><th scope="row"><code>objective_number</code></th><td>integer<small>min 1</small></td><td>Optional</td><td>Objective number for an additional course.</td></tr><tr><th scope="row"><code>statement</code></th><td>string<small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>rows</code></th><td>array of <a href="#schema-CurriculumRow">CurriculumRow</a><small></small></td><td>Required</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-CurriculumReference"><summary>CurriculumReference</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>strand</code></th><td>string<small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>standard_code</code></th><td>string<small></small></td><td>Optional</td><td>Standard code for a core course.</td></tr><tr><th scope="row"><code>objective_number</code></th><td>integer<small>min 1</small></td><td>Optional</td><td>Objective number for an additional course.</td></tr><tr><th scope="row"><code>statement</code></th><td>string<small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>row</code></th><td><a href="#schema-CurriculumRow">CurriculumRow</a><small></small></td><td>Required</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-CurriculumSelection"><summary>CurriculumSelection</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>source</code></th><td><a href="#schema-CurriculumSource">CurriculumSource</a><small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>grade</code></th><td><a href="#schema-Grade">Grade</a><small>min 1, max 6</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>course_type</code></th><td><a href="#schema-CourseType">CourseType</a><small>Values: core, additional</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>groups</code></th><td>array of <a href="#schema-CurriculumGroup">CurriculumGroup</a><small></small></td><td>Required</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-AssessmentWeight"><summary>AssessmentWeight</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>category</code></th><td>string<small></small></td><td>Required</td><td>Category name in English.</td></tr><tr><th scope="row"><code>points</code></th><td>integer<small>min 1, max 100</small></td><td>Required</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-SyllabusInput"><summary>SyllabusInput</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>course_name</code></th><td>string<small></small></td><td>Required</td><td>Course name in English.</td></tr><tr><th scope="row"><code>course_code</code></th><td>string<small></small></td><td>Optional</td><td>Optional school course identifier.</td></tr><tr><th scope="row"><code>grade</code></th><td><a href="#schema-Grade">Grade</a><small>min 1, max 6</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>course_type</code></th><td><a href="#schema-CourseType">CourseType</a><small>Values: core, additional</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>term</code></th><td><a href="#schema-Term">Term</a><small>Values: 1, 2</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>total_sessions</code></th><td>integer<small>min 1, max 1000</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>minutes_per_session</code></th><td>integer<small>min 1, max 1439</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>reference_ids</code></th><td>array of string<small>Unique items</small></td><td>Required</td><td>Rows selected for this semester from the specified grade and course type.</td></tr><tr><th scope="row"><code>assessment_weights</code></th><td>array of <a href="#schema-AssessmentWeight">AssessmentWeight</a><small>Allows null</small></td><td>Optional</td><td>If nonempty, use unique category names and a combined total of 100 points.</td></tr></tbody></table></div></details><details class="model" id="schema-Assessment"><summary>Assessment</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>title</code></th><td>string<small></small></td><td>Required</td><td>Assessment title in English.</td></tr><tr><th scope="row"><code>category</code></th><td>string<small></small></td><td>Required</td><td>Exact category name from assessment_weights.</td></tr><tr><th scope="row"><code>session</code></th><td>integer<small>min 1</small></td><td>Required</td><td>One-based unit period in a plan request. One-based course period in responses.</td></tr><tr><th scope="row"><code>points</code></th><td>integer<small>min 1, max 100</small></td><td>Required</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-PlannedUnit"><summary>PlannedUnit</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>title</code></th><td>string<small></small></td><td>Required</td><td>Unit title in English.</td></tr><tr><th scope="row"><code>reference_ids</code></th><td>array of string<small>Unique items</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>session_titles</code></th><td>array of string<small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>assessments</code></th><td>array of <a href="#schema-Assessment">Assessment</a><small>Allows null</small></td><td>Optional</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-EditedPlan"><summary>EditedPlan</summary><p class="description">Assign each course reference to exactly one unit. The total number of session titles must match total_sessions. Each assessment category&#x27;s total must match its requested weight.</p><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>description</code></th><td>string<small></small></td><td>Required</td><td>Course description in English.</td></tr><tr><th scope="row"><code>units</code></th><td>array of <a href="#schema-PlannedUnit">PlannedUnit</a><small></small></td><td>Required</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-NumberedSession"><summary>NumberedSession</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>number</code></th><td>integer<small>min 1</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>title</code></th><td>string<small></small></td><td>Required</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-SyllabusUnit"><summary>SyllabusUnit</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>title</code></th><td>string<small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>reference_ids</code></th><td>array of string<small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>sessions</code></th><td>array of <a href="#schema-NumberedSession">NumberedSession</a><small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>assessments</code></th><td>array of <a href="#schema-Assessment">Assessment</a><small></small></td><td>Required</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-SyllabusDraft"><summary>SyllabusDraft</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>course_name</code></th><td>string<small></small></td><td>Required</td><td>Course name in English.</td></tr><tr><th scope="row"><code>course_code</code></th><td>string<small></small></td><td>Required</td><td>Optional school course identifier.</td></tr><tr><th scope="row"><code>grade</code></th><td><a href="#schema-Grade">Grade</a><small>min 1, max 6</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>course_type</code></th><td><a href="#schema-CourseType">CourseType</a><small>Values: core, additional</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>term</code></th><td><a href="#schema-Term">Term</a><small>Values: 1, 2</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>total_sessions</code></th><td>integer<small>min 1, max 1000</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>minutes_per_session</code></th><td>integer<small>min 1, max 1439</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>reference_ids</code></th><td>array of string<small>Unique items</small></td><td>Required</td><td>Rows selected for this semester from the specified grade and course type.</td></tr><tr><th scope="row"><code>assessment_weights</code></th><td>array of <a href="#schema-AssessmentWeight">AssessmentWeight</a><small>Allows null</small></td><td>Required</td><td>If nonempty, use unique category names and a combined total of 100 points.</td></tr><tr><th scope="row"><code>planning_mode</code></th><td>string<small>Values: curriculum, openai, manual</small></td><td>Optional</td><td></td></tr><tr><th scope="row"><code>source</code></th><td><a href="#schema-CurriculumSource">CurriculumSource</a><small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>references</code></th><td>array of <a href="#schema-CurriculumReference">CurriculumReference</a><small></small></td><td>Required</td><td>English translations with the source IDs, codes and page numbers.</td></tr><tr><th scope="row"><code>description</code></th><td>string<small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>units</code></th><td>array of <a href="#schema-SyllabusUnit">SyllabusUnit</a><small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>document_html</code></th><td>string<small></small></td><td>Required</td><td>Complete student-facing English syllabus document, with dates if present.</td></tr></tbody></table></div></details><details class="model" id="schema-ClockTime"><summary>ClockTime</summary><p>string · </p><p class="description">Time in Bangkok in HH:MM format.</p></details><details class="model" id="schema-WeeklySlot"><summary>WeeklySlot</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>weekday</code></th><td>integer<small>min 1, max 7</small></td><td>Required</td><td>1 is Monday and 7 is Sunday.</td></tr><tr><th scope="row"><code>start_time</code></th><td><a href="#schema-ClockTime">ClockTime</a><small></small></td><td>Required</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-ClassTimetable"><summary>ClassTimetable</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>id</code></th><td>string<small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>slots</code></th><td>array of <a href="#schema-WeeklySlot">WeeklySlot</a><small></small></td><td>Required</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-Timetable"><summary>Timetable</summary><p class="description">The date range is inclusive and shorter than one year. Weekly time slots must not overlap across classes.</p><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>start_date</code></th><td>string<small>YYYY-MM-DD</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>end_date</code></th><td>string<small>YYYY-MM-DD</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>excluded_dates</code></th><td>array of string<small>Allows null</small></td><td>Optional</td><td>Dates skipped across all classes.</td></tr><tr><th scope="row"><code>classes</code></th><td>array of <a href="#schema-ClassTimetable">ClassTimetable</a><small></small></td><td>Required</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-AvailabilityInput"><summary>AvailabilityInput</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>minutes_per_session</code></th><td>integer<small>min 1, max 1439</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>timetable</code></th><td><a href="#schema-Timetable">Timetable</a><small></small></td><td>Required</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-ClassAvailability"><summary>ClassAvailability</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>class_id</code></th><td>string<small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>available_sessions</code></th><td>integer<small>min 0</small></td><td>Required</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-Availability"><summary>Availability</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>available_sessions</code></th><td>integer<small>min 0</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>classes</code></th><td>array of <a href="#schema-ClassAvailability">ClassAvailability</a><small></small></td><td>Required</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-ScheduleMeeting"><summary>ScheduleMeeting</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>session</code></th><td>integer<small>min 1</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>unit</code></th><td>string<small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>title</code></th><td>string<small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>date</code></th><td>string<small>YYYY-MM-DD</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>start_time</code></th><td><a href="#schema-ClockTime">ClockTime</a><small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>end_time</code></th><td><a href="#schema-ClockTime">ClockTime</a><small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>assessments</code></th><td>array of <a href="#schema-Assessment">Assessment</a><small></small></td><td>Required</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-ClassSchedule"><summary>ClassSchedule</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>class_id</code></th><td>string<small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>available_sessions</code></th><td>integer<small>min 0</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>meetings</code></th><td>array of <a href="#schema-ScheduleMeeting">ScheduleMeeting</a><small></small></td><td>Required</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-TeachingSchedule"><summary>TeachingSchedule</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>timezone</code></th><td>string<small>Values: Asia/Bangkok</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>available_sessions</code></th><td>integer<small>min 0</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>classes</code></th><td>array of <a href="#schema-ClassSchedule">ClassSchedule</a><small></small></td><td>Required</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-SyllabusEdit"><summary>SyllabusEdit</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>course</code></th><td><a href="#schema-SyllabusInput">SyllabusInput</a><small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>plan</code></th><td><a href="#schema-EditedPlan">EditedPlan</a><small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>timetable</code></th><td><a href="#schema-Timetable">Timetable</a><small></small></td><td>Optional</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-SyllabusPreview"><summary>SyllabusPreview</summary><p class="description">Timetable and schedule are returned when the request included a timetable.</p><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>syllabus</code></th><td><a href="#schema-SyllabusDraft">SyllabusDraft</a><small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>timetable</code></th><td><a href="#schema-Timetable">Timetable</a><small></small></td><td>Optional</td><td></td></tr><tr><th scope="row"><code>schedule</code></th><td><a href="#schema-TeachingSchedule">TeachingSchedule</a><small></small></td><td>Optional</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-SavedSyllabus"><summary>SavedSyllabus</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>syllabus</code></th><td><a href="#schema-SyllabusDraft">SyllabusDraft</a><small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>timetable</code></th><td><a href="#schema-Timetable">Timetable</a><small></small></td><td>Optional</td><td></td></tr><tr><th scope="row"><code>schedule</code></th><td><a href="#schema-TeachingSchedule">TeachingSchedule</a><small></small></td><td>Optional</td><td></td></tr><tr><th scope="row"><code>id</code></th><td><a href="#schema-SyllabusId">SyllabusId</a><small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>status</code></th><td>string<small>Values: draft, published, unpublished_changes</small></td><td>Required</td><td></td></tr></tbody></table></div></details><details class="model" id="schema-StudentSyllabus"><summary>StudentSyllabus</summary><div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead><tbody><tr><th scope="row"><code>id</code></th><td><a href="#schema-SyllabusId">SyllabusId</a><small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>course_name</code></th><td>string<small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>course_code</code></th><td>string<small></small></td><td>Optional</td><td></td></tr><tr><th scope="row"><code>grade</code></th><td><a href="#schema-Grade">Grade</a><small>min 1, max 6</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>term</code></th><td><a href="#schema-Term">Term</a><small>Values: 1, 2</small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>assessment_weights</code></th><td>array of <a href="#schema-AssessmentWeight">AssessmentWeight</a><small></small></td><td>Required</td><td></td></tr><tr><th scope="row"><code>schedule</code></th><td><a href="#schema-TeachingSchedule">TeachingSchedule</a><small></small></td><td>Required</td><td></td></tr></tbody></table></div></details></section>
+</main>
+</div>
+</body>
+</html>
