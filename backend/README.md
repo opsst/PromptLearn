@@ -1,16 +1,42 @@
 # PromptLearn Backend
 
-โฟลเดอร์สำหรับ API และบริการฝั่ง server ของ PromptLearn
+Go HTTP service สำหรับทดสอบการเชื่อมต่อจาก Flutter ใช้ Go 1.24 ขึ้นไปและ standard library
 
-ยังไม่กำหนด stack และยังไม่มี application scaffold ทีม backend สามารถเริ่ม initialize โปรเจกต์ภายในโฟลเดอร์นี้ได้
+## รัน service
 
-ขอบเขตบริการที่วางแผนไว้:
+รันจากโฟลเดอร์ `backend/`
 
-- Users และสิทธิ์ครู/นักเรียน
-- Courses, syllabus, learning standards และ lesson plans
-- Classroom sessions, attendance และ recording/transcript metadata
-- Formative/summative assessments และผลการเรียน
-- Student AI tutoring ที่อ้างอิงเนื้อหาคอร์ส
-- Learning analytics และ teacher reflection
+```sh
+go run ./cmd/server
+```
 
-ตกลง API contract กับ Flutter frontend ก่อนเชื่อมต่อ ระบบ recording, AI, storage และ authentication ยังไม่ได้ implement
+เปิดอีก terminal เพื่อเรียก endpoint
+
+```sh
+curl -i http://127.0.0.1:8080/healthz
+```
+
+`GET /healthz` ตอบ HTTP 200 พร้อม JSON `{"status":"ok"}` เมื่อ HTTP service รับคำขอได้
+
+ค่าเริ่มต้นฟังที่ `127.0.0.1:8080` กำหนด `HTTP_ADDR=0.0.0.0:8080` ได้เมื่อต้องทดสอบจากอุปกรณ์ในเครือข่ายเดียวกัน
+
+## โครงสร้าง
+
+```mermaid
+flowchart LR
+    Client["Flutter หรือ curl"]
+    Server["cmd/server · ตั้งค่า HTTP server"]
+    Router["internal/httpapi · จับคู่ route"]
+    Health["GET /healthz"]
+    Client --> Server --> Router --> Health
+    Health -->|200 OK| Client
+```
+
+`cmd/server` รับผิดชอบการเปิดพอร์ตและกำหนด timeout ส่วน `internal/httpapi` ประกอบ HTTP handler ให้ทดสอบได้โดยตรง เมื่อเพิ่ม API สำหรับวางแผนการสอนหรือรีวิวการบ้าน ให้ลงทะเบียน route ที่นี่และวางกติกาของแต่ละงานไว้ในแพ็กเกจของงานนั้น
+
+## ทดสอบ
+
+```sh
+go test ./...
+go vet ./...
+```
