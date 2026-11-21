@@ -1,0 +1,35 @@
+{
+  "type": "object",
+  "properties": {
+    "description": {"type": "string"},
+    "units": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {"type": "string"},
+          "reference_ids": {"type": "array", "items": {"type": "string"}},
+          "session_titles": {"type": "array", "items": {"type": "string"}},
+          "assessments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {"type": "string"},
+                "category": {"type": "string"},
+                "session": {"type": "integer"},
+                "points": {"type": "integer"}
+              },
+              "required": ["title", "category", "session", "points"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["title", "reference_ids", "session_titles", "assessments"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["description", "units"],
+  "additionalProperties": false
+}

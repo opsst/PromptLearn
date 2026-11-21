@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Course Syllabus · {{.CourseName}}</title>
+<style>
+  body { color: #172127; font-family: system-ui, "Noto Sans Thai", Tahoma, sans-serif; line-height: 1.6; margin: 0 auto; max-width: 54rem; padding: 2rem 1.25rem; }
+  header { background: #eef5f1; border-top: 4px solid #215646; padding: 1.7rem 1.75rem; }
+  header .metadata { color: #215646; font-weight: 600; }
+  header p:last-child { margin-bottom: 0; }
+  nav { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; margin-block: 1.2rem 0; }
+  nav a { color: #215646; text-underline-offset: 0.2em; }
+  section { margin-block: 2rem; }
+  h1, h2, h3 { line-height: 1.35; margin-block: 0 0.6rem; }
+  p, ol, ul { margin-block: 0.45rem 0.85rem; }
+  article { border-top: 1px solid #b8c4ca; padding-block: 1rem; }
+  li { margin-block: 0.25rem; }
+  table { border-collapse: collapse; width: 100%; }
+  td, th { border-bottom: 1px solid #b8c4ca; padding: 0.45rem 0.7rem; text-align: left; vertical-align: top; }
+  th { background: #f2f6f4; color: #214a3e; }
+  details { margin: 0.75rem 0; }
+  summary { color: #215646; cursor: pointer; font-weight: 600; padding: 0.4rem 0; }
+  .source-text { white-space: pre-line; }
+  .source-item { margin-block-start: 0.4rem; }
+  .source-subitem { margin-inline-start: 1.4rem; }
+  .source-continuation { margin-inline-start: 0.8rem; }
+  .metadata { color: #425563; }
+  @media print { body { max-width: none; padding: 0; } h2, h3 { break-after: avoid; } tr { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="metadata">Draft Course Syllabus</p>
+    <h1>{{.CourseName}}</h1>
+    <p>Matthayom {{.Grade}} · Semester {{.Term}}{{if .CourseCode}} · {{.CourseCode}}{{end}}</p>
+    <p>{{.CourseTypeLabel}} · {{.TotalSessions}} periods · {{.MinutesPerSession}} minutes per period</p>
+    <nav aria-label="Syllabus sections">
+      <a href="#learning-units">Learning Units</a>
+      {{if .AssessmentWeights}}<a href="#assessment-weights">Assessment Weights</a>{{end}}
+      {{if .Calendars}}<a href="#teaching-schedule">Teaching Schedule</a>{{end}}
+      <a href="#curriculum">Curriculum References</a>
+    </nav>
+  </header>
+
+  <section>
+    <h2>Course Description</h2>
+    <p class="source-text">{{.Description}}</p>
+  </section>
+
+  <section id="learning-units">
+    <h2>Learning Units and Periods</h2>
+    {{range .Units}}
+    <article>
+      <h3>{{.Title}}</h3>
+      <table>
+        <thead><tr><th>Period</th><th>Topic</th></tr></thead>
+        <tbody>{{range .Sessions}}<tr><td>{{.Number}}</td><td>{{.Title}}</td></tr>{{end}}</tbody>
+      </table>
+      {{if .Assessments}}
+      <p><strong>Unit Assessment</strong></p>
+      <ul>{{range .Assessments}}<li>Period {{.Session}} · {{.Title}} · {{.Category}} · {{.Points}} points</li>{{end}}</ul>
+      {{end}}
+      <p class="metadata">Curriculum References {{range $i, $id := .ReferenceIDs}}{{if $i}} · {{end}}<a href="#{{$id}}">{{index $.ReferenceTitles $id}}</a>{{end}}</p>
+    </article>
+    {{end}}
+  </section>
+
+  {{if .AssessmentWeights}}
+  <section id="assessment-weights">
+    <h2>Assessment Weights</h2>
+    <table>
+      <thead><tr><th>Assessment Category</th><th>Points</th></tr></thead>
+      <tbody>{{range .AssessmentWeights}}<tr><td>{{.Category}}</td><td>{{.Points}}</td></tr>{{end}}</tbody>
+    </table>
+  </section>
+  {{end}}
+
+  {{if .Calendars}}
+  <section id="teaching-schedule">
+    <h2>Teaching Schedule</h2>
+    <p class="metadata">Local time in Bangkok</p>
+    {{range $index, $calendar := .Calendars}}
+    <details {{if eq $index 0}}open{{end}}>
+      <summary>Class {{$calendar.ClassID}} · {{len $calendar.Meetings}} periods</summary>
+      <table>
+        <thead><tr><th>Period</th><th>Date</th><th>Time</th><th>Topic and assessment</th></tr></thead>
+        <tbody>{{range $calendar.Meetings}}
+          <tr>
+            <td>{{.Number}}</td><td>{{.Date}}</td><td>{{.StartTime}}–{{.EndTime}}</td>
+            <td>{{.Title}}{{range .Assessments}}<br><strong>{{.Title}} · {{.Points}} points</strong>{{end}}</td>
+          </tr>
+        {{end}}</tbody>
+      </table>
+    </details>
+    {{end}}
+  </section>
+  {{end}}
+
+  <section id="curriculum">
+    <h2>Curriculum Standards and Learning Content</h2>
+    <p class="metadata">{{.Source.Title}}</p>
+    {{range .References}}
+    <article id="{{.Row.ID}}">
+      <h3 class="source-text">{{.Row.Title}}</h3>
+      <p class="metadata">{{.Strand}} · p. {{.Row.PrintedPage}} (PDF p. {{.Row.PDFPage}})</p>
+      <p>{{if .StandardCode}}<strong>{{.StandardCode}}</strong> · {{else}}<strong>Objective {{.ObjectiveNumber}}</strong> · {{end}}{{.Statement}}</p>
+      <ol>{{range .Row.Outcomes}}<li class="source-text" value="{{.Number}}">{{if .Code}}<strong>{{.Code}}</strong> · {{end}}{{.Text}}</li>{{end}}</ol>
+      <div>{{range .Row.Content}}<div class="{{contentClass .}}">{{.}}</div>{{end}}</div>
+    </article>
+    {{end}}
+  </section>
+</main>
+</body>
+</html>

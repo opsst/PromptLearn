@@ -1,0 +1,255 @@
+{
+  "course": {
+    "course_name": "Mathematics 1 (Core)",
+    "course_code": "ค21101",
+    "grade": 1,
+    "course_type": "core",
+    "term": 1,
+    "total_sessions": 54,
+    "minutes_per_session": 50,
+    "reference_ids": [
+      "core/1/1.1/1",
+      "core/1/2.2/1",
+      "core/1/2.2/2"
+    ],
+    "assessment_weights": [
+      {
+        "category": "Unit Quizzes",
+        "points": 25
+      },
+      {
+        "category": "Classwork",
+        "points": 15
+      },
+      {
+        "category": "Participation",
+        "points": 10
+      },
+      {
+        "category": "Midterm Exam",
+        "points": 20
+      },
+      {
+        "category": "Final Exam",
+        "points": 30
+      }
+    ]
+  },
+  "plan": {
+    "description": "Students use integers, rational numbers and powers with positive integer exponents to solve mathematical and real-life problems. They construct two-dimensional figures with appropriate tools and use cross sections and views of solids to explain relationships between two- and three-dimensional figures.",
+    "units": [
+      {
+        "title": "Number and Algebra",
+        "reference_ids": [
+          "core/1/1.1/1"
+        ],
+        "session_titles": [
+          "Integers on a number line",
+          "Ordering and comparing integers",
+          "Adding integers",
+          "Subtracting integers",
+          "Multiplying and dividing integers",
+          "Properties of integer operations",
+          "Integers in real-life problems",
+          "Equivalent fractions",
+          "Comparing and ordering fractions",
+          "Operations with fractions",
+          "Decimals and place value",
+          "Operations with decimals",
+          "Converting between decimals and fractions",
+          "Representing rational numbers",
+          "Properties of rational numbers",
+          "Rational numbers in real-life problems",
+          "Positive integer exponents",
+          "Multiplying powers with the same base",
+          "Dividing powers with the same base",
+          "Raising a power to a power",
+          "Properties of positive integer exponents",
+          "Using powers to solve mathematical problems",
+          "Powers in everyday contexts",
+          "Mixed problem solving with integers, rational numbers and powers",
+          "Number and Algebra review",
+          "Midterm assessment and feedback"
+        ],
+        "assessments": [
+          {
+            "category": "Classwork",
+            "title": "Rational Numbers Problem Set",
+            "session": 16,
+            "points": 5
+          },
+          {
+            "category": "Participation",
+            "title": "Explain and Compare Solution Methods",
+            "session": 21,
+            "points": 4
+          },
+          {
+            "category": "Unit Quizzes",
+            "title": "Number and Algebra Quiz",
+            "session": 25,
+            "points": 10
+          },
+          {
+            "category": "Midterm Exam",
+            "title": "Number and Algebra Midterm",
+            "session": 26,
+            "points": 20
+          }
+        ]
+      },
+      {
+        "title": "Geometric Constructions",
+        "reference_ids": [
+          "core/1/2.2/1"
+        ],
+        "session_titles": [
+          "Using a compass and straightedge",
+          "Copying a line segment",
+          "Bisecting a line segment",
+          "Copying an angle",
+          "Bisecting an angle",
+          "Constructing perpendicular lines",
+          "Constructing parallel lines",
+          "Using basic constructions to build triangles",
+          "Constructing two-dimensional figures",
+          "Checking constructions with dynamic geometry software",
+          "Explaining why a construction works",
+          "Constructing figures to meet given conditions",
+          "Using constructions in real-life problems",
+          "Practice with multi-step constructions",
+          "Geometric Constructions quiz",
+          "Construction review and feedback"
+        ],
+        "assessments": [
+          {
+            "category": "Classwork",
+            "title": "Construction Portfolio",
+            "session": 12,
+            "points": 5
+          },
+          {
+            "category": "Participation",
+            "title": "Explain a Construction",
+            "session": 14,
+            "points": 3
+          },
+          {
+            "category": "Unit Quizzes",
+            "title": "Geometric Constructions Quiz",
+            "session": 15,
+            "points": 10
+          }
+        ]
+      },
+      {
+        "title": "Two- and Three-Dimensional Figures",
+        "reference_ids": [
+          "core/1/2.2/2"
+        ],
+        "session_titles": [
+          "Identifying cross sections of solids",
+          "Comparing cross sections of the same solid",
+          "Predicting cross-section shapes",
+          "Front views of figures built from cubes",
+          "Side views of figures built from cubes",
+          "Top views of figures built from cubes",
+          "Matching cube structures to their views",
+          "Reconstructing a cube structure from its views",
+          "Explaining the link between two- and three-dimensional figures",
+          "Two- and Three-Dimensional Figures quiz",
+          "Semester review and practice",
+          "Final assessment"
+        ],
+        "assessments": [
+          {
+            "category": "Classwork",
+            "title": "Cross Sections and Orthographic Views",
+            "session": 8,
+            "points": 5
+          },
+          {
+            "category": "Participation",
+            "title": "Explain a Three-Dimensional Model",
+            "session": 9,
+            "points": 3
+          },
+          {
+            "category": "Unit Quizzes",
+            "title": "Two- and Three-Dimensional Figures Quiz",
+            "session": 10,
+            "points": 5
+          },
+          {
+            "category": "Final Exam",
+            "title": "Semester 1 Mathematics Final",
+            "session": 12,
+            "points": 30
+          }
+        ]
+      }
+    ]
+  },
+  "timetable": {
+    "start_date": "2026-05-18",
+    "end_date": "2026-09-25",
+    "excluded_dates": [
+      "2026-06-03",
+      "2026-08-12",
+      "2026-09-11"
+    ],
+    "classes": [
+      {
+        "id": "M.1/1",
+        "slots": [
+          {
+            "weekday": 1,
+            "start_time": "09:00"
+          },
+          {
+            "weekday": 3,
+            "start_time": "13:00"
+          },
+          {
+            "weekday": 5,
+            "start_time": "08:00"
+          }
+        ]
+      },
+      {
+        "id": "M.1/2",
+        "slots": [
+          {
+            "weekday": 1,
+            "start_time": "10:00"
+          },
+          {
+            "weekday": 3,
+            "start_time": "14:00"
+          },
+          {
+            "weekday": 5,
+            "start_time": "09:00"
+          }
+        ]
+      },
+      {
+        "id": "M.1/3",
+        "slots": [
+          {
+            "weekday": 1,
+            "start_time": "11:00"
+          },
+          {
+            "weekday": 3,
+            "start_time": "15:00"
+          },
+          {
+            "weekday": 5,
+            "start_time": "10:00"
+          }
+        ]
+      }
+    ]
+  }
+}

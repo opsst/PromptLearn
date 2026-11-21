@@ -1,0 +1,227 @@
+{
+  "additional/4/algebra/1/1": {
+    "title": "Sets",
+    "outcomes": [
+      "Understand and apply knowledge of sets to communicate and convey mathematical meaning."
+    ],
+    "content": [
+      "- Introduction to sets and basic set notation",
+      "- Union, intersection, and complement of sets"
+    ]
+  },
+  "additional/4/algebra/1/2": {
+    "title": "Logic",
+    "outcomes": [
+      "Understand and apply basic logic to communicate, convey meaning, and reason."
+    ],
+    "content": [
+      "- Propositions and logical connectives",
+      "- Statements with a single quantifier",
+      "- Reasoning"
+    ]
+  },
+  "additional/4/algebra/1/3": {
+    "title": "Real Numbers and Polynomials",
+    "outcomes": [
+      "Understand real numbers and use their properties to solve problems."
+    ],
+    "content": [
+      "- Real numbers and their properties",
+      "- Absolute values of real numbers and their properties",
+      "- Real numbers in radical form and in exponential form"
+    ]
+  },
+  "additional/5/algebra/1/1": {
+    "title": "Complex Numbers",
+    "outcomes": [
+      "Understand complex numbers and use their properties to solve problems.",
+      "Find the nth roots of a complex number when n is a counting number greater than 1."
+    ],
+    "content": [
+      "- Complex numbers and their properties",
+      "- Complex numbers in polar form",
+      "- nth roots of complex numbers when n is a counting number greater than 1"
+    ]
+  },
+  "additional/4/algebra/2/1": {
+    "title": "Functions",
+    "outcomes": [
+      "Find sums, differences, products, and quotients of functions. Find composite functions and inverse functions.",
+      "Use properties of functions to solve problems."
+    ],
+    "content": [
+      "- Addition, subtraction, multiplication, and division of functions",
+      "- Composite functions",
+      "- Inverse functions"
+    ]
+  },
+  "additional/4/algebra/2/3": {
+    "title": "Exponential and Logarithmic Functions",
+    "outcomes": [
+      "Understand the features of the graphs of exponential and logarithmic functions and apply that knowledge to solve problems."
+    ],
+    "content": [
+      "- Exponential functions",
+      "- Logarithmic functions"
+    ]
+  },
+  "additional/5/algebra/2/1": {
+    "title": "Trigonometric Functions",
+    "outcomes": [
+      "Understand trigonometric functions and the features of their graphs, and apply that knowledge to solve problems."
+    ],
+    "content": [
+      "- Trigonometric functions",
+      "- Inverse trigonometric functions"
+    ]
+  },
+  "additional/6/algebra/2/1": {
+    "title": "Sequences and Series",
+    "outcomes": [
+      "Determine whether a given sequence converges or diverges.",
+      "Find the sum of the first n terms of an arithmetic series or a geometric series.",
+      "Find the sum of an infinite series.",
+      "Understand and apply knowledge of sequences and series."
+    ],
+    "content": [
+      "- Finite and infinite sequences",
+      "- Arithmetic and geometric sequences",
+      "- Limits of infinite sequences",
+      "- Finite and infinite series",
+      "- Arithmetic and geometric series",
+      "- Sums of infinite series",
+      "- Applications of sequences and series to problems involving the value of money and periodic payments"
+    ]
+  },
+  "additional/4/algebra/3/1": {
+    "title": "Real Numbers and Polynomials",
+    "outcomes": [
+      "Solve polynomial equations and inequalities in one variable of degree at most four and apply that knowledge to solve problems.",
+      "Solve equations and inequalities involving fractions of polynomials in one variable and apply that knowledge to solve problems.",
+      "Solve equations and inequalities involving absolute values of polynomials in one variable and apply that knowledge to solve problems."
+    ],
+    "content": [
+      "- Factors of polynomials",
+      "- Polynomial equations and inequalities",
+      "- Equations and inequalities involving fractions of polynomials",
+      "- Equations and inequalities involving absolute values of polynomials"
+    ]
+  },
+  "additional/4/algebra/3/4": {
+    "title": "Exponential and Logarithmic Functions",
+    "outcomes": [
+      "Solve exponential and logarithmic equations and apply that knowledge to solve problems."
+    ],
+    "content": [
+      "- Exponential and logarithmic equations"
+    ]
+  },
+  "additional/5/algebra/3/1": {
+    "title": "Trigonometric Functions",
+    "outcomes": [
+      "Solve trigonometric equations and apply that knowledge to solve problems.",
+      "Use the law of cosines and the law of sines to solve problems."
+    ],
+    "content": [
+      "- Trigonometric identities and equations",
+      "- Law of cosines and law of sines"
+    ]
+  },
+  "additional/5/algebra/3/3": {
+    "title": "Matrices",
+    "outcomes": [
+      "Understand what matrices are. Find the results of matrix addition, multiplication of a matrix by a real number, and multiplication of matrices. Find the transpose of a matrix and the determinant of an n × n matrix when n is a counting number no greater than 3.",
+      "Find the inverse of a 2 × 2 matrix.",
+      "Solve systems of linear equations using inverse matrices and row operations."
+    ],
+    "content": [
+      "- Matrices and their transposes",
+      "- Matrix addition, multiplication of a matrix by a real number, and multiplication of matrices",
+      "- Determinants",
+      "- Inverse matrices",
+      "- Solving systems of linear equations using matrices"
+    ]
+  },
+  "additional/5/algebra/3/6": {
+    "title": "Complex Numbers",
+    "outcomes": [
+      "Solve polynomial equations in one variable of degree at most four with integer coefficients and apply that knowledge to solve problems."
+    ],
+    "content": [
+      "- Polynomial equations in one variable"
+    ]
+  },
+  "additional/4/geometry/1/1": {
+    "title": "Analytic Geometry",
+    "outcomes": [
+      "Understand and apply knowledge of analytic geometry to solve problems."
+    ],
+    "content": [
+      "- Points and straight lines",
+      "- Circles",
+      "- Parabolas",
+      "- Ellipses",
+      "- Hyperbolas"
+    ]
+  },
+  "additional/5/geometry/2/1": {
+    "title": "Vectors in Three Dimensions",
+    "outcomes": [
+      "Find the results of vector addition, vector subtraction, and multiplication of a vector by a scalar. Find scalar products and vector products.",
+      "Apply knowledge of vectors in three dimensions to solve problems."
+    ],
+    "content": [
+      "- Vectors and their negatives",
+      "- Vector addition, vector subtraction, and multiplication of a vector by a scalar",
+      "- Scalar products and vector products"
+    ]
+  },
+  "additional/5/statistics/1/1": {
+    "title": "Basic Counting Principles",
+    "outcomes": [
+      "Understand and use the addition and multiplication principles, permutations, and combinations to solve problems."
+    ],
+    "content": [
+      "- Addition and multiplication principles",
+      "- Permutations",
+      "o Linear permutations",
+      "o Circular permutations of distinct objects",
+      "- Combinations of distinct objects",
+      "- Binomial theorem"
+    ]
+  },
+  "additional/5/statistics/1/2": {
+    "title": "Probability",
+    "outcomes": [
+      "Find probabilities and apply knowledge of probability."
+    ],
+    "content": [
+      "- Random experiments and events",
+      "- Probability of an event"
+    ]
+  },
+  "additional/6/statistics/1/1": {
+    "title": "Introduction to Probability Distributions",
+    "outcomes": [
+      "Find probabilities of events involving random variables with uniform, binomial, or normal distributions and apply that knowledge to solve problems."
+    ],
+    "content": [
+      "- Uniform distribution",
+      "- Binomial distribution",
+      "- Normal distribution"
+    ]
+  },
+  "additional/6/calculus/1/1": {
+    "title": "Introduction to Calculus",
+    "outcomes": [
+      "Determine whether a given function is continuous.",
+      "Find derivatives of given algebraic functions and use them to solve problems.",
+      "Find indefinite and definite integrals of given algebraic functions and use them to solve problems."
+    ],
+    "content": [
+      "- Limits and continuity of functions",
+      "- Derivatives of algebraic functions",
+      "- Integrals of algebraic functions"
+    ]
+  }
+}
