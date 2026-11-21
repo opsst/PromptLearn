@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -15,9 +14,6 @@ const _ink = Color(0xFF202438);
 const _green = Color(0xFF1E6C50);
 const _tint = Color(0xFFE3F1E9);
 const _line = Color(0xFFE2E9E5);
-
-const debugManualVideoUpload =
-    kDebugMode && bool.fromEnvironment('PROMPTLEARN_MANUAL_VIDEO_UPLOAD');
 
 class TeacherClassEndedView extends StatefulWidget {
   const TeacherClassEndedView({
@@ -201,18 +197,6 @@ class _TeacherClassEndedViewState extends State<TeacherClassEndedView> {
           color: _green,
           icon: Icons.check,
         ),
-        if (debugManualVideoUpload)
-          OutlinedButton.icon(
-            onPressed:
-                widget.replayService == null ||
-                    _clipTooLarge ||
-                    _uploadPercent != null ||
-                    _recordingId != null
-                ? null
-                : _upload,
-            icon: const Icon(Icons.cloud_upload_outlined, size: 17),
-            label: const Text('Test video upload'),
-          ),
         FilledButton.icon(
           onPressed: _recordingId == null || _publishing || _published
               ? null
@@ -547,10 +531,7 @@ class _ReplayStatus extends StatelessWidget {
             error!,
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
-        if (!debugManualVideoUpload &&
-            canUpload &&
-            !ready &&
-            uploadPercent == null)
+        if (canUpload && !ready && uploadPercent == null)
           OutlinedButton.icon(
             onPressed: onUpload,
             icon: const Icon(Icons.cloud_upload_outlined),

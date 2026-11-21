@@ -186,11 +186,7 @@ class _TeacherClassSetupViewState extends State<TeacherClassSetupView> {
           (status.interrupted
               ? 'Android stopped screen sharing. The clip so far was kept.'
               : null);
-      _openReview(
-        clip,
-        notice: notice,
-        uploadOnOpen: _ending && !debugManualVideoUpload,
-      );
+      _openReview(clip, notice: notice, uploadOnOpen: _ending);
     } else if (status.phase == RecordingPhase.failed) {
       _finishWithError(status.message ?? 'No recording was saved.');
     }
@@ -238,7 +234,7 @@ class _TeacherClassSetupViewState extends State<TeacherClassSetupView> {
   Future<void> _confirmEndClass() async {
     if (_ending || _confirmingEnd) return;
     _confirmingEnd = true;
-    final clipAction = widget.replayService == null || debugManualVideoUpload
+    final clipAction = widget.replayService == null
         ? 'saved on this device'
         : 'saved and uploaded for transcription';
     final end = await showDialog<bool>(
