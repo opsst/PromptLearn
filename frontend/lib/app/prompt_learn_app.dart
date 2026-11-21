@@ -151,6 +151,20 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
             );
             final double inset = wide ? 25 : 12;
             final corners = BorderRadius.circular(wide ? 40 : 24);
+            final content = _destination == AppDestination.home
+                ? _buildHome()
+                : kIsWeb && _destination == AppDestination.courses
+                ? ReplayView(role: widget.role)
+                : ColoredBox(
+                    color: AppColors.header,
+                    child: Padding(
+                      padding: EdgeInsets.all(wide ? 42 : 20),
+                      child: Text(
+                        _destination.label,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                  );
             final panel = Padding(
               padding: EdgeInsetsDirectional.fromSTEB(
                 useSidebar ? 0 : inset,
@@ -175,24 +189,11 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
                   child: ColoredBox(
                     color: AppColors.canvas,
                     child: SizedBox.expand(
-                      child: SingleChildScrollView(
-                        child: _destination == AppDestination.home
-                            ? _buildHome()
-                            : kIsWeb && _destination == AppDestination.courses
-                            ? ReplayView(role: widget.role)
-                            : ColoredBox(
-                                color: AppColors.header,
-                                child: Padding(
-                                  padding: EdgeInsets.all(wide ? 42 : 20),
-                                  child: Text(
-                                    _destination.label,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleLarge,
-                                  ),
-                                ),
-                              ),
-                      ),
+                      child:
+                          _destination == AppDestination.home &&
+                              widget.role == UserRole.student
+                          ? content
+                          : SingleChildScrollView(child: content),
                     ),
                   ),
                 ),
