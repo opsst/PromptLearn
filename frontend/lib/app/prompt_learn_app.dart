@@ -8,6 +8,7 @@ import '../data/services/android_class_recording_service.dart';
 import '../domain/models/user_role.dart';
 import '../domain/repositories/assessment_draft_repository.dart';
 import '../domain/repositories/assessment_rubric_generator.dart';
+import '../domain/repositories/assistant_repository.dart';
 import '../domain/repositories/course_syllabus_repository.dart';
 import '../domain/repositories/homework_checker.dart';
 import '../domain/repositories/role_repository.dart';
@@ -21,6 +22,7 @@ import '../ui/features/assessment/views/student_homework_view.dart';
 import '../ui/features/assessment/views/teacher_assessment_builder_view.dart';
 import '../ui/features/assessment/views/teacher_scoring_rubric_view.dart';
 import '../ui/features/assessment/widgets/homework_notebook.dart';
+import '../ui/features/assistant/views/assistant_overlay.dart';
 import '../ui/features/auth/views/role_selection_view.dart';
 import '../ui/features/classroom/models/teacher_class_preview.dart';
 import '../ui/features/classroom/views/teacher_class_setup_view.dart';
@@ -31,7 +33,7 @@ import '../ui/features/replay/replay_view_stub.dart'
     if (dart.library.js_interop) '../ui/features/replay/replay_view_web.dart';
 import 'http_inspector.dart';
 
-class PromptLearnApp extends StatelessWidget {
+class PromptLearnApp extends StatefulWidget {
   const PromptLearnApp({
     super.key,
     required this.roleRepository,
@@ -40,6 +42,7 @@ class PromptLearnApp extends StatelessWidget {
     this.assessmentDraftRepository = const LocalAssessmentDraftRepository(),
     this.assessmentRubricGenerator,
     this.syllabusRepository,
+    this.assistantRepository,
   });
 
   final RoleRepository roleRepository;
@@ -48,6 +51,21 @@ class PromptLearnApp extends StatelessWidget {
   final AssessmentDraftRepository assessmentDraftRepository;
   final AssessmentRubricGenerator? assessmentRubricGenerator;
   final CourseSyllabusRepository? syllabusRepository;
+
+  final AssistantRepository? assistantRepository;
+
+  @override
+  State<PromptLearnApp> createState() => _PromptLearnAppState();
+}
+
+class _PromptLearnAppState extends State<PromptLearnApp> {
+  final _role = ValueNotifier<UserRole?>(null);
+
+  @override
+  void dispose() {
+    _role.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,15 +76,35 @@ class PromptLearnApp extends StatelessWidget {
       navigatorKey: HttpInspector.navigatorKey,
       navigatorObservers: HttpInspector.navigatorObservers,
       localizationsDelegates: HttpInspector.localizationsDelegates,
+      builder: (context, navigator) => Overlay.wrap(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            navigator!,
+            ValueListenableBuilder<UserRole?>(
+              valueListenable: _role,
+              builder: (context, role, _) {
+                if (role == null) return const SizedBox.shrink();
+                return AssistantOverlay(
+                  key: ValueKey(role),
+                  role: role,
+                  repository: widget.assistantRepository,
+                );
+              },
+            ),
+          ],
+        ),
+      ),
       home: AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.light,
         child: _RoleGate(
-          repository: roleRepository,
-          homeworkChecker: homeworkChecker,
-          classRecording: classRecording,
-          assessmentDraftRepository: assessmentDraftRepository,
-          assessmentRubricGenerator: assessmentRubricGenerator,
-          syllabusRepository: syllabusRepository,
+          repository: widget.roleRepository,
+          onRoleChanged: (role) => _role.value = role,
+          homeworkChecker: widget.homeworkChecker,
+          classRecording: widget.classRecording,
+          assessmentDraftRepository: widget.assessmentDraftRepository,
+          assessmentRubricGenerator: widget.assessmentRubricGenerator,
+          syllabusRepository: widget.syllabusRepository,
         ),
       ),
     );
@@ -76,6 +114,7 @@ class PromptLearnApp extends StatelessWidget {
 class _RoleGate extends StatefulWidget {
   const _RoleGate({
     required this.repository,
+    required this.onRoleChanged,
     required this.homeworkChecker,
     required this.classRecording,
     required this.assessmentDraftRepository,
@@ -84,6 +123,7 @@ class _RoleGate extends StatefulWidget {
   });
 
   final RoleRepository repository;
+  final ValueChanged<UserRole?> onRoleChanged;
   final HomeworkChecker homeworkChecker;
   final ClassRecordingService classRecording;
   final AssessmentDraftRepository assessmentDraftRepository;
@@ -117,6 +157,7 @@ class _RoleGateState extends State<_RoleGate> {
       _role = role;
       _loading = false;
     });
+    widget.onRoleChanged(role);
   }
 
   Future<void> _changeRole(UserRole? role) async {
@@ -128,7 +169,10 @@ class _RoleGateState extends State<_RoleGate> {
       } else {
         await widget.repository.save(role);
       }
-      if (mounted) setState(() => _role = role);
+      if (mounted) {
+        setState(() => _role = role);
+        widget.onRoleChanged(role);
+      }
     } on PlatformException {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

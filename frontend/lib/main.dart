@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app/http_inspector.dart';
 import 'app/prompt_learn_app.dart';
 import 'data/repositories/api_assessment_rubric_generator.dart';
+import 'data/repositories/api_assistant_repository.dart';
 import 'data/repositories/api_course_syllabus_repository.dart';
 import 'data/repositories/api_homework_checker.dart';
 import 'data/repositories/local_role_repository.dart';
@@ -32,6 +33,7 @@ void main() {
         roleRepository: roleRepository,
         homeworkChecker: ApiHomeworkChecker(base, client),
         assessmentRubricGenerator: ApiAssessmentRubricGenerator(base, client),
+        assistantRepository: ApiAssistantRepository(base, client),
         syllabusRepository: ApiCourseSyllabusRepository(
           base,
           createApiHttpClient(),

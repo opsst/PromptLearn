@@ -15,6 +15,7 @@ import (
 
 	"github.com/opsst/PromptLearn/backend/internal/assessmentrubric"
 	"github.com/opsst/PromptLearn/backend/internal/assignmentreview"
+	"github.com/opsst/PromptLearn/backend/internal/assistant"
 	"github.com/opsst/PromptLearn/backend/internal/course"
 	"github.com/opsst/PromptLearn/backend/internal/httpapi"
 	"github.com/opsst/PromptLearn/backend/internal/openai"
@@ -102,6 +103,11 @@ func main() {
 		rubricGenerator = assessmentrubric.OpenAIGenerator{Client: client}
 	}
 	rubricRoute := httpapi.WithAssessmentRubrics(rubricGenerator)
+	var assistantResponder assistant.Responder
+	if key != "" {
+		assistantResponder = assistant.OpenAIResponder{Client: client}
+	}
+	assistantRoute := httpapi.WithAssistant(assistantResponder)
 
 	var store course.Repository
 	if databaseURL := strings.TrimSpace(os.Getenv("COURSE_SYLLABUS_DATABASE_URL")); databaseURL != "" {
@@ -126,7 +132,7 @@ func main() {
 	}
 
 	syllabi := syllabus.NewService(planner)
-	handler := httpapi.NewHandler(syllabi, store, reviewRoute, rubricRoute)
+	handler := httpapi.NewHandler(syllabi, store, reviewRoute, rubricRoute, assistantRoute)
 	readTimeout := 10 * time.Second
 	writeTimeout := modelTimeout + 15*time.Second
 	if databaseURL := os.Getenv("REPLAY_DEMO_DATABASE_URL"); databaseURL != "" {
@@ -166,7 +172,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("configure replay transcription: %v", err)
 		}
-		handler = httpapi.NewDemoHandler(syllabi, store, replays, transcriber, mediaDir, webDir, reviewRoute, rubricRoute)
+		handler = httpapi.NewDemoHandler(syllabi, store, replays, transcriber, mediaDir, webDir, reviewRoute, rubricRoute, assistantRoute)
 		if transcriber != nil {
 			writeTimeout = 4 * time.Minute
 		}
