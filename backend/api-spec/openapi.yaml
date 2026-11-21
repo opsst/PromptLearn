@@ -49,7 +49,8 @@ paths:
       operationId: getMathCurriculum
       summary: List the OBEC mathematics curriculum by grade and course type
       description: |
-        Returns the original Thai curriculum text. Select row IDs from groups[].rows[].id.
+        Returns Thai curriculum text by default. Set language=en for English row titles, outcomes and content.
+        Select row IDs from groups[].rows[].id.
         A row can contain multiple indicators or outcomes that share one topic.
       parameters:
         - name: grade
@@ -65,6 +66,9 @@ paths:
           schema:
             $ref: '#/components/schemas/CourseType'
           example: core
+        - name: language
+          in: query
+          schema: {type: string, enum: [th, en], default: th}
       responses:
         '200':
           description: Curriculum groups and their source rows
@@ -1233,13 +1237,15 @@ components:
       required: [category, points]
       properties:
         category: {type: string, minLength: 1, description: Category name in English.}
-        points: {type: integer, minimum: 1, maximum: 100}
+        points: {type: integer, minimum: 0, maximum: 100, description: Zero is allowed for an edited plan.}
     SyllabusInput:
       type: object
       required: [course_name, grade, course_type, term, total_sessions, minutes_per_session, reference_ids]
       properties:
         course_name: {type: string, minLength: 1, description: Course name in English.}
         course_code: {type: string, description: Optional school course identifier.}
+        credits: {type: number, minimum: 0, maximum: 999.99}
+        academic_year: {type: integer, minimum: 2000, maximum: 2100, description: Gregorian academic year.}
         grade:
           $ref: '#/components/schemas/Grade'
         course_type:
@@ -1253,6 +1259,10 @@ components:
           minItems: 1
           uniqueItems: true
           description: Rows selected for this semester from the specified grade and course type.
+          items: {type: string}
+        custom_references:
+          type: array
+          description: Teacher-entered English standards for an edited plan. Use custom/1, custom/2 and so on in reference_ids. The draft generator requires OBEC rows.
           items: {type: string}
         assessment_weights:
           type: array
@@ -1268,9 +1278,9 @@ components:
         category: {type: string, description: Exact category name from assessment_weights.}
         session:
           type: integer
-          minimum: 1
-          description: One-based unit period in a plan request. One-based course period in responses.
-        points: {type: integer, minimum: 1, maximum: 100}
+          minimum: 0
+          description: One-based unit period in an edit request. One-based course period in responses. Use 0 in an edited plan to allocate points before a date is set.
+        points: {type: integer, minimum: 0, maximum: 100, description: Positive in plan requests. Zero in a student response when scores are hidden.}
     PlannedUnit:
       type: object
       required: [title, reference_ids, session_titles]
@@ -1294,7 +1304,8 @@ components:
       type: object
       required: [description, units]
       description: |
-        Assign each course reference to exactly one unit. The total number of session titles must match
+        Assign each course reference to at least one unit. The same reference may span multiple units.
+        The total number of session titles must match
         total_sessions. Each assessment category's total must match its requested weight.
       properties:
         description: {type: string, minLength: 1, description: Course description in English.}
@@ -1360,16 +1371,22 @@ components:
         weekday: {type: integer, minimum: 1, maximum: 7, description: 1 is Monday and 7 is Sunday.}
         start_time:
           $ref: '#/components/schemas/ClockTime'
+        period_number: {type: integer, minimum: 1, maximum: 32, description: School period label for the weekly slot.}
     ClassTimetable:
       type: object
       required: [id, slots]
       properties:
         id: {type: string, minLength: 1}
+        student_count: {type: integer, minimum: 0, description: Class size entered by the teacher.}
         slots:
           type: array
           minItems: 1
           items:
             $ref: '#/components/schemas/WeeklySlot'
+        session_order:
+          type: array
+          description: Course session number for each available slot in date and time order. Use 0 to leave a slot empty. If omitted, use syllabus order.
+          items: {type: integer, minimum: 0}
     Timetable:
       type: object
       required: [start_date, end_date, classes]
@@ -1445,6 +1462,42 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ClassSchedule'
+    SyllabusEditorSettings:
+      type: object
+      description: Teacher settings for the term draft. Student visibility applies on publication.
+      properties:
+        textbook:
+          type: object
+          properties:
+            title: {type: string}
+            pages: {type: integer}
+            chapters: {type: array, items: {type: string}}
+        teaching_approaches:
+          type: array
+          uniqueItems: true
+          items: {type: string, enum: [inquiry, fiveE, cpa, flipped]}
+        student_details:
+          type: array
+          uniqueItems: true
+          items: {type: string, enum: [topics, assessmentDates, scores, indicators, notes]}
+        teaching_notes: {type: string}
+        lesson_groups:
+          type: array
+          description: Original named lessons and period counts grouped by unit in plan order.
+          items:
+            type: array
+            items:
+              type: object
+              properties:
+                title: {type: string}
+                periods: {type: integer, minimum: 1}
+        calendar_events:
+          type: array
+          items:
+            type: object
+            properties:
+              date: {type: string, format: date}
+              name: {type: string}
     SyllabusEdit:
       type: object
       required: [course, plan]
@@ -1455,6 +1508,8 @@ components:
           $ref: '#/components/schemas/EditedPlan'
         timetable:
           $ref: '#/components/schemas/Timetable'
+        settings:
+          $ref: '#/components/schemas/SyllabusEditorSettings'
     SyllabusPreview:
       type: object
       required: [syllabus]
@@ -1466,6 +1521,8 @@ components:
           $ref: '#/components/schemas/Timetable'
         schedule:
           $ref: '#/components/schemas/TeachingSchedule'
+        settings:
+          $ref: '#/components/schemas/SyllabusEditorSettings'
     SavedSyllabus:
       allOf:
         - $ref: '#/components/schemas/SyllabusPreview'
@@ -1495,6 +1552,8 @@ components:
             $ref: '#/components/schemas/AssessmentWeight'
         schedule:
           $ref: '#/components/schemas/TeachingSchedule'
+        indicators: {type: array, items: {type: string}, description: Included when the teacher shares indicator codes.}
+        teaching_notes: {type: string, description: Included when the teacher shares notes.}
 
     OCRBox:
       type: object
@@ -1763,6 +1822,8 @@ components:
         course:
           course_name: Mathematics 6 (Core)
           course_code: ค33101
+          credits: 1.5
+          academic_year: 2026
           grade: 6
           course_type: core
           term: 1
@@ -1794,12 +1855,20 @@ components:
                   session: 2
                   points: 40
         timetable: *example_timetable
+        settings: &example_editor_settings
+          teaching_approaches: [inquiry]
+          student_details: [topics, assessmentDates, scores]
+          teaching_notes: Bring a calculator.
+          lesson_groups:
+            - [{title: Presenting Data, periods: 1}, {title: Interpreting Statistical Measures, periods: 1}]
     SyllabusPreview:
       summary: English syllabus and dated meeting schedule
       value:
         syllabus: &example_edited_syllabus
           course_name: Mathematics 6 (Core)
           course_code: ค33101
+          credits: 1.5
+          academic_year: 2026
           grade: 6
           course_type: core
           term: 1
@@ -1861,6 +1930,7 @@ components:
                   points: 40
           document_html: <!doctype html><html lang="en"><body><h1>Mathematics 6 (Core)</h1><h2>Learning Outcomes</h2></body></html>
         timetable: *example_timetable
+        settings: *example_editor_settings
         schedule: &example_schedule
           timezone: Asia/Bangkok
           available_sessions: 2

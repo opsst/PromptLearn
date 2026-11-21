@@ -1,11 +1,8 @@
-import 'dart:convert';
-
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../domain/models/course_syllabus.dart';
 import '../../../../domain/repositories/course_syllabus_repository.dart';
+import '../../syllabus/models/syllabus_html_export.dart';
 
 class SyllabusIntegrationDialog extends StatefulWidget {
   const SyllabusIntegrationDialog({super.key, required this.repository});
@@ -18,7 +15,6 @@ class SyllabusIntegrationDialog extends StatefulWidget {
 }
 
 class _SyllabusIntegrationDialogState extends State<SyllabusIntegrationDialog> {
-  static const _exportChannel = MethodChannel('promptlearn/syllabus_export');
   static const _exampleReferences = {
     'core/1/1.1/1',
     'core/1/2.2/1',
@@ -119,9 +115,6 @@ class _SyllabusIntegrationDialogState extends State<SyllabusIntegrationDialog> {
     }
   }
 
-  bool get _canDownload =>
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
-
   Future<void> _exportDocument(CourseSyllabusDraft draft) async {
     setState(() {
       _exporting = true;
@@ -129,21 +122,13 @@ class _SyllabusIntegrationDialogState extends State<SyllabusIntegrationDialog> {
       _error = null;
     });
     try {
-      if (_canDownload) {
-        final selection = draft.selection;
-        final fileName =
-            'PromptLearn-M${selection.grade}-Semester-${selection.term}.html';
-        final saved = await _exportChannel.invokeMethod<bool>('saveHtml', {
-          'fileName': fileName,
-          'contents': utf8.encode(draft.documentHtml),
-        });
-        if (mounted && saved == true) {
-          setState(() => _exportMessage = 'Saved HTML to your device.');
-        }
-      } else {
-        await Clipboard.setData(ClipboardData(text: draft.documentHtml));
-        if (mounted) setState(() => _exportMessage = 'Syllabus HTML copied.');
-      }
+      final selection = draft.selection;
+      final message = await exportSyllabusHtml(
+        grade: selection.grade,
+        term: selection.term,
+        html: draft.documentHtml,
+      );
+      if (mounted && message != null) setState(() => _exportMessage = message);
     } on Exception {
       if (mounted) setState(() => _error = 'Could not export the syllabus.');
     } finally {
@@ -232,11 +217,11 @@ class _SyllabusIntegrationDialogState extends State<SyllabusIntegrationDialog> {
             onPressed: _busy || _exporting
                 ? null
                 : () => _exportDocument(draft),
-            icon: Icon(_canDownload ? Icons.download : Icons.copy),
+            icon: Icon(canDownloadSyllabusHtml ? Icons.download : Icons.copy),
             label: Text(
               _exporting
                   ? 'Exporting…'
-                  : _canDownload
+                  : canDownloadSyllabusHtml
                   ? 'Download HTML'
                   : 'Copy HTML',
             ),

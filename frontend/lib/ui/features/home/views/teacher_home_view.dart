@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../domain/repositories/course_syllabus_repository.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../classroom/models/teacher_class_preview.dart';
 import '../../syllabus/models/syllabus_preview.dart';
@@ -32,6 +33,7 @@ class TeacherHomeView extends StatelessWidget {
     required this.onStartClass,
     required this.onOpenAssessment,
     this.reviewNavigation,
+    this.syllabusRepository,
   });
 
   final String displayName;
@@ -39,6 +41,7 @@ class TeacherHomeView extends StatelessWidget {
   final VoidCallback onStartClass;
   final VoidCallback onOpenAssessment;
   final Widget? reviewNavigation;
+  final CourseSyllabusRepository? syllabusRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -122,6 +125,7 @@ class TeacherHomeView extends StatelessWidget {
                                         const _ClassPulse(),
                                         _Syllabi(
                                           reviewNavigation: reviewNavigation,
+                                          repository: syllabusRepository,
                                         ),
                                       ],
                                     ),
@@ -861,9 +865,10 @@ class _TileIcon extends StatelessWidget {
 }
 
 class _Syllabi extends StatefulWidget {
-  const _Syllabi({this.reviewNavigation});
+  const _Syllabi({this.reviewNavigation, this.repository});
 
   final Widget? reviewNavigation;
+  final CourseSyllabusRepository? repository;
 
   @override
   State<_Syllabi> createState() => _SyllabiState();
@@ -884,6 +889,7 @@ class _SyllabiState extends State<_Syllabi> {
         builder: (context) => SyllabusEditorView(
           draft: _draft,
           reviewNavigation: widget.reviewNavigation,
+          repository: widget.repository,
         ),
       ),
     );

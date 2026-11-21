@@ -18,7 +18,7 @@ class SyllabusStandardsFields extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final obec = draft.standardsSource == StandardsSource.obec;
-    final selectedCount = draft.selectedIndicators.length;
+    final selectedCount = draft.selectedIndicatorCount;
     final additional = draft.additionalIndicators;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -100,7 +100,9 @@ class SyllabusStandardsFields extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    draft.indicators.isEmpty
+                    draft.usesCurriculumCatalog
+                        ? 'Choose curriculum rows for this semester. Each row includes its related OBEC indicators.'
+                        : draft.indicators.isEmpty
                         ? 'Sample indicators are available for Mathayom 1. Use Custom to add indicators for this grade.'
                         : 'Review the recommended indicators and adjust your selection.',
                     style: const TextStyle(

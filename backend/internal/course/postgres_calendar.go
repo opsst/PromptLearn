@@ -49,7 +49,7 @@ func publishCalendar(ctx context.Context, tx pgx.Tx, courseID, versionID string,
 		}
 	}
 
-	termID, err := findTerm(ctx, tx, preview.Syllabus.Term, *preview.Timetable)
+	termID, err := findTerm(ctx, tx, preview.Syllabus.Term, preview.Syllabus.AcademicYear, *preview.Timetable)
 	if err != nil {
 		return err
 	}
@@ -87,13 +87,18 @@ func publishCalendar(ctx context.Context, tx pgx.Tx, courseID, versionID string,
 	return nil
 }
 
-func findTerm(ctx context.Context, tx pgx.Tx, semester int, timetable teaching.Timetable) (string, error) {
+func findTerm(ctx context.Context, tx pgx.Tx, semester, academicYear int, timetable teaching.Timetable) (string, error) {
 	var termID string
+	year := 0
+	if academicYear != 0 {
+		year = academicYear + 543
+	}
 	err := tx.QueryRow(ctx, `
 		SELECT id::text FROM promptlearn.academic_terms
 		WHERE organization_id = $1 AND semester = $2 AND starts_on <= $3::date AND ends_on >= $4::date
+		  AND ($5::integer = 0 OR academic_year = $5)
 		ORDER BY starts_on DESC LIMIT 1
-	`, demoOrganization, semester, timetable.StartDate, timetable.EndDate).Scan(&termID)
+	`, demoOrganization, semester, timetable.StartDate, timetable.EndDate, year).Scan(&termID)
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return termID, err
 	}
@@ -102,9 +107,11 @@ func findTerm(ctx context.Context, tx pgx.Tx, semester int, timetable teaching.T
 	if err != nil {
 		return "", err
 	}
-	year := start.Year() + 543
-	if semester == 2 && start.Month() < time.May {
-		year--
+	if year == 0 {
+		year = start.Year() + 543
+		if semester == 2 && start.Month() < time.May {
+			year--
+		}
 	}
 	err = tx.QueryRow(ctx, `
 		INSERT INTO promptlearn.academic_terms (organization_id, academic_year, semester, starts_on, ends_on, syllabus_demo_inferred)
@@ -150,15 +157,18 @@ func writeOffering(ctx context.Context, tx pgx.Tx, courseID, termID, grade, clas
 func writeSlots(ctx context.Context, tx pgx.Tx, offeringID string, slots []teaching.Slot, duration int) error {
 	type weeklySlot struct {
 		weekday int
+		period  int
 		start   time.Time
 	}
 	ordered := make([]weeklySlot, 0, len(slots))
+	used := make(map[[2]int]bool, len(slots))
 	for _, slot := range slots {
 		start, err := time.Parse("15:04", slot.StartTime)
 		if err != nil {
 			return err
 		}
-		ordered = append(ordered, weeklySlot{weekday: slot.Weekday, start: start})
+		ordered = append(ordered, weeklySlot{weekday: slot.Weekday, period: slot.PeriodNumber, start: start})
+		used[[2]int{slot.Weekday, slot.PeriodNumber}] = true
 	}
 	slices.SortFunc(ordered, func(a, b weeklySlot) int {
 		if a.weekday != b.weekday {
@@ -166,12 +176,15 @@ func writeSlots(ctx context.Context, tx pgx.Tx, offeringID string, slots []teach
 		}
 		return a.start.Compare(b.start)
 	})
-	lastWeekday, period := 0, 0
 	for _, slot := range ordered {
-		if slot.weekday != lastWeekday {
-			lastWeekday, period = slot.weekday, 0
+		period := slot.period
+		if period == 0 {
+			period = 1
+			for used[[2]int{slot.weekday, period}] {
+				period++
+			}
+			used[[2]int{slot.weekday, period}] = true
 		}
-		period++
 		end := slot.start.Add(time.Duration(duration) * time.Minute)
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO promptlearn.weekly_timetable_slots (offering_id, organization_id, weekday, period_number, local_starts_at, local_ends_at)

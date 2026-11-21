@@ -434,7 +434,8 @@ class _StudentPreviewState extends State<_StudentPreview> {
                 for (final slot in slots)
                   if ((slot.lesson?.quizPoints ?? 0) > 0)
                     Text(
-                      '${dates.format(slot.date)} · P${slot.periodNumber} · ${slot.lesson!.title} · ${slot.lesson!.quizPoints} points',
+                      '${dates.format(slot.date)} · P${slot.periodNumber} · Unit quiz'
+                      '${details.contains(StudentSyllabusDetail.scores) ? ' · ${slot.lesson!.quizPoints} points' : ''}',
                     ),
                 const Text('Exam dates follow the school calendar.'),
               ],

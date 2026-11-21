@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 
 	"github.com/opsst/PromptLearn/backend/internal/syllabus"
@@ -42,6 +43,8 @@ type StudentView struct {
 	Term              int               `json:"term"`
 	AssessmentWeights []syllabus.Weight `json:"assessment_weights"`
 	Schedule          teaching.Schedule `json:"schedule"`
+	Indicators        []string          `json:"indicators,omitempty"`
+	TeachingNotes     string            `json:"teaching_notes,omitempty"`
 }
 
 type record struct {
@@ -181,9 +184,55 @@ func (s *Store) path(id string) string {
 }
 
 func publishedView(draft Saved) StudentView {
-	return StudentView{
+	view := StudentView{
 		ID: draft.ID, CourseName: draft.Syllabus.CourseName, CourseCode: draft.Syllabus.CourseCode,
 		Grade: draft.Syllabus.Grade, Term: draft.Syllabus.Term,
 		AssessmentWeights: draft.Syllabus.AssessmentWeights, Schedule: *draft.Schedule,
 	}
+	settings := draft.Settings
+	if settings == nil {
+		return view
+	}
+	visible := func(detail string) bool { return slices.Contains(settings.StudentDetails, detail) }
+	showTopics, showDates, showScores := visible("topics"), visible("assessmentDates"), visible("scores")
+	if !showScores {
+		view.AssessmentWeights = []syllabus.Weight{}
+	}
+	if visible("indicators") {
+		for _, reference := range draft.Syllabus.References {
+			for _, outcome := range reference.Row.Outcomes {
+				if outcome.Code != "" {
+					view.Indicators = append(view.Indicators, outcome.Code)
+				} else {
+					view.Indicators = append(view.Indicators, outcome.Text)
+				}
+			}
+		}
+	}
+	if visible("notes") {
+		view.TeachingNotes = settings.TeachingNotes
+	}
+	view.Schedule.Classes = slices.Clone(view.Schedule.Classes)
+	for i, class := range view.Schedule.Classes {
+		meetings := make([]teaching.Meeting, 0, len(class.Meetings))
+		for _, meeting := range class.Meetings {
+			if !showTopics && (!showDates || len(meeting.Assessments) == 0) {
+				continue
+			}
+			if !showTopics {
+				meeting.Title, meeting.Unit = "", ""
+			}
+			if !showDates {
+				meeting.Assessments = []syllabus.Assessment{}
+			} else if !showScores {
+				meeting.Assessments = slices.Clone(meeting.Assessments)
+				for j := range meeting.Assessments {
+					meeting.Assessments[j].Points = 0
+				}
+			}
+			meetings = append(meetings, meeting)
+		}
+		view.Schedule.Classes[i].Meetings = meetings
+	}
+	return view
 }
