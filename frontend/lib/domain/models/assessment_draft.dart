@@ -1,3 +1,5 @@
+import 'assessment_rubric.dart';
+
 enum AssessmentKind { quiz, homework }
 
 enum AssessmentQuestionKind { shortAnswer, showWork, multipleChoice, trueFalse }
@@ -8,6 +10,7 @@ class AssessmentQuestion {
     required this.prompt,
     required this.points,
     this.options = const [],
+    this.rubric,
   });
 
   factory AssessmentQuestion.fromJson(Map<String, Object?> json) {
@@ -20,6 +23,10 @@ class AssessmentQuestion {
           options: List<String>.unmodifiable(
             (json['options'] as List<Object?>? ?? []).cast<String>(),
           ),
+          rubric: switch (json['rubric']) {
+            final Map<String, Object?> value => QuestionRubric.fromJson(value),
+            _ => null,
+          },
         ),
       _ => throw const FormatException('Invalid assessment question.'),
     };
@@ -29,12 +36,31 @@ class AssessmentQuestion {
   final String prompt;
   final int points;
   final List<String> options;
+  final QuestionRubric? rubric;
+
+  AssessmentQuestion withRubric(QuestionRubric? next) => AssessmentQuestion(
+    kind: kind,
+    prompt: prompt,
+    points: points,
+    options: options,
+    rubric: next,
+  );
+
+  bool sameContentAs(AssessmentQuestion other) =>
+      kind == other.kind &&
+      prompt == other.prompt &&
+      points == other.points &&
+      options.length == other.options.length &&
+      options.asMap().entries.every(
+        (entry) => entry.value == other.options[entry.key],
+      );
 
   Map<String, Object?> toJson() => {
     'kind': kind.name,
     'prompt': prompt,
     'points': points,
     if (options.isNotEmpty) 'options': options,
+    if (rubric case final rubric?) 'rubric': rubric.toJson(),
   };
 }
 

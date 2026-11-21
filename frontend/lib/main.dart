@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/http_inspector.dart';
 import 'app/prompt_learn_app.dart';
+import 'data/repositories/api_assessment_rubric_generator.dart';
 import 'data/repositories/api_homework_checker.dart';
 import 'data/repositories/local_role_repository.dart';
 
@@ -23,10 +24,12 @@ void main() {
         (base.scheme != 'http' && base.scheme != 'https')) {
       throw ArgumentError('PROMPTLEARN_API_BASE_URL must be an HTTP(S) URL.');
     }
+    final client = http.Client();
     runApp(
       PromptLearnApp(
         roleRepository: roleRepository,
-        homeworkChecker: ApiHomeworkChecker(base, http.Client()),
+        homeworkChecker: ApiHomeworkChecker(base, client),
+        assessmentRubricGenerator: ApiAssessmentRubricGenerator(base, client),
       ),
     );
   }

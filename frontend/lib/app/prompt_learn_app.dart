@@ -7,6 +7,7 @@ import '../data/repositories/mock_homework_checker.dart';
 import '../data/services/android_class_recording_service.dart';
 import '../domain/models/user_role.dart';
 import '../domain/repositories/assessment_draft_repository.dart';
+import '../domain/repositories/assessment_rubric_generator.dart';
 import '../domain/repositories/homework_checker.dart';
 import '../domain/repositories/role_repository.dart';
 import '../domain/services/class_recording_service.dart';
@@ -14,10 +15,13 @@ import '../ui/core/layout/app_navigation.dart';
 import '../ui/core/layout/app_page_layout.dart';
 import '../ui/core/theme/app_theme.dart';
 import '../ui/features/assessment/view_models/assessment_draft_controller.dart';
+import '../ui/features/assessment/view_models/assessment_rubric_controller.dart';
 import '../ui/features/assessment/views/student_homework_view.dart';
 import '../ui/features/assessment/views/teacher_assessment_builder_view.dart';
+import '../ui/features/assessment/views/teacher_scoring_rubric_view.dart';
 import '../ui/features/assessment/widgets/homework_notebook.dart';
 import '../ui/features/auth/views/role_selection_view.dart';
+import '../ui/features/classroom/models/teacher_class_preview.dart';
 import '../ui/features/classroom/views/teacher_class_setup_view.dart';
 import '../ui/features/home/views/student_home_view.dart';
 import '../ui/features/home/views/teacher_home_view.dart';
@@ -32,12 +36,14 @@ class PromptLearnApp extends StatelessWidget {
     this.homeworkChecker = const MockHomeworkChecker(),
     this.classRecording = const AndroidClassRecordingService(),
     this.assessmentDraftRepository = const LocalAssessmentDraftRepository(),
+    this.assessmentRubricGenerator,
   });
 
   final RoleRepository roleRepository;
   final HomeworkChecker homeworkChecker;
   final ClassRecordingService classRecording;
   final AssessmentDraftRepository assessmentDraftRepository;
+  final AssessmentRubricGenerator? assessmentRubricGenerator;
 
   @override
   Widget build(BuildContext context) {
@@ -55,6 +61,7 @@ class PromptLearnApp extends StatelessWidget {
           homeworkChecker: homeworkChecker,
           classRecording: classRecording,
           assessmentDraftRepository: assessmentDraftRepository,
+          assessmentRubricGenerator: assessmentRubricGenerator,
         ),
       ),
     );
@@ -67,12 +74,14 @@ class _RoleGate extends StatefulWidget {
     required this.homeworkChecker,
     required this.classRecording,
     required this.assessmentDraftRepository,
+    required this.assessmentRubricGenerator,
   });
 
   final RoleRepository repository;
   final HomeworkChecker homeworkChecker;
   final ClassRecordingService classRecording;
   final AssessmentDraftRepository assessmentDraftRepository;
+  final AssessmentRubricGenerator? assessmentRubricGenerator;
 
   @override
   State<_RoleGate> createState() => _RoleGateState();
@@ -143,6 +152,7 @@ class _RoleGateState extends State<_RoleGate> {
       homeworkChecker: widget.homeworkChecker,
       classRecording: widget.classRecording,
       assessmentDraftRepository: widget.assessmentDraftRepository,
+      assessmentRubricGenerator: widget.assessmentRubricGenerator,
       onSwitchRole: () => _changeRole(null),
     );
   }
@@ -155,24 +165,27 @@ class _PromptLearnShell extends StatefulWidget {
     required this.onSwitchRole,
     required this.classRecording,
     required this.assessmentDraftRepository,
+    required this.assessmentRubricGenerator,
   });
 
   final UserRole role;
   final HomeworkChecker homeworkChecker;
   final ClassRecordingService classRecording;
   final AssessmentDraftRepository assessmentDraftRepository;
+  final AssessmentRubricGenerator? assessmentRubricGenerator;
   final VoidCallback onSwitchRole;
 
   @override
   State<_PromptLearnShell> createState() => _PromptLearnShellState();
 }
 
-enum _HomeDetail { homework, classSetup, assessment }
+enum _HomeDetail { homework, classSetup, assessment, rubric }
 
 class _PromptLearnShellState extends State<_PromptLearnShell> {
   var _destination = AppDestination.home;
   _HomeDetail? _homeDetail;
   AssessmentDraftController? _assessment;
+  AssessmentRubricController? _rubrics;
   bool _classLocked = false;
   final _pageKey = GlobalKey();
   late final _homeworkNotebook = HomeworkNotebook();
@@ -187,6 +200,7 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
 
   @override
   void dispose() {
+    _rubrics?.dispose();
     _assessment?.dispose();
     super.dispose();
   }
@@ -235,6 +249,21 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
     setState(() => _homeDetail = detail);
   }
 
+  void _openRubric() {
+    final rubrics = _rubrics ??= AssessmentRubricController(
+      draft: _assessment!,
+      generator: widget.assessmentRubricGenerator,
+      lessonTitle: TeacherClassPreview.lessonTitle,
+      lessonSteps: [
+        for (final step in TeacherClassPreview.steps) step.instructions,
+      ],
+    );
+    rubrics.prepareMissing();
+    _openHomeDetail(_HomeDetail.rubric);
+  }
+
+  void _backToQuestions() => _openHomeDetail(_HomeDetail.assessment);
+
   void _closeHomeDetail() => _selectDestination(AppDestination.home);
 
   Widget _buildHome() {
@@ -265,7 +294,11 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
         canPop: detail == null,
         onPopInvokedWithResult: (didPop, _) {
           if (!didPop && _homeDetail != null && !_classLocked) {
-            _closeHomeDetail();
+            if (_homeDetail == _HomeDetail.rubric) {
+              _backToQuestions();
+            } else {
+              _closeHomeDetail();
+            }
           }
         },
         child: IndexedStack(
@@ -283,6 +316,11 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
                 _HomeDetail.assessment => TeacherAssessmentBuilderView(
                   controller: _assessment!,
                   onBack: _closeHomeDetail,
+                  onNext: _openRubric,
+                ),
+                _HomeDetail.rubric => TeacherScoringRubricView(
+                  controller: _rubrics!,
+                  onBack: _backToQuestions,
                 ),
                 _HomeDetail.homework => StudentHomeworkView(
                   notebook: _homeworkNotebook,

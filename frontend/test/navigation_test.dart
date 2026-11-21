@@ -5,8 +5,10 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptlearn/app/prompt_learn_app.dart';
 import 'package:promptlearn/domain/models/assessment_draft.dart';
+import 'package:promptlearn/domain/models/assessment_rubric.dart';
 import 'package:promptlearn/domain/models/user_role.dart';
 import 'package:promptlearn/domain/repositories/assessment_draft_repository.dart';
+import 'package:promptlearn/domain/repositories/assessment_rubric_generator.dart';
 import 'package:promptlearn/domain/repositories/role_repository.dart';
 import 'package:promptlearn/domain/services/class_recording_service.dart';
 import 'package:promptlearn/ui/features/home/views/student_home_view.dart';
@@ -183,6 +185,96 @@ void main() {
     await tester.drag(find.text('Questions'), const Offset(0, -250));
     await tester.pumpAndSettle();
     expect(tester.getTopLeft(find.text('Create Assessment')), header);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Teacher drafts, edits, approves and removes rubric questions', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1164, 777));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final repository = _MemoryAssessmentDraftRepository()
+      ..stored = const AssessmentDraft(
+        questions: [
+          AssessmentQuestion(
+            kind: AssessmentQuestionKind.showWork,
+            prompt: 'Simplify (x²)(x⁵). Show each step.',
+            points: 1,
+          ),
+          AssessmentQuestion(
+            kind: AssessmentQuestionKind.multipleChoice,
+            prompt: 'Which organelle performs photosynthesis?',
+            points: 1,
+            options: ['Nucleus', 'Chloroplast'],
+          ),
+        ],
+      );
+    final generator = _FixtureRubricGenerator();
+    await _openApp(
+      tester,
+      _MemoryRoleRepository(UserRole.teacher),
+      assessment: repository,
+      rubricGenerator: generator,
+    );
+    await tester.tap(find.text('Lesson Plan'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Next: Scoring rubric'));
+    await tester.pumpAndSettle();
+
+    expect(generator.requests, hasLength(2));
+    expect(
+      generator.requests.every((title) => title.contains('powers')),
+      isTrue,
+    );
+    expect(find.textContaining('Multiplied exponents'), findsOneWidget);
+    final title = find.textContaining('Scoring rubric ·');
+    final headerPosition = tester.getTopLeft(title);
+    final approve = find.widgetWithText(FilledButton, 'Approve answer');
+
+    await tester.enterText(
+      find.byKey(const ValueKey('Criterion 1 full points')),
+      '0.75',
+    );
+    await tester.pumpAndSettle();
+    expect(tester.widget<FilledButton>(approve).onPressed, isNull);
+    expect(find.textContaining('Full credit must add up'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('Criterion 2 full points')),
+      '0.25',
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(approve);
+    await tester.tap(approve);
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(title), headerPosition);
+    expect(repository.stored!.questions.first.rubric!.approved, isTrue);
+    expect(
+      repository.stored!.questions.first.rubric!.criteria.first.fullScore,
+      '0.75',
+    );
+
+    await tester.tap(find.text('Back to questions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Next: Scoring rubric'));
+    await tester.pumpAndSettle();
+    expect(find.text('Answer approved'), findsOneWidget);
+    expect(generator.requests, hasLength(2));
+
+    await tester.tap(find.text('Multiple choice'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('photosynthesis is outside'), findsOneWidget);
+    final remove = find.text('Remove question');
+    await tester.ensureVisible(remove);
+    await tester.tap(remove);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('Remove question'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(repository.stored!.questions, hasLength(1));
     expect(tester.takeException(), isNull);
   });
 
@@ -695,6 +787,7 @@ Future<void> _openApp(
   RoleRepository repository, {
   ClassRecordingService? recording,
   AssessmentDraftRepository? assessment,
+  AssessmentRubricGenerator? rubricGenerator,
 }) async {
   final drafts = assessment ?? _MemoryAssessmentDraftRepository();
   await tester.pumpWidget(
@@ -702,11 +795,13 @@ Future<void> _openApp(
         ? PromptLearnApp(
             roleRepository: repository,
             assessmentDraftRepository: drafts,
+            assessmentRubricGenerator: rubricGenerator,
           )
         : PromptLearnApp(
             roleRepository: repository,
             classRecording: recording,
             assessmentDraftRepository: drafts,
+            assessmentRubricGenerator: rubricGenerator,
           ),
   );
   await tester.pumpAndSettle();
@@ -849,5 +944,42 @@ class _MemoryAssessmentDraftRepository implements AssessmentDraftRepository {
   @override
   Future<void> save(AssessmentDraft draft) async {
     stored = draft;
+  }
+}
+
+class _FixtureRubricGenerator implements AssessmentRubricGenerator {
+  final requests = <String>[];
+
+  @override
+  Future<QuestionRubric> generate({
+    required AssessmentQuestion question,
+    required String lessonTitle,
+    required List<String> lessonSteps,
+    String? teacherRequest,
+  }) async {
+    expect(lessonSteps, isNotEmpty);
+    requests.add(lessonTitle);
+    return question.kind == AssessmentQuestionKind.showWork
+        ? const QuestionRubric(
+            answer: '(x²)(x⁵) = x²⁺⁵ = x⁷',
+            alignment: RubricAlignment.aligned,
+            note: 'Split credit between method and final answer.',
+            criteria: [
+              RubricCriterion(
+                name: 'Method',
+                fullScore: '0.5',
+                partialScore: '0.25',
+              ),
+              RubricCriterion(name: 'Answer', fullScore: '0.5'),
+            ],
+            mistakes: [RubricMistake('x¹⁰', 'Multiplied exponents')],
+          )
+        : const QuestionRubric(
+            answer: 'Chloroplast',
+            correctOption: 1,
+            alignment: RubricAlignment.outOfScope,
+            alignmentReason:
+                'The topic of photosynthesis is outside this lesson.',
+          );
   }
 }

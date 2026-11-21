@@ -21,6 +21,7 @@ tags:
   - name: Timetable
   - name: Student View
   - name: Assignment Review
+  - name: Assessment Rubrics
   - name: Video Replay
 paths:
   /healthz:
@@ -480,6 +481,51 @@ paths:
               schema:
                 $ref: '#/components/schemas/APIError'
               example: {code: review_timeout, message: assignment review timed out}
+
+  /v1/assessments/rubric/draft:
+    post:
+      tags: [Assessment Rubrics]
+      operationId: draftAssessmentRubric
+      summary: Draft a private answer and scoring guide for one question
+      description: |
+        Loopback-only teacher demo. Drafts answers, lesson alignment and plausible mistakes with OpenAI.
+        For Show work, full credit must total the question points and each partial score must fit its full score.
+        Send teacher_request and previous to ask for a revision of an existing draft.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssessmentRubricInput'
+            example:
+              lesson:
+                title: Multiplying powers with the same base
+                steps: [Expand both powers and count the factors.]
+              question:
+                kind: showWork
+                prompt: Simplify (x²)(x⁵). Show each step.
+                points: 1
+      responses:
+        '200':
+          description: Draft for teacher review
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentRubricDraft'
+        '400':
+          description: Invalid JSON, lesson, question or revision request
+        '403':
+          description: The request did not come from the loopback interface
+        '413':
+          description: The request exceeds 64 KiB
+        '415':
+          description: The request needs an application/json content type
+        '502':
+          description: OpenAI failed to return a valid draft
+        '503':
+          description: OpenAI is missing from the backend configuration
+        '504':
+          description: The AI request timed out
 
   /api/demo/recordings:
     post:
@@ -956,6 +1002,76 @@ components:
     Term:
       type: integer
       enum: [1, 2]
+    AssessmentRubricInput:
+      type: object
+      required: [lesson, question]
+      properties:
+        lesson:
+          type: object
+          required: [title, steps]
+          properties:
+            title: {type: string}
+            steps:
+              type: array
+              minItems: 1
+              items: {type: string}
+        question:
+          type: object
+          required: [kind, prompt, points]
+          properties:
+            kind:
+              type: string
+              enum: [shortAnswer, showWork, multipleChoice, trueFalse]
+            prompt: {type: string}
+            points: {type: integer, minimum: 1}
+            options:
+              description: Two to four distinct strings for multiple choice
+              type: array
+              minItems: 2
+              maxItems: 4
+              items: {type: string}
+        teacher_request: {type: string}
+        previous:
+          $ref: '#/components/schemas/AssessmentRubricDraft'
+    AssessmentRubricDraft:
+      type: object
+      required: [answer, correct_option, alignment, alignment_reason, criteria, mistakes, note]
+      properties:
+        answer:
+          type: string
+          description: Suggested model answer, possibly blank for an ambiguous question
+        correct_option:
+          type: integer
+          nullable: true
+          description: Zero-based option index. For trueFalse, 0 is True and 1 is False.
+        alignment:
+          type: string
+          enum: [aligned, out_of_scope, unclear]
+        alignment_reason: {type: string}
+        criteria:
+          type: array
+          maxItems: 6
+          items:
+            type: object
+            required: [name, description, full_points, full_description, partial_points, partial_description, none_description]
+            properties:
+              name: {type: string}
+              description: {type: string}
+              full_points: {type: number}
+              full_description: {type: string}
+              partial_points: {type: number, nullable: true}
+              partial_description: {type: string}
+              none_description: {type: string}
+        mistakes:
+          type: array
+          maxItems: 4
+          items:
+            type: object
+            required: [example, reason]
+            properties:
+              example: {type: string}
+              reason: {type: string}
+        note: {type: string}
     APIError:
       type: object
       required: [code, message]

@@ -23,10 +23,12 @@ class TeacherAssessmentBuilderView extends StatefulWidget {
     super.key,
     required this.controller,
     required this.onBack,
+    required this.onNext,
   });
 
   final AssessmentDraftController controller;
   final VoidCallback onBack;
+  final VoidCallback onNext;
 
   @override
   State<TeacherAssessmentBuilderView> createState() =>
@@ -47,6 +49,8 @@ class _TeacherAssessmentBuilderViewState
     if (index == null) {
       questions.add(edited);
     } else {
+      final original = questions[index];
+      if (original.sameContentAs(edited)) return;
       questions[index] = edited;
     }
     widget.controller.update(_draft.copyWith(questions: questions));
@@ -58,7 +62,11 @@ class _TeacherAssessmentBuilderViewState
       case _QuestionAction.edit:
         return _editQuestion(index);
       case _QuestionAction.duplicate:
-        questions.insert(index + 1, questions[index]);
+        final original = questions[index];
+        questions.insert(
+          index + 1,
+          original.withRubric(original.rubric?.copyWith(approved: false)),
+        );
       case _QuestionAction.moveUp:
         questions.insert(index - 1, questions.removeAt(index));
       case _QuestionAction.moveDown:
@@ -261,22 +269,21 @@ class _TeacherAssessmentBuilderViewState
           icon: const Icon(Icons.visibility_outlined, size: 19),
           label: const Text('Preview as student'),
         ),
-        Tooltip(
-          message: 'Scoring rubric will be available in the next step',
-          child: FilledButton.icon(
-            onPressed: null,
-            style: FilledButton.styleFrom(
-              disabledBackgroundColor: const Color(0xFF0B0F0C),
-              disabledForegroundColor: const Color(0xFFD7DED9),
-              minimumSize: Size(fullSize ? 215 : 0, 48),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              shape: controlShape,
-              textStyle: buttonText,
-            ),
-            iconAlignment: IconAlignment.end,
-            icon: const Icon(Icons.chevron_right, size: 18),
-            label: const Text('Next: Scoring rubric'),
+        FilledButton.icon(
+          onPressed: _draft.questions.isEmpty ? null : widget.onNext,
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF0B0F0C),
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: const Color(0xFF273430),
+            disabledForegroundColor: const Color(0xFFD7DED9),
+            minimumSize: Size(fullSize ? 215 : 0, 48),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            shape: controlShape,
+            textStyle: buttonText,
           ),
+          iconAlignment: IconAlignment.end,
+          icon: const Icon(Icons.chevron_right, size: 18),
+          label: const Text('Next: Scoring rubric'),
         ),
       ],
     );
