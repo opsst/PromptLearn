@@ -46,7 +46,7 @@ psql -X -v ON_ERROR_STOP=1 -d promptlearn_dev -f db_migration/demo_seed.sql
 psql -X -v ON_ERROR_STOP=1 -d promptlearn_dev -f db_migration/assignment_review_demo_seed.sql
 ```
 
-ตั้ง `ASSIGNMENT_REVIEW_DATABASE_URL` ให้ backend ชี้ฐานเดโม จากนั้นเรียก `hw-3-2/q4` ระบบใช้บัญชีนักเรียนตัวอย่างที่กำหนดฝั่ง server การตรวจแต่ละครั้งเขียน revision, ผลตรวจ และ feedback ใน transaction เดียว คะแนนทางการยังอยู่ใน flow เผยแพร่คะแนน
+ตั้ง `ASSIGNMENT_REVIEW_DATABASE_URL` ให้ backend ชี้ฐานเดโม จากนั้นเรียก `hw-3-1/q1` ถึง `hw-3-1/q8` จาก Flutter หรือทดสอบตัวอย่างเดิม `hw-3-2/q4` หากฐานเดโมเคย seed ไว้แล้ว ให้รัน `assignment_review_demo_seed.sql` อีกครั้งเพื่อเพิ่ม HW 3.1 ฉบับที่ 2 ซึ่งใช้โจทย์สมการในข้อ 5 ประวัติที่อ้างถึงฉบับแรกยังอ่านได้จากฐานเดิม ระบบใช้บัญชีนักเรียนตัวอย่างที่กำหนดฝั่ง server การตรวจแต่ละครั้งเขียน revision, ผลตรวจ และ feedback ใน transaction เดียว คะแนนทางการยังอยู่ใน flow เผยแพร่คะแนน
 
 ## การตัดสินใจตาม frontend flow
 

@@ -176,6 +176,7 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
           throw StateError('Paper snapshot could not be encoded.');
         }
         request = HomeworkCheckRequest(
+          assignmentId: HomeworkNotebook.assignmentId,
           question: question,
           paperPng: bytes.buffer.asUint8List(
             bytes.offsetInBytes,
@@ -191,7 +192,7 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
       if (!mounted || revision != _revision) return;
       final feedback = await widget.checker
           .check(request)
-          .timeout(const Duration(seconds: 20));
+          .timeout(const Duration(seconds: 65));
       if (mounted && revision == _revision) {
         setState(() => _feedback = feedback);
       }
@@ -317,11 +318,23 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
       message = const _FeedbackMessage(
         title: 'Check failed',
         message: 'Tap Snap paper work to try again.',
+        needsAttention: true,
       );
     } else if (feedback != null) {
       message = _FeedbackMessage(
-        title: feedback.isDemo ? 'Demo feedback' : 'Hint',
-        message: feedback.hint,
+        needsAttention: feedback.status == HomeworkReviewStatus.needsRevision,
+        title: switch (feedback.status) {
+          HomeworkReviewStatus.correct => 'Correct',
+          HomeworkReviewStatus.needsRevision => 'Check these steps',
+          HomeworkReviewStatus.unreadable => 'Work unclear',
+          null => feedback.isDemo ? 'Demo feedback' : 'Hint',
+        },
+        message: [
+          feedback.hint,
+          for (final (index, issue) in feedback.issues.indexed)
+            '${feedback.issues.length > 1 ? '${index + 1}. ' : ''}'
+                '${issue.observation} ${issue.hint}',
+        ].join('\n'),
       );
     } else {
       message = null;
@@ -339,16 +352,13 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
           );
         }
 
-        final region = feedback?.region;
-        final showOnRight = region == null || region.right <= 0.62;
         return Stack(
           children: [
             paper,
             if (message != null)
               Positioned(
                 top: 12,
-                left: showOnRight ? null : 12,
-                right: showOnRight ? 12 : null,
+                right: 12,
                 width: math.min(340, constraints.maxWidth * 0.34),
                 child: IgnorePointer(child: message),
               ),
@@ -671,10 +681,15 @@ class _Pill extends StatelessWidget {
 }
 
 class _FeedbackMessage extends StatelessWidget {
-  const _FeedbackMessage({required this.title, required this.message});
+  const _FeedbackMessage({
+    required this.title,
+    required this.message,
+    this.needsAttention = false,
+  });
 
   final String title;
   final String message;
+  final bool needsAttention;
 
   @override
   Widget build(BuildContext context) {
@@ -682,7 +697,9 @@ class _FeedbackMessage extends StatelessWidget {
       liveRegion: true,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: const Color(0xFFE8F5EB),
+          color: needsAttention
+              ? const Color(0xFFFFECEC)
+              : const Color(0xFFE8F5EB),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Padding(
@@ -692,9 +709,9 @@ class _FeedbackMessage extends StatelessWidget {
               children: [
                 TextSpan(
                   text: '$title  ',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: _greenInk,
+                    color: needsAttention ? const Color(0xFF8B3030) : _greenInk,
                   ),
                 ),
                 TextSpan(text: message),

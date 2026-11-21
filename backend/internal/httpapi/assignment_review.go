@@ -7,6 +7,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/opsst/PromptLearn/backend/internal/assignmentreview"
 )
@@ -34,7 +35,9 @@ func WithAssignmentReview(service *assignmentreview.Service) RouterOption {
 			if !readJSONWithLimit(w, r, &work, maxReviewRequestBytes) {
 				return
 			}
-			result, err := service.Review(r.Context(), r.PathValue("assignment_id"), r.PathValue("item_id"), work)
+			ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+			defer cancel()
+			result, err := service.Review(ctx, r.PathValue("assignment_id"), r.PathValue("item_id"), work)
 			if err != nil {
 				writeReviewError(w, err)
 				return
@@ -55,6 +58,7 @@ func writeReviewError(w http.ResponseWriter, err error) {
 	case errors.Is(err, context.DeadlineExceeded):
 		writeAPIError(w, http.StatusGatewayTimeout, "review_timeout", "assignment review timed out")
 	case errors.Is(err, assignmentreview.ErrInvalidDecision):
+		log.Printf("assignment review output rejected: %v", err)
 		writeAPIError(w, http.StatusBadGateway, "invalid_review", "review could not be matched to the submitted work")
 	case errors.Is(err, assignmentreview.ErrFeedbackStore):
 		log.Print("assignment review feedback write failed")
