@@ -4,10 +4,11 @@ import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 
 import '../../domain/models/homework_check.dart';
+import '../../domain/models/homework_submission.dart';
 import '../../domain/repositories/homework_checker.dart';
 import '../services/api_http_client.dart';
 
-class ApiHomeworkChecker implements HomeworkChecker {
+class ApiHomeworkChecker implements HomeworkChecker, HomeworkSubmitter {
   const ApiHomeworkChecker(this.baseUrl, this.client);
 
   final Uri baseUrl;
@@ -54,12 +55,7 @@ class ApiHomeworkChecker implements HomeworkChecker {
         json['review_id'] is! String) {
       throw const FormatException('Invalid homework review response.');
     }
-    final status = switch (json['status']) {
-      'correct' => HomeworkReviewStatus.correct,
-      'needs_revision' => HomeworkReviewStatus.needsRevision,
-      'unreadable' => HomeworkReviewStatus.unreadable,
-      _ => throw const FormatException('Unknown homework review status.'),
-    };
+    final status = HomeworkReviewStatus.fromApi(json['status']);
     final issues = (json['issues'] as List)
         .map(_parseIssue)
         .toList(growable: false);
@@ -70,8 +66,37 @@ class ApiHomeworkChecker implements HomeworkChecker {
     return HomeworkFeedback(
       json['message'] as String,
       status: status,
+      reviewId: json['review_id'] as String,
       issues: issues,
     );
+  }
+
+  @override
+  Future<HomeworkSubmissionReport> submit(
+    String assignmentId,
+    List<String> reviewIds,
+  ) async {
+    final assignment = Uri.encodeComponent(assignmentId);
+    final response = await client
+        .post(
+          baseUrl.resolve('/v1/assignments/$assignment/submissions'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'review_ids': reviewIds}),
+        )
+        .timeout(const Duration(seconds: 10));
+    if (response.statusCode != 201) {
+      throw http.ClientException(
+        'Homework submission failed (${response.statusCode}).',
+      );
+    }
+    final data =
+        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+    if (data['assignment_id'] != assignmentId) {
+      throw const FormatException(
+        'Homework result is for a different assignment.',
+      );
+    }
+    return HomeworkSubmissionReport.fromJson(data);
   }
 
   HomeworkIssue _parseIssue(dynamic issue) {

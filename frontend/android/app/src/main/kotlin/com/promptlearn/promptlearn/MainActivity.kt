@@ -15,12 +15,14 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private var recordingChannel: ClassRecordingChannel? = null
+    private var syllabusExport: SyllabusFileExport? = null
     private var inspectorChannel: MethodChannel? = null
     private var inspectorReady = false
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         recordingChannel = ClassRecordingChannel(this, flutterEngine.dartExecutor.binaryMessenger)
+        syllabusExport = SyllabusFileExport(this, flutterEngine.dartExecutor.binaryMessenger)
         if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) == 0) return
 
         inspectorChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL_NAME)
@@ -38,6 +40,8 @@ class MainActivity : FlutterActivity() {
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         recordingChannel?.dispose()
         recordingChannel = null
+        syllabusExport?.dispose()
+        syllabusExport = null
         inspectorReady = false
         inspectorChannel?.setMethodCallHandler(null)
         inspectorChannel = null
@@ -67,10 +71,11 @@ class MainActivity : FlutterActivity() {
         if (requestCode == PERMISSION_REQUEST && inspectorReady) postInspectorNotification()
     }
 
-    @Deprecated("Android screen-capture consent returns an activity result")
+    @Deprecated("Android screen-capture consent and document picker return activity results")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         recordingChannel?.onActivityResult(requestCode, resultCode, data)
+        syllabusExport?.onActivityResult(requestCode, resultCode, data)
     }
 
     private fun consumeInspectorIntent(): Boolean {

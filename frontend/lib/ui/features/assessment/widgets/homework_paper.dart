@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
 import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -210,6 +213,44 @@ class _HomeworkPaperState extends State<HomeworkPaper> {
 }
 
 const _inkColor = Color(0xFF293681);
+
+Future<HomeworkCheckRequest> captureAnswerPaper(
+  HomeworkQuestion question,
+  PaperContent content,
+  Size size,
+) async {
+  final scale = math.min(2.0, 1600 / size.longestSide);
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder)..scale(scale);
+  _InkPainter(content, null).paint(canvas, size);
+  final picture = recorder.endRecording();
+  try {
+    final image = await picture.toImage(
+      (size.width * scale).ceil(),
+      (size.height * scale).ceil(),
+    );
+    try {
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (bytes == null) {
+        throw StateError('Paper snapshot could not be encoded.');
+      }
+      return HomeworkCheckRequest(
+        assignmentId: HomeworkNotebook.assignmentId,
+        question: question,
+        paperPng: bytes.buffer.asUint8List(
+          bytes.offsetInBytes,
+          bytes.lengthInBytes,
+        ),
+        imageWidth: image.width,
+        imageHeight: image.height,
+      );
+    } finally {
+      image.dispose();
+    }
+  } finally {
+    picture.dispose();
+  }
+}
 
 Offset _project(Offset point, Size size) =>
     Offset(point.dx * size.width, point.dy * size.height);

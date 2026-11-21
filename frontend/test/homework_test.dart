@@ -27,13 +27,13 @@ void main() {
     addTearDown(ChuckerFlutter.configure);
     SharedPreferences.setMockInitialValues({});
 
-    const path = '/v1/assignments/hw-3-1/items/q4/reviews';
+    const path = '/v1/assignments/hw-3-1/items/q5/reviews';
     final paperPng = Uint8List.fromList(List.generate(48, (index) => index));
     final image = base64Encode(paperPng);
     const result = {
       'review_id': 'saved-review',
       'assignment_id': 'hw-3-1',
-      'item_id': 'q4',
+      'item_id': 'q5',
       'status': 'correct',
       'message': 'Your work is correct.',
       'issues': [],
@@ -177,8 +177,10 @@ void main() {
     expect(notebook.draft, same(firstDraft));
     expect(notebook.draft.content.hasWork, isTrue);
 
-    await tester.tap(find.byTooltip('Question 8'));
+    expect(find.byTooltip('Question 5'), findsNothing);
+    await tester.tap(find.byTooltip('Question 4'));
     await tester.pump();
+    expect(find.text('Solve for x: x + 7 = 22.'), findsOneWidget);
     expect(arrow('Next question').onPressed, isNull);
     expect(notebook.draft.content.hasWork, isFalse);
   });

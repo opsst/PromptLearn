@@ -14,7 +14,7 @@ import (
 
 const (
 	demoAssignmentUUID     = "a1000000-0000-4000-8000-000000000016"
-	homeworkAssignmentUUID = "a1000000-0000-4000-8000-000000000025"
+	homeworkAssignmentUUID = "a1000000-0000-4000-8000-000000000028"
 )
 
 func demoAssignmentKey(assignmentID string) string {
@@ -46,6 +46,10 @@ func OpenPostgresDemo(ctx context.Context, databaseURL, engine string) (*Postgre
 	if _, err := repo.FindQuestion(ctx, DemoAssignmentID, DemoItemID); err != nil {
 		db.Close()
 		return nil, errors.New("review demo item is unavailable; apply demo_seed.sql and assignment_review_demo_seed.sql")
+	}
+	if _, err := repo.FindQuestion(ctx, HomeworkAssignmentID, homeworkItemIDs[3]); err != nil {
+		db.Close()
+		return nil, errors.New("four-question homework is unavailable; apply assignment_review_demo_seed.sql")
 	}
 	return repo, nil
 }
