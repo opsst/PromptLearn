@@ -42,3 +42,17 @@ flutter run -d emulator-5554
 3. รัน `flutter analyze` และ `flutter test` เพื่อเช็กทั้งการเลือก View ตามบทบาทและการนำทางเมื่อเปลี่ยนขนาดหน้าต่าง
 
 ตกลง API contract กับฝั่ง backend ก่อนเชื่อมต่อ
+
+## ตรวจ HTTP บน Android
+
+ใน Android debug build ให้กดอนุญาตแจ้งเตือนตอนเปิดแอปครั้งแรก จากนั้นเปิดแถบแจ้งเตือนของ Android แล้วแตะ **Chucker HTTP inspector** เพื่อดู request และ response ที่บันทึกในเครื่อง
+
+ให้ API ฝั่ง Flutter ที่ต้องการตรวจใช้ `createApiHttpClient()` จาก [api_http_client.dart](lib/data/services/api_http_client.dart) ระบบใช้ HTTP client ปกติใน release และแพลตฟอร์มอื่น
+
+หากต้องการลองตรวจด้วย `GET /healthz` ให้รัน Go backend แล้วเปิดแอปบน Android Emulator ด้วยคำสั่งนี้จาก `frontend/`
+
+```sh
+flutter run -d emulator-5554 --dart-define=PROMPTLEARN_API_BASE_URL=http://10.0.2.2:8080
+```
+
+แอป debug ส่ง health check หนึ่งครั้งตอนเริ่มเมื่อระบุ URL รายละเอียด HTTP อยู่ใน Chucker และตัวแจ้งเตือนใช้ข้อความสำหรับเปิดหน้าตรวจ

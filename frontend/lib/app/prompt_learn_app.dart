@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../domain/models/user_role.dart';
+import 'http_inspector.dart';
 import '../domain/repositories/role_repository.dart';
 import '../ui/core/layout/app_navigation.dart';
 import '../ui/core/theme/app_theme.dart';
@@ -23,6 +24,9 @@ class PromptLearnApp extends StatelessWidget {
       title: 'PromptLearn',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      navigatorKey: HttpInspector.navigatorKey,
+      navigatorObservers: HttpInspector.navigatorObservers,
+      localizationsDelegates: HttpInspector.localizationsDelegates,
       home: AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.light,
         child: _RoleGate(repository: roleRepository),
