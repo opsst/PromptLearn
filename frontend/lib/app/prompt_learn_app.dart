@@ -286,6 +286,20 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
         now: now,
         onStartClass: () => _openHomeDetail(_HomeDetail.classSetup),
         onOpenAssessment: () => _openHomeDetail(_HomeDetail.assessment),
+        reviewNavigation: AppNavigation(
+          destination: AppDestination.courses,
+          vertical: true,
+          reviewStyle: true,
+          onSelected: (destination) {
+            if (destination == AppDestination.courses) return;
+            Navigator.of(context).popUntil((route) => route.isFirst);
+            _selectDestination(destination);
+          },
+          onSwitchRole: () {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+            widget.onSwitchRole();
+          },
+        ),
       ),
       UserRole.student => StudentHomeView(
         displayName: displayName,
