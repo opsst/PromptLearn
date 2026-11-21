@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptlearn/app/prompt_learn_app.dart';
@@ -6,8 +7,15 @@ import 'package:promptlearn/domain/repositories/role_repository.dart';
 import 'package:promptlearn/ui/features/home/views/student_home_view.dart';
 import 'package:promptlearn/ui/features/home/views/teacher_home_view.dart';
 import 'package:promptlearn/ui/features/home/widgets/home_header.dart';
+import 'package:promptlearn/ui/features/syllabus/views/teacher_syllabus_dialog.dart';
 
 void main() {
+  setUpAll(() async {
+    final inter = FontLoader('Inter')
+      ..addFont(rootBundle.load('assets/fonts/Inter-Variable.ttf'));
+    await inter.load();
+  });
+
   testWidgets('The app uses the PromptLearn typography and palette', (
     tester,
   ) async {
@@ -61,6 +69,145 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('Alexander P.'), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final size in [const Size(1366, 1024), const Size(360, 640)]) {
+    testWidgets('Teacher dashboard and lesson plan work at $size', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(size);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await _openApp(tester, _MemoryRoleRepository(UserRole.teacher));
+
+      final startClass = find.text('Start Class');
+      final today = find.text('Today');
+      final lessonPlan = find.text('Lesson Plan');
+      expect(find.text('Needs your attention'), findsOneWidget);
+      expect(find.text('Class pulse'), findsOneWidget);
+      expect(find.text('My syllabus'), findsOneWidget);
+
+      if (size.width == 1366) {
+        final dashboard = find.descendant(
+          of: find.byType(TeacherHomeView),
+          matching: find.byType(Scrollable),
+        );
+        final position = tester.state<ScrollableState>(dashboard).position;
+        expect(position.maxScrollExtent, 0);
+        expect(find.text('Create syllabus').hitTestable(), findsOneWidget);
+        expect(
+          tester.getTopLeft(today).dx,
+          greaterThan(tester.getTopLeft(startClass).dx),
+        );
+        expect(
+          tester.getTopLeft(today).dy,
+          lessThan(tester.getTopLeft(startClass).dy),
+        );
+      } else {
+        expect(
+          tester.getTopLeft(today).dy,
+          greaterThan(tester.getTopLeft(startClass).dy),
+        );
+      }
+
+      await tester.ensureVisible(lessonPlan);
+      await tester.tap(lessonPlan);
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text('Warm-up'),
+        ),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final size in [const Size(1366, 768), const Size(360, 640)]) {
+    testWidgets('Teacher header stays visible when scrolling at $size', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(size);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await _openApp(tester, _MemoryRoleRepository(UserRole.teacher));
+
+      final header = find.byType(HomeHeader);
+      final notifications = find.byTooltip('Notifications');
+      final navigation = find.byTooltip('Home');
+      final cards = find.descendant(
+        of: find.byType(TeacherHomeView),
+        matching: find.byType(SingleChildScrollView),
+      );
+      final today = find.text('Today');
+      final headerPosition = tester.getTopLeft(header);
+      final navPosition = tester.getCenter(navigation);
+      final initialTodayY = tester.getTopLeft(today).dy;
+
+      await tester.drag(cards, const Offset(0, -350));
+      await tester.pumpAndSettle();
+
+      expect(tester.getTopLeft(today).dy, lessThan(initialTodayY));
+      expect(tester.getTopLeft(header), headerPosition);
+      expect(tester.getCenter(navigation), navPosition);
+
+      await tester.tap(notifications);
+      await tester.pumpAndSettle();
+      expect(find.text('Welcome to PromptLearn.'), findsOneWidget);
+    });
+  }
+
+  for (final size in [const Size(1366, 1024), const Size(360, 640)]) {
+    testWidgets('See all opens the syllabus catalog at $size', (tester) async {
+      await tester.binding.setSurfaceSize(size);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await _openApp(tester, _MemoryRoleRepository(UserRole.teacher));
+
+      final seeAll = find.text('See all');
+      await tester.ensureVisible(seeAll);
+      await tester.tap(seeAll);
+      await tester.pumpAndSettle();
+
+      final modal = find.byType(TeacherSyllabusDialog);
+      Finder inModal(String label) =>
+          find.descendant(of: modal, matching: find.text(label));
+
+      expect(inModal('My Syllabus'), findsOneWidget);
+      expect(inModal('Published'), findsNWidgets(3));
+      expect(inModal('Draft · step 3 of 6'), findsOneWidget);
+      expect(inModal('3 classes · 94 students'), findsOneWidget);
+      expect(inModal('Math 102'), findsOneWidget);
+
+      final math101 = tester.getTopLeft(inModal('Math 101'));
+      final math201 = tester.getTopLeft(inModal('Math 201'));
+      final math301 = tester.getTopLeft(inModal('Math 301'));
+      final math102 = tester.getTopLeft(inModal('Math 102'));
+      if (size.width == 1366) {
+        expect(math201.dy, math101.dy);
+        expect(math301.dy, math101.dy);
+        expect(math201.dx, greaterThan(math101.dx));
+        expect(math301.dx, greaterThan(math201.dx));
+        expect(math102.dy, greaterThan(math101.dy));
+      } else {
+        expect(math201.dx, math101.dx);
+        expect(math201.dy, greaterThan(math101.dy));
+      }
+
+      final create = inModal('Create syllabus');
+      await tester.ensureVisible(create);
+      await tester.pumpAndSettle();
+      await tester.tap(create);
+      await tester.pumpAndSettle();
+      expect(
+        find.text('The syllabus editor is unavailable in this preview.'),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Close syllabus'));
+      await tester.pumpAndSettle();
+      expect(modal, findsNothing);
+      expect(seeAll, findsOneWidget);
     });
   }
 

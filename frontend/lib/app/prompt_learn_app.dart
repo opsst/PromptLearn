@@ -120,7 +120,9 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
 
     return switch (widget.role) {
       UserRole.teacher => TeacherHomeView(displayName: displayName, now: now),
-      UserRole.student => StudentHomeView(displayName: displayName, now: now),
+      UserRole.student => SingleChildScrollView(
+        child: StudentHomeView(displayName: displayName, now: now),
+      ),
     };
   }
 
@@ -168,10 +170,10 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
                   child: ColoredBox(
                     color: AppColors.canvas,
                     child: SizedBox.expand(
-                      child: SingleChildScrollView(
-                        child: _destination == AppDestination.home
-                            ? _buildHome()
-                            : ColoredBox(
+                      child: _destination == AppDestination.home
+                          ? _buildHome()
+                          : SingleChildScrollView(
+                              child: ColoredBox(
                                 color: AppColors.header,
                                 child: Padding(
                                   padding: EdgeInsets.all(wide ? 42 : 20),
@@ -183,7 +185,7 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
                                   ),
                                 ),
                               ),
-                      ),
+                            ),
                     ),
                   ),
                 ),
