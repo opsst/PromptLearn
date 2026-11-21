@@ -1,4 +1,4 @@
-// Package openai implements the Responses API transport for structured generation.
+// Package openai implements the Responses and Audio Transcriptions API transports.
 package openai
 
 import (

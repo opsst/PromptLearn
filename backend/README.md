@@ -63,7 +63,7 @@ curl -i http://127.0.0.1:8080/healthz
 
 ## รันเดโมคลิปย้อนหลัง
 
-ต้องมี PostgreSQL 14 ขึ้นไป, `ffprobe` จาก FFmpeg และ Flutter จาก root ของ repo ให้สร้างฐานข้อมูลเดโมใหม่ด้วยการตั้งค่าการเชื่อมต่อ PostgreSQL ในเครื่อง
+ต้องมี PostgreSQL 14 ขึ้นไป, `ffmpeg`, `ffprobe` และ OpenAI API key เพิ่ม Flutter เมื่อต้องการเปิดหน้าเว็บ จาก root ของ repo ให้สร้างฐานข้อมูลเดโมใหม่ด้วยการตั้งค่าการเชื่อมต่อ PostgreSQL ในเครื่อง
 
 ```sh
 createdb promptlearn_replay
@@ -71,21 +71,31 @@ psql -X -v ON_ERROR_STOP=1 -d promptlearn_replay -f db_migration/schema.sql
 psql -X -v ON_ERROR_STOP=1 -d promptlearn_replay -f db_migration/demo_seed.sql
 ```
 
-Build Flutter Web แล้วเปิด Go ให้บริการหน้าเว็บและ API จาก origin เดียวกัน
+ตั้ง `OPENAI_API_KEY` ใน `backend/.env` หรือใน environment ของ Go server เมื่อมี key ระบบจะใช้ `gpt-transcribe` เป็นค่าเริ่มต้นสำหรับเดโมคลิปย้อนหลัง กำหนด `REPLAY_TRANSCRIBER=openai` เมื่อต้องการระบุโหมดให้ชัดเจน
+
+Build Flutter Web เมื่อต้องการเปิดหน้าเว็บ หรือข้ามการ build และละ `REPLAY_DEMO_WEB_DIR` เมื่อทดสอบเฉพาะ API
 
 ```sh
 (cd frontend && flutter build web --no-web-resources-cdn)
 cd backend
+set -a
+source .env
+set +a
 REPLAY_DEMO_DATABASE_URL='postgresql:///promptlearn_replay' \
+REPLAY_TRANSCRIBER=openai \
 REPLAY_DEMO_WEB_DIR='../frontend/build/web' \
 SYLLABUS_PLANNER=mock go run ./cmd/server
 ```
 
 1. เปิด `http://127.0.0.1:8080` ใน Chrome เลือก **Login as Teacher** แล้วเปิด **Courses**
-2. เลือก [คลิปตัวอย่างภาษาไทย](examples/thai-lesson.mp4) และ [transcript ที่เตรียมไว้](examples/thai-lesson.transcript.json) กด **อัปโหลด** แล้วกด **เผยแพร่**
+2. เลือก [คลิปตัวอย่างภาษาไทย](examples/thai-lesson.mp4) กด **อัปโหลด** รอจนขึ้น **พร้อมเผยแพร่** แล้วใช้ **พรีวิวคลิปฉบับร่าง** เพื่อตรวจคลิปก่อนกด **เผยแพร่**
 3. กดโลโก้เพื่อสลับเป็น **Login as Student** เปิด **Courses** แล้วกดเวลาใน transcript เพื่อกระโดดไปยังช่วงนั้นของคลิป
 
 เดโมเปิด route เมื่อกำหนด `REPLAY_DEMO_DATABASE_URL` และรับเฉพาะการเชื่อมต่อ loopback บทบาทที่เลือกใน UI ใช้เพื่อสาธิตในเครื่อง ไฟล์อยู่ใต้ `PROMPTLEARN_DATA_DIR/replay` โดยค่าเริ่มต้นเป็น `.promptlearn-data/replay` ส่วนสถานะเผยแพร่และ transcript อยู่ใน PostgreSQL
+
+Backend แยกเสียงจาก MP4 แบ่งที่จังหวะหยุดพูดและส่งเฉพาะ WAV แต่ละช่วงไปยัง [OpenAI Audio Transcriptions](https://developers.openai.com/api/docs/guides/speech-to-text) ด้วย `gpt-transcribe` แต่ละช่วงยาวไม่เกิน 30 วินาที `startMs` และ `endMs` มาจากตำแหน่งที่ตัดในคลิปต้นฉบับ คำขออัปโหลดรอจนถอดเสียงและบันทึกสำเร็จ โดยให้เวลาถอดเสียงสูงสุด 2 นาที
+
+ถ้าต้องการเดโมแบบออฟไลน์ ใช้ `REPLAY_TRANSCRIBER=local` ติดตั้ง [pywhispercpp](https://github.com/absadiki/pywhispercpp) รุ่น 1.5.1 แล้วตั้ง `REPLAY_WHISPER_PYTHON` และ `REPLAY_WHISPER_MODEL` ให้ชี้ไปที่ Python และไฟล์โมเดล Whisper แบบหลายภาษา ตั้ง `REPLAY_WHISPER_USE_GPU=true` หากเครื่องรองรับ การตั้งโหมด `local` มีผลแม้กำหนด OpenAI key ไว้ด้วย API ยังรับไฟล์ `transcript` ที่เตรียมไว้พร้อม MP4 ได้
 
 ทดสอบการเผยแพร่ การซ่อนฉบับร่าง และ HTTP Range ด้วย `REPLAY_TEST_DATABASE_URL=… go test ./internal/httpapi -run TestReplayPublication -count=1` จาก `backend/` โดยใช้ฐานทดสอบใหม่ที่ลง schema และ seed แล้ว
 

@@ -9,7 +9,7 @@ info:
     published snapshot. This demo is designed for a trusted local environment. Response examples abbreviate
     document_html for readability.
     Assignment review accepts OCR evidence for one assignment item and returns guided questions with the original OCR bounds.
-    Video Replay provides a separate local demo for uploading a recording with a prepared transcript,
+    Video Replay provides a local demo for uploading an MP4, generating a transcript with gpt-transcribe,
     publishing it, and playing the published MP4 through the Go backend.
 servers:
   - url: http://127.0.0.1:8080
@@ -480,12 +480,16 @@ paths:
     post:
       tags: [Video Replay]
       operationId: uploadReplayRecording
-      summary: Upload a draft recording and its prepared transcript
+      summary: Upload an MP4 for timestamped transcription
       description: |
         Available on loopback when REPLAY_DEMO_DATABASE_URL is configured. Uploading a draft leaves the
         current publication visible. The video must be an MP4 with H.264 video and AAC audio if present.
-        The transcript is a UTF-8 JSON array of ReplaySegment objects, ordered by strictly increasing
-        startMs. Each cue must end within the clip duration.
+        The server selects OpenAI transcription by default when OPENAI_API_KEY is configured. In this mode,
+        it extracts audio and splits it at pauses before sending WAV segments
+        to gpt-transcribe. Cue timestamps are calculated from each segment's position in the original
+        clip. The server returns after saving the draft. Local Whisper mode and an optional prepared
+        UTF-8 transcript JSON file are also supported. Cues must have strictly increasing startMs
+        and end within the clip duration.
       parameters:
         - $ref: '#/components/parameters/ReplayTeacherRole'
       requestBody:
@@ -501,7 +505,7 @@ paths:
                 contentType: application/json
       responses:
         '201':
-          description: Draft created. Use recordingId to publish the clip.
+          description: Draft and transcript saved. Use recordingId to publish the clip.
           content:
             application/json:
               schema:
@@ -514,8 +518,36 @@ paths:
           $ref: '#/components/responses/ReplayForbidden'
         '413':
           $ref: '#/components/responses/RequestTooLarge'
+        '422':
+          description: Missing audio track or no transcript generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplayError'
+              example: {code: invalid_audio, message: คลิปต้องมีแทร็กเสียงสำหรับถอดเสียง}
         '500':
           $ref: '#/components/responses/ReplayFailed'
+        '502':
+          description: OpenAI transcription failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplayError'
+              example: {code: transcription_failed, message: บริการถอดเสียงตอบกลับไม่สำเร็จ ลองใหม่อีกครั้ง}
+        '503':
+          description: No transcription provider is configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplayError'
+              example: {code: transcription_unavailable, message: ยังไม่ได้ตั้งค่าบริการถอดเสียงบน backend}
+        '504':
+          description: Transcription exceeded its processing deadline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplayError'
+              example: {code: transcription_timeout, message: ถอดเสียงเกินเวลา ลองใหม่อีกครั้ง}
 
   /api/demo/publication:
     put:
@@ -617,26 +649,9 @@ paths:
       description: The URL is available while its recording is the current publication for the demo lesson.
       responses:
         '200':
-          description: Complete MP4
-          headers:
-            Accept-Ranges:
-              description: Supported range unit
-              schema: {type: string, enum: [bytes]}
-          content:
-            video/mp4:
-              schema: {type: string, format: binary}
+          $ref: '#/components/responses/ReplayVideo'
         '206':
-          description: Requested byte range or ranges
-          headers:
-            Content-Range:
-              description: Byte range and total file size for a single range
-              schema: {type: string}
-              example: bytes 0-1023/794872
-          content:
-            video/mp4:
-              schema: {type: string, format: binary}
-            multipart/byteranges:
-              schema: {type: string, format: binary}
+          $ref: '#/components/responses/ReplayVideoRange'
         '304':
           description: The file has not been modified since the requested validator
         '403':
@@ -681,6 +696,44 @@ paths:
           description: Invalid or unsatisfiable byte range
         '500':
           description: The service could not read the video
+
+  /api/demo/recordings/{id}/preview:
+    get:
+      tags: [Video Replay]
+      operationId: previewReplayRecording
+      summary: Preview an uploaded recording as the demo teacher
+      description: Plays a valid uploaded clip before or after publication. The preview is served with Cache-Control no-store.
+      parameters:
+        - $ref: '#/components/parameters/ReplayTeacherRole'
+        - name: id
+          in: path
+          required: true
+          description: Recording ID returned by the upload endpoint.
+          schema: {type: string, format: uuid}
+          example: '8f368301-2f08-4a28-a652-97e07eef40d0'
+        - name: Range
+          in: header
+          description: Optional HTTP byte range for preview playback.
+          schema: {type: string}
+          example: bytes=0-1023
+      responses:
+        '200':
+          $ref: '#/components/responses/ReplayVideo'
+        '206':
+          $ref: '#/components/responses/ReplayVideoRange'
+        '304':
+          description: The file has not been modified since the requested validator
+        '403':
+          $ref: '#/components/responses/ReplayForbidden'
+        '404':
+          $ref: '#/components/responses/ReplayRecordingNotFound'
+        '416':
+          description: Invalid or unsatisfiable byte range
+          content:
+            text/plain:
+              schema: {type: string}
+        '500':
+          $ref: '#/components/responses/ReplayFailed'
 
 components:
   parameters:
@@ -760,13 +813,34 @@ components:
             $ref: '#/components/schemas/APIError'
           example: {code: course_failed, message: course operation failed}
 
+    ReplayVideo:
+      description: Complete MP4
+      headers:
+        Accept-Ranges:
+          description: Supported range unit
+          schema: {type: string, enum: [bytes]}
+      content:
+        video/mp4:
+          schema: {type: string, format: binary}
+    ReplayVideoRange:
+      description: Requested byte range or ranges
+      headers:
+        Content-Range:
+          description: Byte range and total file size for a single range
+          schema: {type: string}
+          example: bytes 0-1023/794872
+      content:
+        video/mp4:
+          schema: {type: string, format: binary}
+        multipart/byteranges:
+          schema: {type: string, format: binary}
     ReplayInvalidMedia:
       description: Missing file part, invalid MP4, or invalid transcript
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ReplayError'
-          example: {code: invalid_media, message: เลือกไฟล์ MP4 และ transcript JSON}
+          example: {code: invalid_media, message: เลือกไฟล์ MP4}
     ReplayForbidden:
       description: Teacher role required for writes, or the request host is outside loopback
       content:
@@ -796,12 +870,12 @@ components:
       properties:
         code:
           type: string
-          enum: [invalid_json, invalid_media, forbidden, recording_not_found, replay_error]
+          enum: [invalid_json, invalid_media, invalid_audio, forbidden, recording_not_found, replay_error, transcription_failed, transcription_unavailable, transcription_timeout]
         message:
           type: string
     ReplayUpload:
       type: object
-      required: [video, transcript]
+      required: [video]
       properties:
         video:
           type: string
@@ -810,7 +884,7 @@ components:
         transcript:
           type: string
           format: binary
-          description: JSON file part containing a nonempty array of ReplaySegment objects. Maximum 256 KiB.
+          description: Optional prepared JSON file containing a nonempty array of ReplaySegment objects. Maximum 256 KiB.
     ReplayRecordingRef:
       type: object
       additionalProperties: false
