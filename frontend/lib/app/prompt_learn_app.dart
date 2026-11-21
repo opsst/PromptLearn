@@ -6,6 +6,7 @@ import '../domain/models/user_role.dart';
 import '../domain/repositories/homework_checker.dart';
 import '../domain/repositories/role_repository.dart';
 import '../ui/core/layout/app_navigation.dart';
+import '../ui/core/layout/app_page_layout.dart';
 import '../ui/core/theme/app_theme.dart';
 import '../ui/features/assessment/views/student_homework_view.dart';
 import '../ui/features/assessment/widgets/homework_notebook.dart';
@@ -159,13 +160,15 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
       );
     }
 
-    return ColoredBox(
-      color: AppColors.header,
-      child: Padding(
-        padding: EdgeInsets.all(wide ? 42 : 20),
-        child: Text(
-          _destination.label,
-          style: Theme.of(context).textTheme.titleLarge,
+    return AppPageLayout(
+      header: ColoredBox(
+        color: AppColors.header,
+        child: Padding(
+          padding: EdgeInsets.all(wide ? 42 : 20),
+          child: Text(
+            _destination.label,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
         ),
       ),
     );
@@ -215,9 +218,7 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
                   child: ColoredBox(
                     color: AppColors.canvas,
                     child: SizedBox.expand(
-                      child: SingleChildScrollView(
-                        child: _buildPage(context, wide: wide),
-                      ),
+                      child: _buildPage(context, wide: wide),
                     ),
                   ),
                 ),

@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../../../core/layout/app_page_layout.dart';
 import '../widgets/home_header.dart';
 
 class TeacherHomeView extends StatelessWidget {
@@ -14,6 +15,8 @@ class TeacherHomeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return HomeHeader(displayName: displayName, now: now);
+    return AppPageLayout(
+      header: HomeHeader(displayName: displayName, now: now),
+    );
   }
 }

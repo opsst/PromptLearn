@@ -60,12 +60,10 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: SingleChildScrollView(
-            child: StudentHomeworkView(
-              notebook: notebook,
-              checker: _UnusedChecker(),
-              onBack: () {},
-            ),
+          body: StudentHomeworkView(
+            notebook: notebook,
+            checker: _UnusedChecker(),
+            onBack: () {},
           ),
         ),
       ),
@@ -127,12 +125,10 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: SingleChildScrollView(
-              child: StudentHomeworkView(
-                notebook: notebook,
-                checker: _UnusedChecker(),
-                onBack: () {},
-              ),
+            body: StudentHomeworkView(
+              notebook: notebook,
+              checker: _UnusedChecker(),
+              onBack: () {},
             ),
           ),
         ),
@@ -231,12 +227,10 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: SingleChildScrollView(
-            child: StudentHomeworkView(
-              notebook: notebook,
-              checker: _UnusedChecker(),
-              onBack: () {},
-            ),
+          body: StudentHomeworkView(
+            notebook: notebook,
+            checker: _UnusedChecker(),
+            onBack: () {},
           ),
         ),
       ),
@@ -321,12 +315,10 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: SingleChildScrollView(
-            child: StudentHomeworkView(
-              notebook: notebook,
-              checker: checker,
-              onBack: () {},
-            ),
+          body: StudentHomeworkView(
+            notebook: notebook,
+            checker: checker,
+            onBack: () {},
           ),
         ),
       ),

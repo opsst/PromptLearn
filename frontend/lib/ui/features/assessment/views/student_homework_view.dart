@@ -8,6 +8,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../domain/models/homework_check.dart';
 import '../../../../domain/repositories/homework_checker.dart';
+import '../../../core/layout/app_page_layout.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/notifications_button.dart';
 import '../widgets/homework_notebook.dart';
@@ -212,78 +213,72 @@ class _StudentHomeworkViewState extends State<StudentHomeworkView> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final inset = constraints.maxWidth >= 760 ? 32.0 : 12.0;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _HomeworkHeader(inset: inset, onBack: widget.onBack),
-            DecoratedBox(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFFE3F4EA),
-                    AppColors.canvas,
-                    Color(0xFFF0F7E7),
-                    AppColors.canvas,
-                  ],
-                  stops: [0, 0.30, 0.55, 0.85],
-                ),
-              ),
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(inset, 16, inset, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _ProgressCard(
-                      notebook: _notebook,
-                      onSelect: _selectQuestion,
-                    ),
-                    const SizedBox(height: 16),
-                    _HomeworkCard(
-                      padding: const EdgeInsets.all(18),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 6,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              Text(
-                                'Question ${_notebook.activeIndex + 1}',
-                                style: Theme.of(context).textTheme.labelSmall
-                                    ?.copyWith(color: _greenInk),
-                              ),
-                              const _Pill('1 pt'),
-                              const _Pill('Show your work'),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            question.prompt,
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _HomeworkCard(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _toolbar(),
-                          const SizedBox(height: 8),
-                          _paper(),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+        return AppPageLayout(
+          header: _HomeworkHeader(inset: inset, onBack: widget.onBack),
+          body: DecoratedBox(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFE3F4EA),
+                  AppColors.canvas,
+                  Color(0xFFF0F7E7),
+                  AppColors.canvas,
+                ],
+                stops: [0, 0.30, 0.55, 0.85],
               ),
             ),
-          ],
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(inset, 16, inset, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _ProgressCard(notebook: _notebook, onSelect: _selectQuestion),
+                  const SizedBox(height: 16),
+                  _HomeworkCard(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              'Question ${_notebook.activeIndex + 1}',
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(color: _greenInk),
+                            ),
+                            const _Pill('1 pt'),
+                            const _Pill('Show your work'),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          question.prompt,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _HomeworkCard(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _toolbar(),
+                        const SizedBox(height: 8),
+                        _paper(),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         );
       },
     );

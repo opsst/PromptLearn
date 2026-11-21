@@ -68,6 +68,30 @@ void main() {
     });
   }
 
+  testWidgets('The homework header stays in place when the body scrolls', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 420));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _openApp(tester, _MemoryRoleRepository(UserRole.student));
+    await tester.tap(find.byTooltip('Courses'));
+    await tester.pumpAndSettle();
+
+    final title = find.text('HW 3.1 · Mathematics');
+    final question = find.text('Question 1');
+    final notifications = find.byTooltip('Notifications');
+    final titleOffset = tester.getTopLeft(title);
+    final questionOffset = tester.getTopLeft(question);
+    final notificationsOffset = tester.getTopLeft(notifications);
+
+    await tester.drag(question, const Offset(0, -160));
+    await tester.pumpAndSettle();
+
+    expect(tester.getTopLeft(question).dy, lessThan(questionOffset.dy));
+    expect(tester.getTopLeft(title), titleOffset);
+    expect(tester.getTopLeft(notifications), notificationsOffset);
+  });
+
   testWidgets('Remembers the login role until the logo is tapped', (
     tester,
   ) async {
