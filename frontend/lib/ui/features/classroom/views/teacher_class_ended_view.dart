@@ -2,6 +2,7 @@ import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../domain/services/class_recording_service.dart';
+import '../../../../domain/services/class_replay_service.dart';
 import '../../../core/layout/app_page_layout.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/teacher_class_preview.dart';
@@ -18,11 +19,13 @@ class TeacherClassEndedView extends StatefulWidget {
     required this.clip,
     required this.onBack,
     this.notice,
+    this.replayService,
   });
 
   final RecordingClip clip;
   final VoidCallback onBack;
   final String? notice;
+  final ClassReplayService? replayService;
 
   @override
   State<TeacherClassEndedView> createState() => _TeacherClassEndedViewState();
@@ -31,7 +34,52 @@ class TeacherClassEndedView extends StatefulWidget {
 class _TeacherClassEndedViewState extends State<TeacherClassEndedView> {
   final _playerKey = GlobalKey();
   Duration? _duration;
-  final Set<int> _selected = {0, 1, 2};
+  int? _uploadPercent;
+  String? _recordingId;
+  String? _replayError;
+  bool _publishing = false;
+  bool _published = false;
+
+  Future<void> _upload() async {
+    final service = widget.replayService;
+    if (service == null || _uploadPercent != null || _recordingId != null) {
+      return;
+    }
+    setState(() {
+      _uploadPercent = 0;
+      _replayError = null;
+    });
+    try {
+      final id = await service.upload(widget.clip, (percent) {
+        if (mounted && percent != _uploadPercent) {
+          setState(() => _uploadPercent = percent);
+        }
+      });
+      if (mounted) setState(() => _recordingId = id);
+    } on ClassReplayException catch (error) {
+      if (mounted) setState(() => _replayError = error.message);
+    } finally {
+      if (mounted) setState(() => _uploadPercent = null);
+    }
+  }
+
+  Future<void> _publish() async {
+    final service = widget.replayService;
+    final id = _recordingId;
+    if (service == null || id == null || _publishing || _published) return;
+    setState(() {
+      _publishing = true;
+      _replayError = null;
+    });
+    try {
+      await service.publish(id);
+      if (mounted) setState(() => _published = true);
+    } on ClassReplayException catch (error) {
+      if (mounted) setState(() => _replayError = error.message);
+    } finally {
+      if (mounted) setState(() => _publishing = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,6 +90,9 @@ class _TeacherClassEndedViewState extends State<TeacherClassEndedView> {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
+          final canUpload =
+              widget.replayService != null &&
+              widget.clip.sizeBytes <= maxReplayClipBytes;
           final inset = constraints.maxWidth >= 900 ? 48.0 : 16.0;
           final wide = constraints.maxWidth - inset * 2 >= 810;
           final player = _ReplayCard(child: _buildClip(context));
@@ -50,7 +101,14 @@ class _TeacherClassEndedViewState extends State<TeacherClassEndedView> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _ReplayCard(
-                child: _ReplayStatus(sizeBytes: widget.clip.sizeBytes),
+                child: _ReplayStatus(
+                  sizeBytes: widget.clip.sizeBytes,
+                  uploadPercent: _uploadPercent,
+                  ready: _recordingId != null,
+                  error: _replayError,
+                  canUpload: canUpload,
+                  onUpload: _upload,
+                ),
               ),
               _ReplayCard(child: _buildSharingOptions(context)),
             ],
@@ -126,21 +184,26 @@ class _TeacherClassEndedViewState extends State<TeacherClassEndedView> {
           color: _green,
           icon: Icons.check,
         ),
-        Tooltip(
-          message: 'Publishing will be available once the backend is connected',
-          child: FilledButton.icon(
-            onPressed: null,
-            style: FilledButton.styleFrom(
-              disabledBackgroundColor: const Color(0xFF273430),
-              disabledForegroundColor: Colors.white70,
-              minimumSize: const Size(0, 44),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+        FilledButton.icon(
+          onPressed: _recordingId == null || _publishing || _published
+              ? null
+              : _publish,
+          style: FilledButton.styleFrom(
+            disabledBackgroundColor: const Color(0xFF273430),
+            disabledForegroundColor: Colors.white70,
+            minimumSize: const Size(0, 44),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
-            icon: const Icon(Icons.send_outlined, size: 17),
-            label: const Text('Publish Lesson & Assignment'),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+          ),
+          icon: Icon(_published ? Icons.check : Icons.send_outlined, size: 17),
+          label: Text(
+            _published
+                ? 'Published'
+                : _publishing
+                ? 'Publishing…'
+                : 'Publish replay',
           ),
         ),
       ],
@@ -224,9 +287,11 @@ class _TeacherClassEndedViewState extends State<TeacherClassEndedView> {
           onDuration: (duration) => setState(() => _duration = duration),
         ),
         const Divider(height: 1, color: _line),
-        const _ReplayHeading('Transcript & chapters'),
+        const _ReplayHeading('Transcript'),
         Text(
-          'Timestamps will appear here after the clip is uploaded and processed.',
+          _published
+              ? 'Students can watch the replay and jump to timestamps in Courses.'
+              : 'Students can use the transcript after you publish the replay.',
           style: typography.bodySmall?.copyWith(color: AppColors.mutedText),
         ),
       ],
@@ -251,14 +316,8 @@ class _TeacherClassEndedViewState extends State<TeacherClassEndedView> {
         ),
         for (var index = 0; index < _sharingOptions.length; index++)
           CheckboxListTile(
-            value: _selected.contains(index),
-            onChanged: (checked) => setState(() {
-              if (checked == true) {
-                _selected.add(index);
-              } else {
-                _selected.remove(index);
-              }
-            }),
+            value: index == 0,
+            onChanged: null,
             controlAffinity: ListTileControlAffinity.leading,
             contentPadding: EdgeInsets.zero,
             visualDensity: VisualDensity.compact,
@@ -320,47 +379,85 @@ class _TeacherClassEndedViewState extends State<TeacherClassEndedView> {
 }
 
 const _sharingOptions = [
-  ('Clip with transcript and chapters', 'Students can jump to a timestamp.'),
-  ('Homework HW 3.2 · 8 questions', 'Attach the assignment for this period.'),
-  ('Let students ask AI Tutor about the clip', ''),
-  ('Also share the clip with parents', ''),
+  ('Clip with transcript', 'Students can jump to a timestamp.'),
+  ('Homework HW 3.2 · 8 questions', 'Coming soon'),
+  ('Let students ask AI Tutor about the clip', 'Coming soon'),
+  ('Also share the clip with parents', 'Coming soon'),
 ];
 
 class _ReplayStatus extends StatelessWidget {
-  const _ReplayStatus({required this.sizeBytes});
+  const _ReplayStatus({
+    required this.sizeBytes,
+    required this.uploadPercent,
+    required this.ready,
+    required this.error,
+    required this.canUpload,
+    required this.onUpload,
+  });
 
   final int sizeBytes;
+  final int? uploadPercent;
+  final bool ready;
+  final String? error;
+  final bool canUpload;
+  final VoidCallback onUpload;
 
   @override
   Widget build(BuildContext context) {
     final typography = Theme.of(context).textTheme;
-    final size = sizeBytes >= 1024 * 1024
-        ? '${(sizeBytes / (1024 * 1024)).toStringAsFixed(1)} MB'
-        : '${(sizeBytes / 1024).ceil()} KB';
+    final size = sizeBytes >= 1000000
+        ? '${(sizeBytes / 1000000).toStringAsFixed(1)} MB'
+        : '${(sizeBytes / 1000).ceil()} KB';
+    final sending = uploadPercent != null && uploadPercent! < 100;
+    final transcribing = uploadPercent != null && !sending;
+    final fileSent = transcribing || ready;
     final steps = [
-      ('Upload clip', 'Saved on this device · $size'),
-      ('Transcribe audio', 'Waiting for upload'),
-      ('Create chapters', 'Waiting for transcript'),
-      ('Link exercises to timestamps', 'Waiting for transcript'),
-      ('Auto-edit clip', 'Coming soon'),
+      (
+        'Upload clip',
+        fileSent
+            ? 'Sent · $size'
+            : sending
+            ? '$uploadPercent% · $size'
+            : 'Saved on this device · $size',
+        fileSent,
+        sending,
+      ),
+      (
+        'Transcribe audio',
+        ready
+            ? 'Transcript ready'
+            : transcribing
+            ? 'กำลังถอดเสียง'
+            : 'Waiting for upload',
+        ready,
+        transcribing,
+      ),
+      ('Create chapters', 'Coming soon', false, false),
+      ('Link exercises to timestamps', 'Coming soon', false, false),
+      ('Auto-edit clip', 'Coming soon', false, false),
     ];
     return Column(
       spacing: 12,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const _ReplayHeading('Preparing the replay'),
-        for (var index = 0; index < steps.length; index++)
+        for (final (label, status, done, active) in steps)
           Row(
             spacing: 12,
             children: [
               CircleAvatar(
                 radius: 12,
-                backgroundColor: index == 0 ? _tint : AppColors.canvas,
-                child: Icon(
-                  index == 0 ? Icons.cloud_upload_outlined : Icons.schedule,
-                  size: 15,
-                  color: index == 0 ? _green : AppColors.mutedText,
-                ),
+                backgroundColor: done || active ? _tint : AppColors.canvas,
+                child: active
+                    ? const SizedBox.square(
+                        dimension: 12,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        done ? Icons.check : Icons.schedule,
+                        size: 15,
+                        color: done ? _green : AppColors.mutedText,
+                      ),
               ),
               Expanded(
                 child: Column(
@@ -368,11 +465,11 @@ class _ReplayStatus extends StatelessWidget {
                   spacing: 2,
                   children: [
                     Text(
-                      steps[index].$1,
+                      label,
                       style: typography.titleMedium?.copyWith(color: _ink),
                     ),
                     Text(
-                      steps[index].$2,
+                      status,
                       style: typography.bodySmall?.copyWith(
                         color: AppColors.mutedText,
                       ),
@@ -381,6 +478,21 @@ class _ReplayStatus extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        if (sizeBytes > maxReplayClipBytes)
+          const Text('Clips must be 50 MB or smaller.')
+        else if (!canUpload)
+          const Text('Connect to the replay server to upload the clip.'),
+        if (error != null)
+          Text(
+            error!,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        if (canUpload && !ready && uploadPercent == null)
+          OutlinedButton.icon(
+            onPressed: onUpload,
+            icon: const Icon(Icons.cloud_upload_outlined),
+            label: Text(error == null ? 'Upload clip' : 'Retry upload'),
           ),
       ],
     );

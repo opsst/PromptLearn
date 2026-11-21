@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../domain/services/class_recording_service.dart';
+import '../../../../domain/services/class_replay_service.dart';
 import '../../../core/layout/app_page_layout.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/teacher_class_preview.dart';
@@ -74,10 +75,12 @@ class TeacherClassSetupView extends StatefulWidget {
     required this.onBack,
     required this.recordingService,
     required this.onNavigationLockChanged,
+    this.replayService,
   });
 
   final VoidCallback onBack;
   final ClassRecordingService recordingService;
+  final ClassReplayService? replayService;
   final ValueChanged<bool> onNavigationLockChanged;
 
   @override
@@ -322,6 +325,7 @@ class _TeacherClassSetupViewState extends State<TeacherClassSetupView> {
       return TeacherClassEndedView(
         key: ValueKey(clip.path),
         clip: clip,
+        replayService: widget.replayService,
         notice: _reviewNotice,
         onBack: widget.onBack,
       );

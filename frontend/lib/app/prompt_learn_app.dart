@@ -8,6 +8,7 @@ import '../domain/models/user_role.dart';
 import '../domain/repositories/homework_checker.dart';
 import '../domain/repositories/role_repository.dart';
 import '../domain/services/class_recording_service.dart';
+import '../domain/services/class_replay_service.dart';
 import '../ui/core/layout/app_navigation.dart';
 import '../ui/core/layout/app_page_layout.dart';
 import '../ui/core/theme/app_theme.dart';
@@ -27,11 +28,13 @@ class PromptLearnApp extends StatelessWidget {
     required this.roleRepository,
     this.homeworkChecker = const MockHomeworkChecker(),
     this.classRecording = const AndroidClassRecordingService(),
+    this.classReplay,
   });
 
   final RoleRepository roleRepository;
   final HomeworkChecker homeworkChecker;
   final ClassRecordingService classRecording;
+  final ClassReplayService? classReplay;
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +51,7 @@ class PromptLearnApp extends StatelessWidget {
           repository: roleRepository,
           homeworkChecker: homeworkChecker,
           classRecording: classRecording,
+          classReplay: classReplay,
         ),
       ),
     );
@@ -59,11 +63,13 @@ class _RoleGate extends StatefulWidget {
     required this.repository,
     required this.homeworkChecker,
     required this.classRecording,
+    required this.classReplay,
   });
 
   final RoleRepository repository;
   final HomeworkChecker homeworkChecker;
   final ClassRecordingService classRecording;
+  final ClassReplayService? classReplay;
 
   @override
   State<_RoleGate> createState() => _RoleGateState();
@@ -133,6 +139,7 @@ class _RoleGateState extends State<_RoleGate> {
       role: role,
       homeworkChecker: widget.homeworkChecker,
       classRecording: widget.classRecording,
+      classReplay: widget.classReplay,
       onSwitchRole: () => _changeRole(null),
     );
   }
@@ -144,11 +151,13 @@ class _PromptLearnShell extends StatefulWidget {
     required this.homeworkChecker,
     required this.onSwitchRole,
     required this.classRecording,
+    required this.classReplay,
   });
 
   final UserRole role;
   final HomeworkChecker homeworkChecker;
   final ClassRecordingService classRecording;
+  final ClassReplayService? classReplay;
   final VoidCallback onSwitchRole;
 
   @override
@@ -246,6 +255,7 @@ class _PromptLearnShellState extends State<_PromptLearnShell> {
                 UserRole.teacher => TeacherClassSetupView(
                   onBack: _closeHomeDetail,
                   recordingService: widget.classRecording,
+                  replayService: widget.classReplay,
                   onNavigationLockChanged: (locked) => _classLocked = locked,
                 ),
                 UserRole.student => StudentHomeworkView(
